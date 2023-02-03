@@ -1,4 +1,5 @@
 ﻿using Infrastructure.Identity;
+using MediatR;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -12,9 +13,10 @@ namespace Infrastructure.Persistence
 {
     public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
+        private readonly IMediator _mediator;
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, IMediator mediator) : base(options)
         {
-
+            _mediator = mediator;
         }
 
         protected override void OnModelCreating(ModelBuilder builder)
@@ -22,6 +24,13 @@ namespace Infrastructure.Persistence
             builder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
 
             base.OnModelCreating(builder);
+        }
+
+        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            await _mediator.DispatchDomainEvents(this);
+
+            return await base.SaveChangesAsync(cancellationToken);
         }
     }
 }

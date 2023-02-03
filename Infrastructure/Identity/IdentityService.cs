@@ -14,6 +14,8 @@ using Infrastructure.Common;
 using Microsoft.Extensions.Configuration;
 using System.Security.Authentication;
 using Application.Common.Exceptions;
+using Domain.Events;
+using MediatR;
 
 namespace Infrastructure.Identity
 {
@@ -25,6 +27,7 @@ namespace Infrastructure.Identity
         private readonly IAuthorizationService _authorizationService;
         private readonly IConfiguration _config;
         private readonly IDateTime _dateTime;
+        private readonly IMediator _mediator;
 
         public IdentityService(
             UserManager<ApplicationUser> userManager,
@@ -32,7 +35,8 @@ namespace Infrastructure.Identity
             IUserClaimsPrincipalFactory<ApplicationUser> userClaimsPrincipalFactory,
             IAuthorizationService authorizationService,
             IConfiguration config,
-            IDateTime dateTime)
+            IDateTime dateTime,
+            IMediator mediator)
         {
             _userManager = userManager;
             _roleManager = roleManager;
@@ -40,6 +44,7 @@ namespace Infrastructure.Identity
             _authorizationService = authorizationService;
             _config = config;
             _dateTime = dateTime;
+            _mediator = mediator;
         }
 
         public async Task<string> GetUserNameAsync(string userId)
@@ -68,6 +73,8 @@ namespace Infrastructure.Identity
             };
 
             var result = await _userManager.CreateAsync(user, password);
+
+            await _mediator.Publish(new UserCreatedEvent(userName));
 
             return result.Succeeded;
         }
