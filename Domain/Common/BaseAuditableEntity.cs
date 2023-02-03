@@ -2,12 +2,12 @@
 {
     public abstract class BaseAuditableEntity : BaseEntity
     {
-        public DateTime Created { get; set; }
+        public DateTime Created { get; private set; }
 
-        public string? CreatedBy { get; set; }
+        public string? CreatedBy { get; private set; }
 
-        public DateTime? LastModified { get; set; }
+        public DateTime? LastModified { get; private set; }
 
-        public string? LastModifiedBy { get; set; }
+        public string? LastModifiedBy { get; private set; }
     }
 }

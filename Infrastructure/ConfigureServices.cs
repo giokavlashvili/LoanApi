@@ -1,4 +1,5 @@
 ﻿using Application.Common.Interfaces;
+using Domain.Common.Interfaces;
 using Infrastructure.Identity;
 using Infrastructure.Persistence;
 using Infrastructure.Services;
@@ -48,6 +49,7 @@ namespace Infrastructure
             .AddDefaultTokenProviders();
 
             services.AddTransient<IDateTime, DateTimeService>();
+            services.AddTransient<IUserService, IdentityService>();
             services.AddTransient<IIdentityService, IdentityService>();
 
             // Adding Authentication

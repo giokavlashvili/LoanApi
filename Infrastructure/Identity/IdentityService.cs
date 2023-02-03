@@ -16,6 +16,8 @@ using System.Security.Authentication;
 using Application.Common.Exceptions;
 using Domain.Events;
 using MediatR;
+using Domain.Common.Interfaces;
+using Domain.Common.Models;
 
 namespace Infrastructure.Identity
 {
@@ -102,18 +104,18 @@ namespace Infrastructure.Identity
             return result.Succeeded;
         }
 
-        public async Task<Result> DeleteUserAsync(string userId)
+        public async Task<bool> DeleteUserAsync(string userId)
         {
             var user = _userManager.Users.SingleOrDefault(u => u.Id == userId);
 
-            return user != null ? await DeleteUserAsync(user) : Result.Success();
+            return await DeleteUserAsync(user);
         }
 
-        public async Task<Result> DeleteUserAsync(ApplicationUser user)
+        private async Task<bool> DeleteUserAsync(ApplicationUser user)
         {
             var result = await _userManager.DeleteAsync(user);
 
-            return result.ToApplicationResult();
+            return result.Succeeded;
         }
 
         public async Task<(string token, DateTime validTo)> AuthenticateAsync(string usernName, string password)
@@ -154,6 +156,24 @@ namespace Infrastructure.Identity
                 );
 
             return token;
+        }
+
+        public async Task<User?> GetUserByIdAsync(string userId)
+        {
+            var user = await _userManager.Users.SingleOrDefaultAsync(u => u.Id == userId);
+
+            if (user == null)
+                return await Task.FromResult<User?>(null);
+            else
+                return new User()
+                {
+                    Id = user.Id,
+                    BirthDate= user.BirthDate,
+                    FirstName= user.FirstName,
+                    LastName= user.LastName,
+                    PersonalNumber= user.PersonalNumber,
+                    UserName = user.UserName
+                };
         }
     }
 }

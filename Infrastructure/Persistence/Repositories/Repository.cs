@@ -1,5 +1,6 @@
 ﻿using Domain.Common;
 using Domain.Repositories;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,44 +13,132 @@ namespace Infrastructure.Persistence.Repositories
     public class Repository<TEntity> : IRepository<TEntity> where TEntity : BaseEntity
     {
         private readonly ApplicationDbContext _context;
+        private readonly DbSet<TEntity> dbSet;
         public Repository(ApplicationDbContext context)
         {
             _context = context;
+            this.dbSet = _context.Set<TEntity>();
         }
 
-        public void Add(TEntity entity)
+        public virtual void Add(TEntity entity)
         {
-            _context.Add(entity);
+            dbSet.Add(entity);
         }
 
-        public void AddRange(IEnumerable<TEntity> entities)
+        public virtual async Task AddAsync(TEntity entity, CancellationToken cancellationToken = default)
         {
-            _context.AddRange(entities);
+            await dbSet.AddAsync(entity, cancellationToken);
         }
 
-        public IEnumerable<TEntity> Find(Expression<Func<TEntity, bool>> predicate)
+        public virtual void AddRange(IEnumerable<TEntity> entities)
         {
-            return _context.Set<TEntity>().Where(predicate).ToList();
+            dbSet.AddRange(entities);
         }
 
-        public TEntity GetById(int id)
+        public virtual async Task AddRangeAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default)
         {
-            return _context.Set<TEntity>().Find(id);
+            await dbSet.AddRangeAsync(entities, cancellationToken);
         }
 
-        public IEnumerable<TEntity> GetAll()
+        public virtual TEntity? GetById(int id)
         {
-            return _context.Set<TEntity>().ToList();
+            return dbSet.Find(id);
         }
 
-        public void Remove(TEntity entity)
+        public virtual async Task<TEntity?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            _context.Set<TEntity>().Remove(entity);
+            return await dbSet.FindAsync(id, cancellationToken);
         }
 
-        public void RemoveRange(IEnumerable<TEntity> entities)
+        public virtual IEnumerable<TEntity> Get(
+            Expression<Func<TEntity, bool>>? filter = null,
+            Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
+            string includeProperties = "")
         {
-            _context.Set<TEntity>().RemoveRange(entities);
+            IQueryable<TEntity> query = dbSet;
+
+            if (filter != null)
+            {
+                query = query.Where(filter);
+            }
+
+            foreach (var includeProperty in includeProperties.Split
+                (new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                query = query.Include(includeProperty);
+            }
+
+            if (orderBy != null)
+            {
+                return orderBy(query).ToList();
+            }
+            else
+            {
+                return query.ToList();
+            }
+        }
+
+        public virtual async Task<IEnumerable<TEntity>> GetAsync(
+            Expression<Func<TEntity, bool>>? filter = null,
+            Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
+            string includeProperties = "",
+            CancellationToken cancellationToken = default)
+        {
+            IQueryable<TEntity> query = dbSet;
+
+            if (filter != null)
+            {
+                query = query.Where(filter);
+            }
+
+            foreach (var includeProperty in includeProperties.Split
+                (new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                query = query.Include(includeProperty);
+            }
+
+            if (orderBy != null)
+            {
+                return await orderBy(query).ToListAsync(cancellationToken);
+            }
+            else
+            {
+                return await query.ToListAsync(cancellationToken);
+            }
+        }
+
+        public virtual IEnumerable<TEntity> GetAll()
+        {
+            return dbSet.ToList();
+        }
+
+        public virtual async Task<IEnumerable<TEntity>> GetAllAsync()
+        {
+            return await dbSet.ToListAsync();
+        }
+
+        public virtual void Remove(TEntity entity)
+        {
+            if (_context.Entry(entity).State == EntityState.Detached)
+            {
+                dbSet.Attach(entity);
+            }
+            dbSet.Remove(entity);
+        }
+
+        public virtual void RemoveRange(IEnumerable<TEntity> entities)
+        {
+            dbSet.RemoveRange(entities);
+        }
+
+        public virtual void Update(TEntity entityToUpdate)
+        {
+            dbSet.Update(entityToUpdate);
+        }
+
+        public virtual void UpdateRange(IEnumerable<TEntity> entities)
+        {
+            dbSet.UpdateRange(entities);
         }
     }
 }
