@@ -51,7 +51,7 @@ namespace Infrastructure.Identity
 
         public async Task<bool> UserExistsAsync(string userName)
         {
-            var user = await _userManager.Users.FirstAsync(u => u.UserName == userName);
+            var user = await _userManager.Users.FirstOrDefaultAsync(u => u.UserName == userName);
 
             return user == null? false:true;
         }
@@ -61,7 +61,6 @@ namespace Infrastructure.Identity
             var user = new ApplicationUser
             {
                 UserName = userName,
-                Email = userName,
                 BirthDate= birthDate,
                 FirstName= firstName,
                 LastName= lastName,

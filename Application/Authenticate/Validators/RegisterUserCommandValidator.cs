@@ -21,7 +21,7 @@ namespace Application.Authenticate.Validators
             RuleFor(u => u.UserName)
                 .NotEmpty().WithMessage("User name is required")
                 .MaximumLength(200).WithMessage("User name must not exceed 100 characters.")
-                .MustAsync(UserExistsAsync).WithMessage("User already exists, choose different user name"); ;
+                .Must(UserExists).WithMessage("User already exists, choose different user name"); ;
 
             RuleFor(v => v.FirstName)
                 .NotEmpty().NotNull().WithMessage("First name is required");
@@ -42,7 +42,7 @@ namespace Application.Authenticate.Validators
                 .NotEmpty().NotNull().WithMessage("Confirm Password is required");
 
             RuleFor(v => v)
-                .MustAsync(PasswordMatch).WithMessage("Passwords does not match");
+                .Must(PasswordMatch).WithMessage("Passwords does not match");
 
             RuleFor(v => v.PersonalNumber)
                 .MaximumLength(11).WithMessage("only 11 simbols are allowed")
@@ -50,13 +50,13 @@ namespace Application.Authenticate.Validators
                 .NotEmpty().NotNull().WithMessage("Personal number is required");
         }
 
-        private async Task<bool> PasswordMatch(RegisterUserCommand command, CancellationToken token)
+        private bool PasswordMatch(RegisterUserCommand command)
         {
-            return await Task.FromResult(command.Password == command.ConfirmPassword);
+            return command.Password == command.ConfirmPassword;
         }
-        public async Task<bool> UserExistsAsync(string userName, CancellationToken cancellationToken)
+        public bool UserExists(string userName)
         {
-            return !await _identityService.UserExistsAsync(userName);
+            return !_identityService.UserExistsAsync(userName).GetAwaiter().GetResult();
         }
     }
 }

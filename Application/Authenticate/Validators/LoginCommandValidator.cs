@@ -26,10 +26,5 @@ namespace Application.Authenticate.Validators
                 .NotEmpty().WithMessage("Password is required")
                 .MaximumLength(200).WithMessage("Password must not exceed 100 characters.");
         }
-
-        public async Task<bool> UserExistsAsync(string userName, CancellationToken cancellationToken)
-        {
-            return await _identityService.UserExistsAsync(userName);
-        }
     }
 }
