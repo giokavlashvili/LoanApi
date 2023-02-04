@@ -27,7 +27,7 @@ namespace Infrastructure.Persistence.Repositories
 
         public virtual async Task AddAsync(TEntity entity, CancellationToken cancellationToken = default)
         {
-            await dbSet.AddAsync(entity, cancellationToken);
+            var result = await dbSet.AddAsync(entity, cancellationToken);
         }
 
         public virtual void AddRange(IEnumerable<TEntity> entities)

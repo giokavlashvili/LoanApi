@@ -1,7 +1,9 @@
 ﻿using Application.Common.Interfaces;
 using Domain.Common.Interfaces;
+using Domain.Repositories;
 using Infrastructure.Identity;
 using Infrastructure.Persistence;
+using Infrastructure.Persistence.Repositories;
 using Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -51,6 +53,8 @@ namespace Infrastructure
             services.AddTransient<IDateTime, DateTimeService>();
             services.AddTransient<IUserService, IdentityService>();
             services.AddTransient<IIdentityService, IdentityService>();
+
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             // Adding Authentication
             services.AddAuthentication(options =>

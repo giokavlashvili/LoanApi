@@ -130,6 +130,7 @@ namespace Infrastructure.Identity
             var authClaims = new List<Claim>
             {
                 new Claim(ClaimTypes.Name, usernName),
+                new Claim(ClaimTypes.NameIdentifier, user.Id),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             };
 

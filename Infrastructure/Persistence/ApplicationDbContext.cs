@@ -37,5 +37,12 @@ namespace Infrastructure.Persistence
 
             return await base.SaveChangesAsync(cancellationToken);
         }
+
+        public override int SaveChanges()
+        {
+            _mediator.DispatchDomainEvents(this).GetAwaiter().GetResult();
+
+            return base.SaveChanges();
+        }
     }
 }

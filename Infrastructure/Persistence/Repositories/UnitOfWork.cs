@@ -12,10 +12,21 @@ namespace Infrastructure.Persistence.Repositories
         private bool disposed = false;
         private readonly ApplicationDbContext _context;
 
-        public UnitOfWork(ApplicationDbContext context)
+        public UnitOfWork(
+            ApplicationDbContext context, 
+            ICurrencyRepository? currencyRepository = null,
+            ILoanTypeRepository? loanTypeRepository = null,
+            ILoanApplicationRepository? loanApplicationRepository = null)
         {
             _context = context;
+            CurrencyRepository = currencyRepository ?? new CurrencyRepository(_context);
+            LoanTypeRepository = loanTypeRepository ?? new LoanTypeRepository(_context);
+            LoanApplicationRepository = loanApplicationRepository ?? new LoanApplicationRepository(_context);
         }
+
+        public ICurrencyRepository CurrencyRepository { get; private set; }
+        public ILoanTypeRepository LoanTypeRepository { get; private set; }
+        public ILoanApplicationRepository LoanApplicationRepository { get; private set; }
 
         protected virtual void Dispose(bool disposing)
         {
@@ -38,6 +49,11 @@ namespace Infrastructure.Persistence.Repositories
         public int Save()
         {
             return _context.SaveChanges();
+        }
+
+        public async Task<int> SaveAsync(CancellationToken cancellationToken = default)
+        {
+            return await _context.SaveChangesAsync(cancellationToken);
         }
     }
 }

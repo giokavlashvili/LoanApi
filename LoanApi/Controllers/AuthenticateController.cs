@@ -1,6 +1,8 @@
 ﻿using Application.Authenticate.Commands;
 using Application.Authenticate.Dtos;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace LoanApi.Controllers
 {
@@ -10,16 +12,10 @@ namespace LoanApi.Controllers
     {
         [HttpPost]
         [Route(nameof(Login))]
-        public async Task<ActionResult<LoginDto>> Login(LoginCommand query)
-        {
-            return await Mediator.Send(query);
-        }
+        public async Task<ActionResult<LoginDto>> Login(LoginCommand command) => await Mediator.Send(command);
 
         [HttpPost]
         [Route(nameof(RegisterUser))]
-        public async Task<ActionResult<bool>> RegisterUser(RegisterUserCommand query)
-        {
-            return await Mediator.Send(query);
-        }
+        public async Task<ActionResult<bool>> RegisterUser(RegisterUserCommand command) => await Mediator.Send(command);
     }
 }
