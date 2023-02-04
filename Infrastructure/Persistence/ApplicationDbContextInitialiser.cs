@@ -1,4 +1,5 @@
-﻿using Infrastructure.Identity;
+﻿using Domain.Entities;
+using Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -72,7 +73,33 @@ namespace Infrastructure.Persistence
             if (_userManager.Users.All(u => u.UserName != administrator.UserName))
             {
                 await _userManager.CreateAsync(administrator, "Administrator1!");
-                await _userManager.AddToRolesAsync(administrator, new[] { administratorRole.Name });
+                await _userManager.AddToRolesAsync(administrator, new List<string> { administratorRole.Name });
+            }
+
+            // Default data
+            // Seed, if necessary
+            if (!_context.LoanTypes.Any())
+            {
+                _context.LoanTypes.AddRange(new List<LoanType>
+                {
+                    LoanType.Create("Fast"),
+                    LoanType.Create("Auto"),
+                    LoanType.Create("Installment")
+                });
+
+                await _context.SaveChangesAsync();
+            }
+
+            if (!_context.Currencies.Any())
+            {
+                _context.Currencies.AddRange(new List<Currency>
+                {
+                    Currency.Create("GEL"),
+                    Currency.Create("USD"),
+                    Currency.Create("EUR")
+                });
+
+                await _context.SaveChangesAsync();
             }
         }
     }

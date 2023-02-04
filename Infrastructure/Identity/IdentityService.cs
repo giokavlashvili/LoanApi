@@ -49,11 +49,11 @@ namespace Infrastructure.Identity
             _mediator = mediator;
         }
 
-        public async Task<string> GetUserNameAsync(string userId)
+        public async Task<string?> GetUserNameAsync(string userId)
         {
             var user = await _userManager.Users.FirstAsync(u => u.Id == userId);
 
-            return user.UserName;
+            return user?.UserName;
         }
 
         public async Task<bool> UserExistsAsync(string userName)
@@ -108,7 +108,7 @@ namespace Infrastructure.Identity
         {
             var user = _userManager.Users.SingleOrDefault(u => u.Id == userId);
 
-            return await DeleteUserAsync(user);
+            return user == null ? false : await DeleteUserAsync(user);
         }
 
         private async Task<bool> DeleteUserAsync(ApplicationUser user)
@@ -122,7 +122,7 @@ namespace Infrastructure.Identity
         {
             var user = await _userManager.FindByNameAsync(usernName);
 
-            if (user == null && !await _userManager.CheckPasswordAsync(user, password))
+            if (user == null || !await _userManager.CheckPasswordAsync(user, password))
                 throw new NotFoundException("User not found");
 
             var userRoles = await _userManager.GetRolesAsync(user);

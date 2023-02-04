@@ -13,15 +13,15 @@ namespace Infrastructure.Persistence.Configurations
     {
         public void Configure(EntityTypeBuilder<ApplicationUser> builder)
         {
-            builder.Property(t => t.FirstName)
+            builder.Property(u => u.FirstName)
                 .HasMaxLength(100)
                 .IsRequired();
 
-            builder.Property(t => t.LastName)
+            builder.Property(u => u.LastName)
                 .HasMaxLength(100)
                 .IsRequired();
 
-            builder.Property(t => t.PersonalNumber)
+            builder.Property(u => u.PersonalNumber)
                 .HasMaxLength(11)
                 .IsRequired();
         }

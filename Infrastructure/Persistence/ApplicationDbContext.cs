@@ -1,4 +1,5 @@
-﻿using Infrastructure.Identity;
+﻿using Domain.Entities;
+using Infrastructure.Identity;
 using MediatR;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -18,6 +19,10 @@ namespace Infrastructure.Persistence
         {
             _mediator = mediator;
         }
+
+        public DbSet<LoanApplication> LoanApplications { get; set; }
+        public DbSet<LoanType> LoanTypes { get; set; }
+        public DbSet<Currency> Currencies { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

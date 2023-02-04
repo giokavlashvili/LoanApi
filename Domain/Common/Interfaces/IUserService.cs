@@ -6,7 +6,7 @@ namespace Domain.Common.Interfaces
     {
         Task<User?> GetUserByIdAsync(string id);
 
-        Task<string> GetUserNameAsync(string userId);
+        Task<string?> GetUserNameAsync(string userId);
 
         Task<bool> IsInRoleAsync(string userId, string role);
     }
