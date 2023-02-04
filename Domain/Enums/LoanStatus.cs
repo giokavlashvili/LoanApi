@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 
 namespace Domain.Enums
 {
-    [JsonConverter(typeof(StringEnumConverter))]
     public enum LoanStatus
     {
         Sent = 0,

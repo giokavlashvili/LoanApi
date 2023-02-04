@@ -1,9 +1,11 @@
 ﻿using Application.Currencies.Dtos;
 using Application.Currencies.Queries;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LoanApi.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/v1/[controller]")]
     public class CurrencyController : ApiControllerBase
