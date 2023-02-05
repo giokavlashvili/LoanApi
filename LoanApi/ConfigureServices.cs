@@ -15,7 +15,7 @@ namespace LoanApi
         public static void AddNlog(this WebApplicationBuilder builder)
         {
             //set nlog connection string
-            //GlobalDiagnosticsContext.Set("ConnectionString", builder.Configuration.GetConnectionString("DefaultConnection"));
+            GlobalDiagnosticsContext.Set("ConnectionString", builder.Configuration.GetConnectionString("DefaultConnection"));
 
             builder.Logging.ClearProviders();
             builder.Host.UseNLog();
