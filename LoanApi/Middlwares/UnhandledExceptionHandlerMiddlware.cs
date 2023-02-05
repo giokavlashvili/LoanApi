@@ -29,7 +29,7 @@ namespace LoanApi.Middlwares
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "LoanOrigination Request: Unhandled Exception for Request {Name}", context.Request?.Path.Value);
+                _logger.LogError(ex, "LoanApi Request: Unhandled Exception for Request {Name}", context.Request?.Path.Value);
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
                 context.Response.ContentType = "application/json";
                 var result = new ProblemDetails { 

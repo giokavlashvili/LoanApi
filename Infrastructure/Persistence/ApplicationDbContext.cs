@@ -20,6 +20,7 @@ namespace Infrastructure.Persistence
             _mediator = mediator;
         }
 
+        public DbSet<Log> Logs { get; set; }
         public DbSet<LoanApplication> LoanApplications { get; set; }
         public DbSet<LoanType> LoanTypes { get; set; }
         public DbSet<Currency> Currencies { get; set; }

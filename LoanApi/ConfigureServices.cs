@@ -1,6 +1,9 @@
 ﻿using Application.Common.Interfaces;
 using FluentValidation.AspNetCore;
 using Microsoft.OpenApi.Models;
+using NLog.Web;
+using NLog;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using WebUI.Filters;
 using WebUI.Services;
@@ -9,6 +12,15 @@ namespace LoanApi
 {
     public static class ConfigureServices
     {
+        public static void AddNlog(this WebApplicationBuilder builder)
+        {
+            //set nlog connection string
+            //GlobalDiagnosticsContext.Set("ConnectionString", builder.Configuration.GetConnectionString("DefaultConnection"));
+
+            builder.Logging.ClearProviders();
+            builder.Host.UseNLog();
+        }
+
         public static IServiceCollection AddWebUIServices(this IServiceCollection services)
         {
             services.AddDatabaseDeveloperPageExceptionFilter();
