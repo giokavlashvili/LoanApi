@@ -1,6 +1,7 @@
 ﻿using Application.Common.Interfaces;
 using FluentValidation.AspNetCore;
 using Microsoft.OpenApi.Models;
+using System.Text.Json.Serialization;
 using WebUI.Filters;
 using WebUI.Services;
 
@@ -14,7 +15,13 @@ namespace LoanApi
             services.AddSingleton<ICurrentUserService, CurrentUserService>();
             services.AddHttpContextAccessor();
 
-            services.AddControllers(options => options.Filters.Add<ApiExceptionFilterAttribute>());
+            services.AddControllers(options => options.Filters.Add<ApiExceptionFilterAttribute>())
+                .AddJsonOptions(x =>
+                {
+                    // serialize enums as strings in api responses
+                    x.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+                });
+
 
             services.AddFluentValidationAutoValidation();
 
@@ -50,7 +57,7 @@ namespace LoanApi
                                 Id = "Bearer"
                             }
                         },
-                        new string[] {}
+                        new string[] {"bearer {AccessToken}"}
                     }
                 });
             });

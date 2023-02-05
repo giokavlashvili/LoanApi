@@ -15,6 +15,7 @@ namespace Application.LoanApplications.Dtos
 {
     public class LoanApplicationDto : IMapFrom<LoanApplication>
     {
+        public int Id { get; set; }
         public decimal Amount { get; private set; }
         public int PeriodPerMonth { get; private set; }
         public LoanStatus Status { get; private set; }

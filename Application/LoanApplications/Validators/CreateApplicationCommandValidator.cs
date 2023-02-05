@@ -20,7 +20,7 @@ namespace Application.LoanApplications.Validators
 
             RuleFor(a => a.PeriodPerMonth).GreaterThan(0).WithMessage("Period should be greater than 0");
 
-            //RuleFor(a => a.Amount).GreaterThan(0).WithMessage("Amount should be greater than 0");
+            RuleFor(a => a.Amount).GreaterThan(0).WithMessage("Amount should be greater than 0");
 
             RuleFor(a => a.CurrencyId).Must(CurrencyExists).WithMessage("Invalid currency");
 

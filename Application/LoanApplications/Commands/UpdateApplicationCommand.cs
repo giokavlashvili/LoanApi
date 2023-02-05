@@ -1,52 +1,51 @@
 ﻿using Application.Common.Interfaces;
-using Domain.Entities;
-using Domain.Enums;
-using Domain.Events;
 using Domain.Repositories;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+#pragma warning disable CS8604 // Possible null reference argument.
 
 namespace Application.LoanApplications.Commands
 {
-    public record CreateApplicationCommand : IRequest<int>
+    public record UpdateApplicationCommand : IRequest
     {
+        public int Id { get; set; }
         public int LoanTypeId { get; set; }
         public decimal Amount { get; set; }
         public int CurrencyId { get; set; }
         public int PeriodPerMonth { get; set; }
     }
 
-    public class CreateApplicationCommandhandler : IRequestHandler<CreateApplicationCommand, int>
+    public class UpdateApplicationCommandHandler : IRequestHandler<UpdateApplicationCommand>
     {
         private readonly ICurrentUserService _currentUserService;
         private readonly IDateTime _dateTime;
         private readonly IUnitOfWork _uow;
-        public CreateApplicationCommandhandler(ICurrentUserService currentUserService, IDateTime dateTime, IUnitOfWork uow)
+
+        public UpdateApplicationCommandHandler(ICurrentUserService currentUserService, IDateTime dateTime, IUnitOfWork uow)
         {
             _currentUserService = currentUserService;
             _dateTime = dateTime;
             _uow = uow;
         }
 
-        public async Task<int> Handle(CreateApplicationCommand request, CancellationToken cancellationToken)
+        public async Task<Unit> Handle(UpdateApplicationCommand request, CancellationToken cancellationToken)
         {
-            var currentUserId = _currentUserService.UserId;
-            var entity = LoanApplication.Create(
+            var entity = await _uow.LoanApplicationRepository.GetByIdAsync(request.Id);
+
+            entity.Update(
                 request.LoanTypeId, 
                 request.Amount, 
                 request.CurrencyId, 
                 request.PeriodPerMonth,
-                currentUserId,
+                _currentUserService.UserId, 
                 _dateTime.Now);
 
-            await _uow.LoanApplicationRepository.AddAsync(entity);
+            _uow.LoanApplicationRepository.Update(entity);
+
             await _uow.SaveAsync();
 
-            return entity.Id;
+            return Unit.Value;
         }
     }
 }
