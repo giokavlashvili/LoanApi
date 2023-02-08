@@ -78,6 +78,14 @@ namespace Infrastructure
                 };
             });
 
+            services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAllCorsPolicy",
+                    builder => builder.AllowAnyOrigin()
+                        .AllowAnyMethod()
+                        .AllowAnyHeader());
+            });
+
             return services;
         }
     }

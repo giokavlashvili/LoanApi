@@ -33,6 +33,8 @@ try
             await initialiser.InitialiseAsync();
             await initialiser.SeedAsync();
         }
+
+        app.UseCors("AllowAllCorsPolicy");
     }
     else
     {
