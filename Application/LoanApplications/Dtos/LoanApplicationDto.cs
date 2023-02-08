@@ -1,16 +1,7 @@
 ﻿using Application.Common.Mappings;
-using Application.Currencies.Dtos;
-using Application.LoanTypes.Dtos;
 using AutoMapper;
 using Domain.Entities;
 using Domain.Enums;
-using Microsoft.VisualBasic;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Application.LoanApplications.Dtos
 {
