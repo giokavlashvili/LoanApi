@@ -26,6 +26,7 @@ namespace LoanApi.Middlwares
             {
                 await _next(context);
             }
+            // Log unhandled exceptions and modify response to avoid sensitive data exposure
             catch (Exception ex)
             {
                 _logger.LogError(ex, "LoanApi Request: Unhandled Exception for Request {Name}", context.Request?.Path.Value);

@@ -3,6 +3,8 @@ using Domain.Entities;
 using Domain.Repositories;
 using MediatR;
 
+#pragma warning disable CS8604 // Possible null reference argument.
+
 namespace Application.LoanApplications.Commands
 {
     public record CreateApplicationCommand : IRequest<int>
@@ -28,6 +30,7 @@ namespace Application.LoanApplications.Commands
         public async Task<int> Handle(CreateApplicationCommand request, CancellationToken cancellationToken)
         {
             var currentUserId = _currentUserService.UserId;
+
             var entity = LoanApplication.Create(
                 request.LoanTypeId, 
                 request.Amount, 
@@ -37,6 +40,7 @@ namespace Application.LoanApplications.Commands
                 _dateTime.Now);
 
             await _uow.LoanApplicationRepository.AddAsync(entity);
+
             await _uow.SaveAsync();
 
             return entity.Id;

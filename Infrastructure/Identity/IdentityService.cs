@@ -12,6 +12,8 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
+#pragma warning disable CS8604 // Possible null reference argument.
+
 namespace Infrastructure.Identity
 {
     public class IdentityService : IIdentityService

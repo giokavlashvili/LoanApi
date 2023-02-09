@@ -22,19 +22,19 @@ namespace Application.LoanApplications.Dtos
                 .ForMember(m => m.Currency, o => o.MapFrom<CurrencyNameResolver>());
         }
 
-        private class LoanTypeNameResolver : IValueResolver<LoanApplication, LoanApplicationDto, string>
+        private class LoanTypeNameResolver : IValueResolver<LoanApplication, LoanApplicationDto, string?>
         {
-            public string Resolve(LoanApplication source, LoanApplicationDto destination, string destMember, ResolutionContext context)
+            public string Resolve(LoanApplication source, LoanApplicationDto destination, string? destMember, ResolutionContext context)
             {
-                return source.LoanType.Name;
+                return source.LoanType != null && source.LoanType.Name != null ? source.LoanType.Name : "";
             }
         }
 
-        private class CurrencyNameResolver : IValueResolver<LoanApplication, LoanApplicationDto, string>
+        private class CurrencyNameResolver : IValueResolver<LoanApplication, LoanApplicationDto, string?>
         {
-            public string Resolve(LoanApplication source, LoanApplicationDto destination, string destMember, ResolutionContext context)
+            public string Resolve(LoanApplication source, LoanApplicationDto destination, string? destMember, ResolutionContext context)
             {
-                return source.Currency.Name;
+                return source.Currency != null && source.Currency.Name != null ? source.Currency.Name : "";
             }
         }
     }

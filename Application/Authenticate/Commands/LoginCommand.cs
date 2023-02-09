@@ -2,6 +2,8 @@
 using Application.Common.Interfaces;
 using MediatR;
 
+#pragma warning disable CS8604 // Possible null reference argument.
+
 namespace Application.Authenticate.Commands
 {
     public class LoginCommand : IRequest<LoginDto>
@@ -22,11 +24,13 @@ namespace Application.Authenticate.Commands
         public async Task<LoginDto> Handle(LoginCommand request, CancellationToken cancellationToken)
         {
             var result = await _identityService.AuthenticateAsync(request.UserName, request.Password);
+
             var resultDto = new LoginDto()
             {
                 AccessToken = result.token,
                 ValidTo = result.validTo
             };
+
             return resultDto;
         }
     }

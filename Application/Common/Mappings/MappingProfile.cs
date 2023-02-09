@@ -1,6 +1,8 @@
 using AutoMapper;
 using System.Reflection;
 
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+
 namespace Application.Common.Mappings
 {
     public class MappingProfile : Profile
@@ -25,7 +27,6 @@ namespace Application.Common.Mappings
                     ?? type.GetInterface("IMapFrom`1").GetMethod("Mapping");
 
                 methodInfo?.Invoke(instance, new object[] { this });
-
             }
         }
     }

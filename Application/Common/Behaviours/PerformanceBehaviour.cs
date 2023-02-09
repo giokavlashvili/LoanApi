@@ -34,6 +34,7 @@ namespace Application.Common.Behaviours
 
             var elapsedMilliseconds = _timer.ElapsedMilliseconds;
 
+            // Log long running actions
             if (elapsedMilliseconds > 500)
             {
                 var requestName = typeof(TRequest).Name;

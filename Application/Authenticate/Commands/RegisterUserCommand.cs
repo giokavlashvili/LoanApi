@@ -1,6 +1,8 @@
 ﻿using Application.Common.Interfaces;
 using MediatR;
 
+#pragma warning disable CS8604 // Possible null reference argument.
+
 namespace Application.Authenticate.Commands
 {
     public class RegisterUserCommand : IRequest<bool>

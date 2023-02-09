@@ -13,6 +13,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
+#pragma warning disable CS8604 // Possible null reference argument.
+
 namespace Infrastructure
 {
     public static class ConfigureServices

@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
+#pragma warning disable CS8604 // Possible null reference argument.
+
 namespace Infrastructure.Persistence
 {
     public class ApplicationDbContextInitialiser
