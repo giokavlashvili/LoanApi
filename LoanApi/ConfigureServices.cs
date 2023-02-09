@@ -1,9 +1,8 @@
 ﻿using Application.Common.Interfaces;
 using FluentValidation.AspNetCore;
 using Microsoft.OpenApi.Models;
-using NLog.Web;
 using NLog;
-using System.Runtime.CompilerServices;
+using NLog.Web;
 using System.Text.Json.Serialization;
 using WebUI.Filters;
 using WebUI.Services;

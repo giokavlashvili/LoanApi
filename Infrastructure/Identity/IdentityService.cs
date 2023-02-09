@@ -1,23 +1,16 @@
-﻿using Application.Common.Interfaces;
-using Application.Common.Models;
+﻿using Application.Common.Exceptions;
+using Application.Common.Interfaces;
+using Domain.Common.Models;
+using Domain.Events;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Security.Cryptography;
 using System.Text;
-using System;
-using static Infrastructure.Common.Constants;
-using Infrastructure.Common;
-using Microsoft.Extensions.Configuration;
-using System.Security.Authentication;
-using Application.Common.Exceptions;
-using Domain.Events;
-using MediatR;
-using Domain.Common.Interfaces;
-using Domain.Common.Models;
 
 namespace Infrastructure.Identity
 {

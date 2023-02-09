@@ -3,13 +3,15 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.4.33213.308
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LoanApi", "LoanApi\LoanApi.csproj", "{ABC9DCCA-373D-4139-B09D-3552686216CF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LoanApi", "LoanApi\LoanApi.csproj", "{ABC9DCCA-373D-4139-B09D-3552686216CF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Application", "Application\Application.csproj", "{C8C678D4-92C0-4352-8C24-85C07FDAA524}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Application", "Application\Application.csproj", "{C8C678D4-92C0-4352-8C24-85C07FDAA524}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain", "Domain\Domain.csproj", "{7D87099F-CD46-4EA7-9C13-5A69C74274EA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Domain", "Domain\Domain.csproj", "{7D87099F-CD46-4EA7-9C13-5A69C74274EA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Infrastructure", "Infrastructure\Infrastructure.csproj", "{22283DDE-A23F-4323-9DDF-A3BEB857A7BB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Infrastructure", "Infrastructure\Infrastructure.csproj", "{22283DDE-A23F-4323-9DDF-A3BEB857A7BB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Application.UnitTests", "Application.UnitTests\Application.UnitTests.csproj", "{6D8C5B98-8875-423A-981B-3D5D8C76259B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{22283DDE-A23F-4323-9DDF-A3BEB857A7BB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{22283DDE-A23F-4323-9DDF-A3BEB857A7BB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{22283DDE-A23F-4323-9DDF-A3BEB857A7BB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6D8C5B98-8875-423A-981B-3D5D8C76259B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6D8C5B98-8875-423A-981B-3D5D8C76259B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6D8C5B98-8875-423A-981B-3D5D8C76259B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6D8C5B98-8875-423A-981B-3D5D8C76259B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

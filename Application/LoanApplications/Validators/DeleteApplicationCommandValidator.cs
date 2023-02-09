@@ -1,13 +1,6 @@
-﻿using Application.Common.Interfaces;
-using Application.LoanApplications.Commands;
-using Domain.Entities;
+﻿using Application.LoanApplications.Commands;
 using Domain.Repositories;
 using FluentValidation;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Application.LoanApplications.Validators
 {

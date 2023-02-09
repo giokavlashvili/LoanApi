@@ -2,7 +2,6 @@ using Infrastructure;
 using Infrastructure.Persistence;
 using LoanApi;
 using LoanApi.Middlwares.Extensions;
-using Microsoft.Extensions.Configuration;
 using NLog;
 using NLog.Web;
 

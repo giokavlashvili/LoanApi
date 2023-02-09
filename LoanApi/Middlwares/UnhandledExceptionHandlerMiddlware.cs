@@ -1,5 +1,4 @@
 ﻿using Application.Common.Interfaces;
-using Azure.Core;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using System.Net;

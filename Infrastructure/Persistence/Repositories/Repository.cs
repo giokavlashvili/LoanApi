@@ -1,20 +1,16 @@
-﻿using Domain.Common;
+﻿using Application.Common.Interfaces;
+using Domain.Common;
 using Domain.Repositories;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Infrastructure.Persistence.Repositories
 {
     public class Repository<TEntity> : IRepository<TEntity> where TEntity : BaseEntity
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IApplicationDbContext _context;
         private readonly DbSet<TEntity> dbSet;
-        public Repository(ApplicationDbContext context)
+        public Repository(IApplicationDbContext context)
         {
             _context = context;
             this.dbSet = _context.Set<TEntity>();

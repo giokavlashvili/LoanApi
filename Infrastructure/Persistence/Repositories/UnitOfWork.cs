@@ -1,19 +1,15 @@
-﻿using Domain.Repositories;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Application.Common.Interfaces;
+using Domain.Repositories;
 
 namespace Infrastructure.Persistence.Repositories
 {
     public class UnitOfWork : IUnitOfWork
     {
         private bool disposed = false;
-        private readonly ApplicationDbContext _context;
+        private readonly IApplicationDbContext _context;
 
         public UnitOfWork(
-            ApplicationDbContext context, 
+            IApplicationDbContext context, 
             ICurrencyRepository? currencyRepository = null,
             ILoanTypeRepository? loanTypeRepository = null,
             ILoanApplicationRepository? loanApplicationRepository = null)

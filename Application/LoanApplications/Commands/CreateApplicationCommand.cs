@@ -1,14 +1,7 @@
 ﻿using Application.Common.Interfaces;
 using Domain.Entities;
-using Domain.Enums;
-using Domain.Events;
 using Domain.Repositories;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Application.LoanApplications.Commands
 {

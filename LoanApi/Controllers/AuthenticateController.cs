@@ -1,8 +1,6 @@
 ﻿using Application.Authenticate.Commands;
 using Application.Authenticate.Dtos;
-using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace LoanApi.Controllers
 {

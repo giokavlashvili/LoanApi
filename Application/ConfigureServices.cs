@@ -1,5 +1,5 @@
-﻿using FluentValidation;
-using Application.Common.Behaviours;
+﻿using Application.Common.Behaviours;
+using FluentValidation;
 using MediatR;
 using System.Reflection;
 

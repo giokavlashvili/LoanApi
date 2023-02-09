@@ -1,6 +1,4 @@
-﻿using Application.Currencies.Dtos;
-using Application.Currencies.Queries;
-using Application.LoanTypes.Dtos;
+﻿using Application.LoanTypes.Dtos;
 using Application.LoanTypes.Queries;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
