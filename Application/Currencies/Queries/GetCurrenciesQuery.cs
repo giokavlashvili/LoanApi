@@ -10,16 +10,16 @@ namespace Application.Currencies.Queries
     public class GetCurrenciesQueryHandler : IRequestHandler<GetCurrenciesQuery, List<CurrencyDto>>
     {
         private readonly IMapper _mapper;
-        private readonly IUnitOfWork _uow;
+        private readonly IUnitOfWork _unitOfWork;
         public GetCurrenciesQueryHandler(IMapper mapper, IUnitOfWork uow)
         {
             _mapper = mapper;
-            _uow = uow;
+            _unitOfWork = uow;
         }
 
         public async Task<List<CurrencyDto>> Handle(GetCurrenciesQuery request, CancellationToken cancellationToken)
         {
-            var resultList = await _uow.CurrencyRepository.GetAllAsync();
+            var resultList = await _unitOfWork.CurrencyRepository.GetAllAsync();
             return _mapper.Map<List<CurrencyDto>>(resultList);
         }
     }

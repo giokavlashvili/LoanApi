@@ -1,4 +1,5 @@
 ﻿using Domain.Common;
+using Domain.Exceptions;
 
 namespace Domain.Entities
 {
@@ -8,6 +9,9 @@ namespace Domain.Entities
 
         public static LoanType Create(string name)
         {
+            if (string.IsNullOrEmpty(name))
+                throw new DomainException("Invalid loan type");
+
             return new LoanType()
             {
                 Name = name

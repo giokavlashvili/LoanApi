@@ -1,5 +1,5 @@
 using Application.Extensions;
-using Infrastructure.Extensions;
+using Infrastructure.Common.Extensions;
 using Infrastructure.Persistence;
 using LoanApi.Extensions;
 using LoanApi.Middlwares.Extensions;

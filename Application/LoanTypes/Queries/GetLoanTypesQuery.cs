@@ -17,16 +17,16 @@ namespace Application.LoanTypes.Queries
     public class GetLoanTypesQueryHandler : IRequestHandler<GetLoanTypesQuery, List<LoanTypeDto>>
     {
         private readonly IMapper _mapper;
-        private readonly IUnitOfWork _uow;
+        private readonly IUnitOfWork _unitOfWork;
         public GetLoanTypesQueryHandler(IMapper mapper, IUnitOfWork uow)
         {
             _mapper = mapper;
-            _uow = uow;
+            _unitOfWork = uow;
         }
 
         public async Task<List<LoanTypeDto>> Handle(GetLoanTypesQuery request, CancellationToken cancellationToken)
         {
-            var resultList = await _uow.LoanTypeRepository.GetAllAsync();
+            var resultList = await _unitOfWork.LoanTypeRepository.GetAllAsync();
             return _mapper.Map<List<LoanTypeDto>>(resultList);
         }
     }

@@ -1,7 +1,8 @@
 ﻿using Domain.Common;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-namespace MediatR
+namespace Infrastructure.Common.Extensions
 {
     public static class MediatorExtensions
     {

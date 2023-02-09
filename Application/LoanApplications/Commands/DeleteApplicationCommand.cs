@@ -15,22 +15,22 @@ namespace Application.LoanApplications.Commands
 
     public class DeleteApplicationCommandHandler : IRequestHandler<DeleteApplicationCommand>
     {
-        private readonly IUnitOfWork _uow;
+        private readonly IUnitOfWork _unitOfWork;
 
         public DeleteApplicationCommandHandler(IUnitOfWork uow)
         {
-            _uow = uow;
+            _unitOfWork = uow;
         }
 
         public async Task<Unit> Handle(DeleteApplicationCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _uow.LoanApplicationRepository.GetByIdAsync(request.Id);
+            var entity = await _unitOfWork.LoanApplicationRepository.GetByIdAsync(request.Id);
 
-            _uow.LoanApplicationRepository.Remove(entity);
+            _unitOfWork.LoanApplicationRepository.Remove(entity);
 
             entity.AddDomainEvent(new ApplicationDeletedEvent(entity));
 
-            await _uow.SaveAsync(cancellationToken);
+            await _unitOfWork.SaveAsync(cancellationToken);
 
             return Unit.Value;
         }

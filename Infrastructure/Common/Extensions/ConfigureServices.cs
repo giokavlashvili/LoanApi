@@ -15,7 +15,7 @@ using System.Text;
 
 #pragma warning disable CS8604 // Possible null reference argument.
 
-namespace Infrastructure.Extensions
+namespace Infrastructure.Common.Extensions
 {
     public static class ConfigureServices
     {

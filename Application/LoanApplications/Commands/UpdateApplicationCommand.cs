@@ -20,18 +20,18 @@ namespace Application.LoanApplications.Commands
     {
         private readonly ICurrentUserService _currentUserService;
         private readonly IDateTime _dateTime;
-        private readonly IUnitOfWork _uow;
+        private readonly IUnitOfWork _unitOfWork;
 
         public UpdateApplicationCommandHandler(ICurrentUserService currentUserService, IDateTime dateTime, IUnitOfWork uow)
         {
             _currentUserService = currentUserService;
             _dateTime = dateTime;
-            _uow = uow;
+            _unitOfWork = uow;
         }
 
         public async Task<Unit> Handle(UpdateApplicationCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _uow.LoanApplicationRepository.GetByIdAsync(request.Id);
+            var entity = await _unitOfWork.LoanApplicationRepository.GetByIdAsync(request.Id);
 
             entity.Update(
                 request.LoanTypeId, 
@@ -41,9 +41,9 @@ namespace Application.LoanApplications.Commands
                 _currentUserService.UserId, 
                 _dateTime.Now);
 
-            _uow.LoanApplicationRepository.Update(entity);
+            _unitOfWork.LoanApplicationRepository.Update(entity);
 
-            await _uow.SaveAsync(cancellationToken);
+            await _unitOfWork.SaveAsync(cancellationToken);
 
             return Unit.Value;
         }

@@ -2,7 +2,9 @@
 using Domain.Common.Models;
 using Domain.Enums;
 using Domain.Events;
+using Domain.Exceptions;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Xml.Linq;
 
 namespace Domain.Entities
 {
@@ -29,9 +31,15 @@ namespace Domain.Entities
             int currencyId,
             int periodPerMonth,
             string createdById,
-            DateTime created
+        DateTime created
             )
         {
+            if (amount <= 0)
+                throw new DomainException("Invalid amount");
+
+            if (periodPerMonth <= 0)
+                throw new DomainException("Invalid period");
+
             var entity = new LoanApplication()
             {
                 LoanTypeId = loanTypeId,

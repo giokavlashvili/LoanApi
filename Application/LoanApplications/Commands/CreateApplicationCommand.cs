@@ -19,12 +19,12 @@ namespace Application.LoanApplications.Commands
     {
         private readonly ICurrentUserService _currentUserService;
         private readonly IDateTime _dateTime;
-        private readonly IUnitOfWork _uow;
+        private readonly IUnitOfWork _unitOfWork;
         public CreateApplicationCommandhandler(ICurrentUserService currentUserService, IDateTime dateTime, IUnitOfWork uow)
         {
             _currentUserService = currentUserService;
             _dateTime = dateTime;
-            _uow = uow;
+            _unitOfWork = uow;
         }
 
         public async Task<int> Handle(CreateApplicationCommand request, CancellationToken cancellationToken)
@@ -39,9 +39,9 @@ namespace Application.LoanApplications.Commands
                 currentUserId,
                 _dateTime.Now);
 
-            await _uow.LoanApplicationRepository.AddAsync(entity);
+            await _unitOfWork.LoanApplicationRepository.AddAsync(entity);
 
-            await _uow.SaveAsync(cancellationToken);
+            await _unitOfWork.SaveAsync(cancellationToken);
 
             return entity.Id;
         }
