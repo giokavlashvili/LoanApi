@@ -40,6 +40,9 @@ namespace Domain.Entities
             if (periodPerMonth <= 0)
                 throw new DomainException("Invalid period");
 
+            if (string.IsNullOrEmpty(createdById))
+                throw new DomainException("Invalid user id");
+
             var entity = new LoanApplication()
             {
                 LoanTypeId = loanTypeId,
@@ -65,6 +68,15 @@ namespace Domain.Entities
             DateTime lastModified
             )
         {
+            if (amount <= 0)
+                throw new DomainException("Invalid amount");
+
+            if (periodPerMonth <= 0)
+                throw new DomainException("Invalid period");
+
+            if (string.IsNullOrEmpty(lastModifiedBy))
+                throw new DomainException("Invalid user id");
+
             LoanTypeId = loanTypeId;
             Amount = amount;
             CurrencyId = currencyId;
@@ -81,6 +93,9 @@ namespace Domain.Entities
             DateTime lastModified
             )
         {
+            if (string.IsNullOrEmpty(lastModifiedBy))
+                throw new DomainException("Invalid user id");
+
             this.Status = newStatus;
             this.LastModifiedBy = lastModifiedBy;
             this.LastModified = lastModified;

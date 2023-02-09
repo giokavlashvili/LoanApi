@@ -42,12 +42,12 @@ namespace Infrastructure.Persistence.Repositories
             GC.SuppressFinalize(this);
         }
 
-        public int Save()
+        public virtual int Save()
         {
             return _context.SaveChanges();
         }
 
-        public async Task<int> SaveAsync(CancellationToken cancellationToken = default)
+        public virtual async Task<int> SaveAsync(CancellationToken cancellationToken = default)
         {
             return await _context.SaveChangesAsync(cancellationToken);
         }
