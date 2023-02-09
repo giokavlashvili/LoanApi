@@ -7,19 +7,10 @@ using System.Text.Json.Serialization;
 using WebUI.Filters;
 using WebUI.Services;
 
-namespace LoanApi
+namespace LoanApi.Extensions
 {
     public static class ConfigureServices
     {
-        public static void AddNlog(this WebApplicationBuilder builder)
-        {
-            //set nlog connection string
-            GlobalDiagnosticsContext.Set("ConnectionString", builder.Configuration.GetConnectionString("DefaultConnection"));
-
-            builder.Logging.ClearProviders();
-            builder.Host.UseNLog();
-        }
-
         public static IServiceCollection AddWebUIServices(this IServiceCollection services)
         {
             services.AddDatabaseDeveloperPageExceptionFilter();

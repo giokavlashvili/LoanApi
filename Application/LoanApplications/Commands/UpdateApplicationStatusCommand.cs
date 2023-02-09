@@ -38,7 +38,7 @@ namespace Application.LoanApplications.Commands
 
             _uow.LoanApplicationRepository.Update(entity);
 
-            await _uow.SaveAsync();
+            await _uow.SaveAsync(cancellationToken);
 
             return Unit.Value;
         }

@@ -41,7 +41,7 @@ namespace Application.LoanApplications.Commands
 
             await _uow.LoanApplicationRepository.AddAsync(entity);
 
-            await _uow.SaveAsync();
+            await _uow.SaveAsync(cancellationToken);
 
             return entity.Id;
         }

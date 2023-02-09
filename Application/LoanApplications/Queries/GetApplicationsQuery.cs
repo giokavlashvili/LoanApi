@@ -25,9 +25,12 @@ namespace Application.LoanApplications.Queries
         public async Task<PaginatedList<LoanApplicationDto>> Handle(GetApplicationsQuery request, CancellationToken cancellationToken)
         {
             var totalCount = await _uow.LoanApplicationRepository.GetCountAsync();
+
             var entities =  await _uow.LoanApplicationRepository.GetPaginatedListAsync(request.PageNumber, request.PageSize);
-            var dtoList = _mapper.Map<List<LoanApplicationDto>>(entities);
-            return new PaginatedList<LoanApplicationDto>(dtoList, totalCount, request.PageNumber, request.PageSize);
+
+            var entityDtos = _mapper.Map<List<LoanApplicationDto>>(entities);
+
+            return new PaginatedList<LoanApplicationDto>(entityDtos, totalCount, request.PageNumber, request.PageSize);
         }
     }
 }

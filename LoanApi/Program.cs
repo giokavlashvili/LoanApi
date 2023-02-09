@@ -1,6 +1,7 @@
-using Infrastructure;
+using Application.Extensions;
+using Infrastructure.Extensions;
 using Infrastructure.Persistence;
-using LoanApi;
+using LoanApi.Extensions;
 using LoanApi.Middlwares.Extensions;
 using NLog;
 using NLog.Web;

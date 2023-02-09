@@ -30,7 +30,7 @@ namespace Application.LoanApplications.Commands
 
             entity.AddDomainEvent(new ApplicationDeletedEvent(entity));
 
-            await _uow.SaveAsync();
+            await _uow.SaveAsync(cancellationToken);
 
             return Unit.Value;
         }

@@ -1,4 +1,7 @@
 ﻿
+using NLog.Web;
+using NLog;
+
 namespace LoanApi.Middlwares.Extensions
 {
     public static class ApplicationBuilderExtensions
@@ -11,6 +14,15 @@ namespace LoanApi.Middlwares.Extensions
         public static IApplicationBuilder UseApplicationLogging(this IApplicationBuilder builder)
         {
             return builder.UseMiddleware<LoggingMiddleware>();
+        }
+
+        public static void AddNlog(this WebApplicationBuilder builder)
+        {
+            //set nlog connection string
+            GlobalDiagnosticsContext.Set("ConnectionString", builder.Configuration.GetConnectionString("DefaultConnection"));
+
+            builder.Logging.ClearProviders();
+            builder.Host.UseNLog();
         }
     }
 }
