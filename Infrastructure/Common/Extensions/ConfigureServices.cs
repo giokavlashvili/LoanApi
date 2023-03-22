@@ -39,14 +39,15 @@ namespace Infrastructure.Common.Extensions
             services.AddScoped<ApplicationDbContextInitialiser>();
 
             // For Identity
-            services.AddIdentity<ApplicationUser, IdentityRole>(o =>
+            services.AddIdentityCore<ApplicationUser>(o =>
             {
                 o.Password.RequireDigit = false;
                 o.Password.RequireLowercase = false;
                 o.Password.RequireUppercase = false;
                 o.Password.RequireNonAlphanumeric = false;
-                o.User.RequireUniqueEmail = false;
+                o.User.RequireUniqueEmail = true;
             })
+            .AddRoles<IdentityRole>()
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
 
