@@ -12,10 +12,6 @@ namespace Application.LoanApplications.Validators
         {
             _unitOfWork = unitOfWork;
 
-            RuleFor(a => a.PeriodPerMonth).GreaterThan(0).WithMessage("Period should be greater than 0");
-
-            RuleFor(a => a.Amount).GreaterThan(0).WithMessage("Amount should be greater than 0");
-
             RuleFor(a => a.CurrencyId).Must(CurrencyExists).WithMessage("Invalid currency");
 
             RuleFor(a => a.LoanTypeId).Must(LoanTypeExists).WithMessage("Invalid loan type");

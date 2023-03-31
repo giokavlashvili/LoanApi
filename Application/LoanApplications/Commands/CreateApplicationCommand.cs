@@ -29,6 +29,7 @@ namespace Application.LoanApplications.Commands
 
         public async Task<int> Handle(CreateApplicationCommand request, CancellationToken cancellationToken)
         {
+            throw new Exception();
             var currentUserId = _currentUserService.UserId;
 
             var entity = LoanApplication.Create(

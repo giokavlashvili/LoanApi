@@ -17,6 +17,7 @@ namespace WebUI.Filters
                 { typeof(NotFoundException), HandleNotFoundException },
                 { typeof(UnauthorizedAccessException), HandleUnauthorizedAccessException },
                 { typeof(ForbiddenAccessException), HandleForbiddenAccessException },
+                { typeof(DomainValidationExceptionWrapper), HandleDomainValidationException },
             };
         }
 
@@ -77,7 +78,7 @@ namespace WebUI.Filters
             {
                 Type = "https://tools.ietf.org/html/rfc7231#section-6.5.4",
                 Title = "The specified resource was not found.",
-                Detail = exception.Message
+                Detail = exception.Message,
             };
 
             context.Result = new NotFoundObjectResult(details);
@@ -115,6 +116,22 @@ namespace WebUI.Filters
             {
                 StatusCode = StatusCodes.Status403Forbidden
             };
+
+            context.ExceptionHandled = true;
+        }
+
+        private void HandleDomainValidationException(ExceptionContext context)
+        {
+            var exception = (DomainValidationExceptionWrapper)context.Exception;
+
+            var details = new ValidationProblemDetails()
+            {
+                Type = "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+                Title = "Domain validation error ocured",
+                Detail = exception.Message
+            };
+
+            context.Result = new BadRequestObjectResult(details);
 
             context.ExceptionHandled = true;
         }

@@ -11,9 +11,9 @@ namespace Domain.UnitTests.Entities
         [Test]
         public void CreateLoanApplication_WithInvalidParameters_ThrowDomainException()
         {
-            Assert.That(() => LoanApplication.Create(1, 0, 1, 1,"userId", DateTime.Now), Throws.InstanceOf<DomainException>());
-            Assert.That(() => LoanApplication.Create(1, 1, 1, 0, "userId", DateTime.Now), Throws.InstanceOf<DomainException>());
-            Assert.That(() => LoanApplication.Create(1, 1, 1, 1,string.Empty, DateTime.Now), Throws.InstanceOf<DomainException>());
+            Assert.That(() => LoanApplication.Create(1, 0, 1, 1,"userId", DateTime.Now), Throws.InstanceOf<DomainValidationException>());
+            Assert.That(() => LoanApplication.Create(1, 1, 1, 0, "userId", DateTime.Now), Throws.InstanceOf<DomainValidationException>());
+            Assert.That(() => LoanApplication.Create(1, 1, 1, 1,string.Empty, DateTime.Now), Throws.InstanceOf<DomainValidationException>());
         }
 
         [Test]
@@ -21,9 +21,9 @@ namespace Domain.UnitTests.Entities
         {
             var entity = LoanApplication.Create(1, 1, 1, 1, "userId", DateTime.Now);
 
-            Assert.That(() => entity.Update(1, 0, 1, 1, "userId", DateTime.Now), Throws.InstanceOf<DomainException>());
-            Assert.That(() => entity.Update(1, 1, 1, 0, "userId", DateTime.Now), Throws.InstanceOf<DomainException>());
-            Assert.That(() => entity.Update(1, 1, 1, 1, string.Empty, DateTime.Now), Throws.InstanceOf<DomainException>());
+            Assert.That(() => entity.Update(1, 0, 1, 1, "userId", DateTime.Now), Throws.InstanceOf<DomainValidationException>());
+            Assert.That(() => entity.Update(1, 1, 1, 0, "userId", DateTime.Now), Throws.InstanceOf<DomainValidationException>());
+            Assert.That(() => entity.Update(1, 1, 1, 1, string.Empty, DateTime.Now), Throws.InstanceOf<DomainValidationException>());
         }
 
         [Test]
@@ -31,7 +31,7 @@ namespace Domain.UnitTests.Entities
         {
             var entity = LoanApplication.Create(1, 1, 1, 1, "userId", DateTime.Now);
 
-            Assert.That(() => entity.UpdateStatus(LoanStatus.Sent, string.Empty, DateTime.Now), Throws.InstanceOf<DomainException>());
+            Assert.That(() => entity.UpdateStatus(LoanStatus.Sent, string.Empty, DateTime.Now), Throws.InstanceOf<DomainValidationException>());
         }
 
         [Test]

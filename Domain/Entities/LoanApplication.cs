@@ -35,13 +35,10 @@ namespace Domain.Entities
             )
         {
             if (amount <= 0)
-                throw new DomainException("Invalid amount");
+                throw new DomainValidationException("Invalid amount");
 
             if (periodPerMonth <= 0)
-                throw new DomainException("Invalid period");
-
-            if (string.IsNullOrEmpty(createdById))
-                throw new DomainException("Invalid user id");
+                throw new DomainValidationException("Invalid period");
 
             var entity = new LoanApplication()
             {
@@ -69,13 +66,10 @@ namespace Domain.Entities
             )
         {
             if (amount <= 0)
-                throw new DomainException("Invalid amount");
+                throw new DomainValidationException("Invalid amount");
 
             if (periodPerMonth <= 0)
-                throw new DomainException("Invalid period");
-
-            if (string.IsNullOrEmpty(lastModifiedBy))
-                throw new DomainException("Invalid user id");
+                throw new DomainValidationException("Invalid period");
 
             LoanTypeId = loanTypeId;
             Amount = amount;
@@ -93,8 +87,8 @@ namespace Domain.Entities
             DateTime lastModified
             )
         {
-            if (string.IsNullOrEmpty(lastModifiedBy))
-                throw new DomainException("Invalid user id");
+            if (Status == LoanStatus.Accepted || Status == LoanStatus.Rejected)
+                throw new DomainValidationException("Application is already processed");
 
             this.Status = newStatus;
             this.LastModifiedBy = lastModifiedBy;

@@ -9,9 +9,6 @@ namespace Domain.Entities
 
         public static Currency Create(string name)
         {
-            if (string.IsNullOrEmpty(name))
-                throw new DomainException("Invalid currency name");
-
             return new Currency()
             {
                 Name = name

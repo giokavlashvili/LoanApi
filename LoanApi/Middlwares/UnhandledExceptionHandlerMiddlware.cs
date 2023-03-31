@@ -36,7 +36,7 @@ namespace LoanApi.Middlwares
                     Status = (int)HttpStatusCode.InternalServerError, 
                     Title = "Internal Server Error",
                     Type = "https://www.rfc-editor.org/rfc/rfc7231#section-6.6.1",
-                    Detail = "Something went wrong!"
+                    Detail = "Something went wrong! Contact support."
                 };
                 var dtoJson = JsonConvert.SerializeObject(result);
                 await context.Response.WriteAsync(dtoJson);
