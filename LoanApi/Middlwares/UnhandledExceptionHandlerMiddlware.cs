@@ -9,14 +9,10 @@ namespace LoanApi.Middlwares
     {
         private readonly RequestDelegate _next;
         private readonly ILogger<LoggingMiddleware> _logger;
-        private readonly IDateTime _dateTimeService;
-        private readonly ICurrentUserService _currentUserService;
 
         public UnhandledExceptionHandlerMiddlware(RequestDelegate next, ICurrentUserService currentUserService, IDateTime dateTimeService, ILogger<LoggingMiddleware> logger)
         {
             _next = next;
-            _currentUserService = currentUserService;
-            _dateTimeService = dateTimeService;
             _logger = logger;
         }
 

@@ -7,15 +7,18 @@ namespace LoanApi.Middlwares
     public class SysLanguageMiddleware
     {
         private readonly RequestDelegate _next;
+        private readonly IConfiguration _config;
 
-        public SysLanguageMiddleware(RequestDelegate next)
+        public SysLanguageMiddleware(RequestDelegate next, IConfiguration config)
         {
             _next = next;
+            _config = config;
         }
 
         public Task Invoke(HttpContext httpContext)
         {
-            CultureInfo culture = new CultureInfo(Constants.SystemCultureNames.English);
+            string defaultLanguage = _config["DefaultLanguage"] ?? Constants.SystemCultureNames.English;
+            CultureInfo culture = new CultureInfo(defaultLanguage);
             if (httpContext.Request.GetSysLanguage() != null)
                 #pragma warning disable CS8604 // Possible null reference argument.
                 culture = new CultureInfo(httpContext.Request.GetSysLanguage());
