@@ -1,0 +1,44 @@
+﻿[
+  {
+    "Key": "InvalidCurrency",
+    "LocalizedValue": {
+      "ka-GE": "ვერ მოიძებნა ვალუტა",
+      "en-US": "Invalid Currency"
+    }
+  },
+  {
+    "Key": "InvalidLoanType",
+    "LocalizedValue": {
+      "ka-GE": "ვერ მოიძებნა სესხის ტიპი",
+      "en-US": "Invalid Currency"
+    }
+  },
+  {
+    "Key": "InvalidApplication",
+    "LocalizedValue": {
+      "ka-GE": "განაცხადი ვერ მოიძებნა",
+      "en-US": "Invalid Currency"
+    }
+  },
+  {
+    "Key": "InvalidAmount",
+    "LocalizedValue": {
+      "ka-GE": "თანხა უნდა აღემატებოდეს 0-ს",
+      "en-US": "Invalid Amount"
+    }
+  },
+  {
+    "Key": "InvalidPeriod",
+    "LocalizedValue": {
+      "ka-GE": "პერიოდი უნდა აღემატებოდეს 0-ს",
+      "en-US": "Invalid Period"
+    }
+  },
+  {
+    "Key": "ApplicationAlreadyProcessed",
+    "LocalizedValue": {
+      "ka-GE": "განაცხადი უკვე მიღებულია",
+      "en-US": "Application is already processed"
+    }
+  }
+]

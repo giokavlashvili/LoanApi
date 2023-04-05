@@ -48,6 +48,8 @@ try
 
     app.UseHttpsRedirection();
 
+    app.UseSysLanguageMiddleware();
+
     app.UseApplicationExceptionHandler();
 
     app.UseApplicationLogging();

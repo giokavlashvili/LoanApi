@@ -1,5 +1,8 @@
 ﻿using Application.Common.Interfaces;
 using FluentValidation.AspNetCore;
+using LoanApi.Filters;
+using LoanApi.Localization;
+using Microsoft.Extensions.Localization;
 using Microsoft.OpenApi.Models;
 using NLog;
 using NLog.Web;
@@ -15,6 +18,7 @@ namespace LoanApi.Extensions
         {
             services.AddDatabaseDeveloperPageExceptionFilter();
             services.AddSingleton<ICurrentUserService, CurrentUserService>();
+            services.AddSingleton<IStringLocalizer, JsonStringLocalizer>();
             services.AddHttpContextAccessor();
 
             services.AddControllers(options => options.Filters.Add<ApiExceptionFilterAttribute>())
@@ -37,6 +41,7 @@ namespace LoanApi.Extensions
                     Version = "v1",
                     Description = "Loan API Services."
                 });
+                c.OperationFilter<SwaggerHeaderAttribute>();
                 c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {

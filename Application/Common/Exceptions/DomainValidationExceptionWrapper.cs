@@ -23,10 +23,5 @@ namespace Application.Common.Exceptions
             : base(message, innerException)
         {
         }
-
-        public DomainValidationExceptionWrapper(string name, object key)
-            : base($"Entity \"{name}\" ({key}) was not found.")
-        {
-        }
     }
 }

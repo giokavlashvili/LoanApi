@@ -1,4 +1,6 @@
-﻿using FluentValidation;
+﻿using Application.Common.Exceptions;
+using Domain.Exceptions;
+using FluentValidation;
 using MediatR;
 using ValidationException = Application.Common.Exceptions.ValidationException;
 
@@ -32,7 +34,15 @@ namespace Application.Common.Behaviours
                 if (failures.Any())
                     throw new ValidationException(failures);
             }
-            return await next();
+
+            try
+            {
+                return await next();
+            }
+            catch (DomainValidationException ex)
+            {
+                throw new DomainValidationExceptionWrapper(ex.Message, ex);
+            }
         }
     }
 }

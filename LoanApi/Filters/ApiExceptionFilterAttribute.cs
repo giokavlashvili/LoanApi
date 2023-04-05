@@ -1,15 +1,19 @@
 ﻿using Application.Common.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.Extensions.Localization;
 
 namespace WebUI.Filters
 {
     public class ApiExceptionFilterAttribute : ExceptionFilterAttribute
     {
         private readonly IDictionary<Type, Action<ExceptionContext>> _exceptionHandlers;
+        private readonly IStringLocalizer _stringLocalizer;
 
-        public ApiExceptionFilterAttribute()
+        public ApiExceptionFilterAttribute(IStringLocalizer stringLocalizer)
         {
+            _stringLocalizer = stringLocalizer;
+
             // Register known exception types and handlers.
             _exceptionHandlers = new Dictionary<Type, Action<ExceptionContext>>
             {
@@ -128,7 +132,7 @@ namespace WebUI.Filters
             {
                 Type = "https://tools.ietf.org/html/rfc7231#section-6.5.1",
                 Title = "Domain validation error ocured",
-                Detail = exception.Message
+                Detail = _stringLocalizer.GetString(exception.Message)
             };
 
             context.Result = new BadRequestObjectResult(details);

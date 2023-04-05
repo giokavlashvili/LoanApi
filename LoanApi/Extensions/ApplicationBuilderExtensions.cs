@@ -16,6 +16,11 @@ namespace LoanApi.Middlwares.Extensions
             return builder.UseMiddleware<LoggingMiddleware>();
         }
 
+        public static IApplicationBuilder UseSysLanguageMiddleware(this IApplicationBuilder builder)
+        {
+            return builder.UseMiddleware<SysLanguageMiddleware>();
+        }
+
         public static void AddNlog(this WebApplicationBuilder builder)
         {
             //set nlog connection string
