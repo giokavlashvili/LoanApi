@@ -2,10 +2,10 @@
 using Application.Authenticate.Dtos;
 using Microsoft.AspNetCore.Mvc;
 
-namespace LoanApi.Controllers
+namespace WebApi.Controllers
 {
     [ApiController]
-    [Route("api/v1/[controller]")]
+    [Route("api/v{version:apiVersion}/[controller]")]
     public class AuthenticateController : ApiControllerBase
     {
         [HttpPost]

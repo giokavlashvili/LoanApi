@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using System.Net;
 
-namespace LoanApi.Middlwares
+namespace WebApi.Middlwares
 {
     public class UnhandledExceptionHandlerMiddlware
     {
@@ -25,7 +25,7 @@ namespace LoanApi.Middlwares
             // Log unhandled exceptions and modify response to avoid sensitive data exposure
             catch (Exception ex)
             {
-                _logger.LogError(ex, "LoanApi Request: Unhandled Exception for Request {Name}", context.Request?.Path.Value);
+                _logger.LogError(ex, "Api Request: Unhandled Exception for Request {Name}", context.Request?.Path.Value);
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
                 context.Response.ContentType = "application/json";
                 var result = new ProblemDetails { 

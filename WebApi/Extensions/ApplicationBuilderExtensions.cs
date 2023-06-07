@@ -2,7 +2,7 @@
 using NLog.Web;
 using NLog;
 
-namespace LoanApi.Middlwares.Extensions
+namespace WebApi.Middlwares.Extensions
 {
     public static class ApplicationBuilderExtensions
     {

@@ -3,11 +3,11 @@ using Application.Currencies.Queries;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace LoanApi.Controllers
+namespace WebApi.Controllers
 {
     [Authorize]
     [ApiController]
-    [Route("api/v1/[controller]")]
+    [Route("api/v{version:apiVersion}/[controller]")]
     public class CurrencyController : ApiControllerBase
     {
         [HttpGet]

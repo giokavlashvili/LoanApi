@@ -1,8 +1,8 @@
 using Application.Extensions;
 using Infrastructure.Common.Extensions;
 using Infrastructure.Persistence;
-using LoanApi.Extensions;
-using LoanApi.Middlwares.Extensions;
+using WebApi.Extensions;
+using WebApi.Middlwares.Extensions;
 using NLog;
 using NLog.Web;
 
@@ -42,11 +42,16 @@ try
         app.UseHsts();
     }
 
-    app.UseSwagger();
-
-    app.UseSwaggerUI();
-
     app.UseHttpsRedirection();
+
+    app.UseStaticFiles();
+
+    // Register the Swagger generator and the Swagger UI middlewares
+    app.UseOpenApi();
+    app.UseSwaggerUi3(settings =>
+    {
+        settings.DocExpansion = "list";
+    });
 
     app.UseSysLanguageMiddleware();
 

@@ -1,6 +1,6 @@
 ﻿using Application.Common.Interfaces;
 
-namespace LoanApi.Middlwares
+namespace WebApi.Middlwares
 {
     public class LoggingMiddleware
     {

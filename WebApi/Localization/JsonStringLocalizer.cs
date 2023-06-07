@@ -4,7 +4,7 @@ using System.Globalization;
 
 #pragma warning disable CS8601 // Possible null reference assignment.
 
-namespace LoanApi.Localization
+namespace WebApi.Localization
 {
     class JsonLocalization
     {

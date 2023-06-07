@@ -1,10 +1,7 @@
-﻿using Microsoft.OpenApi;
-using Microsoft.OpenApi.Any;
-using Microsoft.OpenApi.Models;
-using Microsoft.OpenApi.Writers;
+﻿using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
-namespace LoanApi.Filters
+namespace WebApi.Filters
 {
     public class SwaggerHeaderAttribute : IOperationFilter
     {

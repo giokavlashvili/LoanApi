@@ -1,16 +1,17 @@
 ﻿using Application.Common.Interfaces;
 using FluentValidation.AspNetCore;
-using LoanApi.Filters;
-using LoanApi.Localization;
+using Microsoft.AspNetCore.Mvc.Versioning;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
-using Microsoft.OpenApi.Models;
-using NLog;
-using NLog.Web;
+using NSwag;
+using NSwag.Generation.Processors.Security;
 using System.Text.Json.Serialization;
+using WebApi.Filters;
+using WebApi.Localization;
 using WebUI.Filters;
 using WebUI.Services;
 
-namespace LoanApi.Extensions
+namespace WebApi.Extensions
 {
     public static class ConfigureServices
     {
@@ -33,41 +34,93 @@ namespace LoanApi.Extensions
 
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             services.AddEndpointsApiExplorer();
-            services.AddSwaggerGen(c =>
+
+            #region Open api  
+
+            services.AddSwaggerDocument(configure =>
             {
-                c.SwaggerDoc("v1", new OpenApiInfo
+                configure.Title = "Open Api";
+                configure.AddSecurity("JWT", Enumerable.Empty<string>(), new OpenApiSecurityScheme
                 {
-                    Title = "Loan API",
-                    Version = "v1",
-                    Description = "Loan API Services."
-                });
-                c.OperationFilter<SwaggerHeaderAttribute>();
-                c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
-                c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-                {
+                    Type = OpenApiSecuritySchemeType.ApiKey,
                     Name = "Authorization",
-                    Type = SecuritySchemeType.ApiKey,
-                    Scheme = "Bearer",
-                    BearerFormat = "JWT",
-                    In = ParameterLocation.Header,
-                    Description = "JWT Authorization header using the Bearer scheme."
+                    In = OpenApiSecurityApiKeyLocation.Header,
+                    Description = "Type into the textbox: Bearer {your JWT token}."
                 });
 
-                c.AddSecurityRequirement(new OpenApiSecurityRequirement
-                {
-                    {
-                        new OpenApiSecurityScheme
-                        {
-                            Reference = new OpenApiReference
-                            {
-                                Type = ReferenceType.SecurityScheme,
-                                Id = "Bearer"
-                            }
-                        },
-                        new string[] {"bearer {AccessToken}"}
-                    }
-                });
+                configure.OperationProcessors.Add(new AspNetCoreOperationSecurityScopeProcessor("JWT"));
+                configure.OperationProcessors.Add(new SysLanguageHeaderOperationProcessor());
             });
+
+            //services.AddOpenApiDocument(configure =>
+            //{
+            //    configure.Title = "Bohema Open Api";
+            //    configure.AddSecurity("JWT", Enumerable.Empty<string>(), new OpenApiSecurityScheme
+            //    {
+            //        Type = OpenApiSecuritySchemeType.ApiKey,
+            //        Name = "Authorization",
+            //        In = OpenApiSecurityApiKeyLocation.Header,
+            //        Description = "Type into the textbox: Bearer {your JWT token}."
+            //    });
+
+            //    configure.OperationProcessors.Add(new AspNetCoreOperationSecurityScopeProcessor("JWT"));
+            //    configure.OperationProcessors.Add(new SysLanguageHeaderOperationProcessor());
+            //});
+
+            ////
+            //// Swagger versioning 
+            ////
+            services.AddApiVersioning(options =>
+            {
+                options.ReportApiVersions = true;
+                options.AssumeDefaultVersionWhenUnspecified = true;
+                options.DefaultApiVersion = new ApiVersion(1, 0);
+                options.ApiVersionReader = new UrlSegmentApiVersionReader();
+            }).AddVersionedApiExplorer(options =>
+            {
+                options.DefaultApiVersion = new ApiVersion(1, 0);
+                options.GroupNameFormat = "'v'VVV";
+                options.SubstituteApiVersionInUrl = true;
+            });
+
+
+            #endregion Open api
+
+            //services.AddSwaggerGen(c =>
+            //{
+            //    c.SwaggerDoc("v1", new OpenApiInfo
+            //    {
+            //        Title = "API",
+            //        Version = "v1",
+            //        Description = "API Services."
+            //    });
+            //    c.OperationFilter<SwaggerHeaderAttribute>();
+            //    c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
+            //    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+            //    {
+            //        Name = "Authorization",
+            //        Type = SecuritySchemeType.ApiKey,
+            //        Scheme = "Bearer",
+            //        BearerFormat = "JWT",
+            //        In = ParameterLocation.Header,
+            //        Description = "JWT Authorization header using the Bearer scheme."
+            //    });
+
+            //    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+            //    {
+            //        {
+            //            new OpenApiSecurityScheme
+            //            {
+            //                Reference = new OpenApiReference
+            //                {
+            //                    Type = ReferenceType.SecurityScheme,
+            //                    Id = "Bearer"
+            //                }
+            //            },
+            //            new string[] {"bearer {AccessToken}"}
+            //        }
+            //    });
+            //});
 
             return services;
         }

@@ -1,4 +1,4 @@
-﻿namespace LoanApi
+﻿namespace WebApi
 {
     public class Constants
     {

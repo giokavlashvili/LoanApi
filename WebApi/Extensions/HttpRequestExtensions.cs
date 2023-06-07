@@ -1,6 +1,6 @@
 ﻿using System.Globalization;
 
-namespace LoanApi.Extensions
+namespace WebApi.Extensions
 {
     public static class HttpRequestExtensions
     {

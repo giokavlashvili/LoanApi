@@ -1,8 +1,7 @@
-﻿using LoanApi.Extensions;
-using Microsoft.VisualBasic;
-using System.Globalization;
+﻿using System.Globalization;
+using WebApi.Extensions;
 
-namespace LoanApi.Middlwares
+namespace WebApi.Middlwares
 {
     public class SysLanguageMiddleware
     {
