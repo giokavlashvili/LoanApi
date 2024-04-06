@@ -51,7 +51,7 @@ namespace Application.UnitTests.LoanApplications.Commands
             var handler = new DeleteApplicationCommandHandler(_unitOfWork.Object);
 
             // Act
-            var result = await handler.Handle(command, default);
+            await handler.Handle(command, default);
 
             // Assert
             // Ensure that repository Remove Method is called

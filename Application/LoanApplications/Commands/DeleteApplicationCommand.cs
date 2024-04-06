@@ -22,7 +22,7 @@ namespace Application.LoanApplications.Commands
             _unitOfWork = uow;
         }
 
-        public async Task<Unit> Handle(DeleteApplicationCommand request, CancellationToken cancellationToken)
+        public async Task Handle(DeleteApplicationCommand request, CancellationToken cancellationToken)
         {
             var entity = await _unitOfWork.LoanApplicationRepository.GetByIdAsync(request.Id);
 
@@ -31,8 +31,6 @@ namespace Application.LoanApplications.Commands
             entity.AddDomainEvent(new ApplicationDeletedEvent(entity));
 
             await _unitOfWork.SaveAsync(cancellationToken);
-
-            return Unit.Value;
         }
     }
 }

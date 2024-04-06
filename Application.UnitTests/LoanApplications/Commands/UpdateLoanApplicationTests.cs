@@ -55,7 +55,7 @@ namespace Application.UnitTests.LoanApplications.Commands
             var handler = new UpdateApplicationCommandHandler(_currentUserService.Object, _dateTime.Object, _unitOfWork.Object);
 
             // Act
-            var result = await handler.Handle(command, default);
+            await handler.Handle(command, default);
 
             // Assert
             // Ensure that repository Update Method is called

@@ -27,7 +27,7 @@ namespace Application.LoanApplications.Commands
             _unitOfWork = uow;
         }
 
-        public async Task<Unit> Handle(UpdateApplicationStatusCommand request, CancellationToken cancellationToken)
+        public async Task Handle(UpdateApplicationStatusCommand request, CancellationToken cancellationToken)
         {
             var entity = await _unitOfWork.LoanApplicationRepository.GetByIdAsync(request.Id);
 
@@ -39,8 +39,6 @@ namespace Application.LoanApplications.Commands
             _unitOfWork.LoanApplicationRepository.Update(entity);
 
             await _unitOfWork.SaveAsync(cancellationToken);
-
-            return Unit.Value;
         }
     }
 }

@@ -29,23 +29,21 @@ namespace Application.LoanApplications.Commands
             _unitOfWork = uow;
         }
 
-        public async Task<Unit> Handle(UpdateApplicationCommand request, CancellationToken cancellationToken)
+        public async Task Handle(UpdateApplicationCommand request, CancellationToken cancellationToken)
         {
             var entity = await _unitOfWork.LoanApplicationRepository.GetByIdAsync(request.Id);
 
             entity.Update(
-                request.LoanTypeId, 
-                request.Amount, 
-                request.CurrencyId, 
+                request.LoanTypeId,
+                request.Amount,
+                request.CurrencyId,
                 request.PeriodPerMonth,
-                _currentUserService.UserId, 
+                _currentUserService.UserId,
                 _dateTime.Now);
 
             _unitOfWork.LoanApplicationRepository.Update(entity);
 
             await _unitOfWork.SaveAsync(cancellationToken);
-
-            return Unit.Value;
         }
     }
 }

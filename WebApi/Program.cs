@@ -5,6 +5,7 @@ using WebApi.Extensions;
 using WebApi.Middlwares.Extensions;
 using NLog;
 using NLog.Web;
+using Microsoft.AspNetCore.HttpLogging;
 
 var logger = NLog.LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
 
@@ -13,7 +14,7 @@ try
     var builder = WebApplication.CreateBuilder(args);
 
     // Add services to the container.
-    builder.Services.AddApplicationServices();
+    builder.Services.AddApplicationServices<Program>();
     builder.Services.AddInfrastructureServices(builder.Configuration);
     builder.Services.AddWebUIServices();
 

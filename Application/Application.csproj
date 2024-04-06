@@ -10,7 +10,7 @@
     <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.1.0" />
     <PackageReference Include="AutoMapper" Version="13.0.1" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.4.0" />
-    <PackageReference Include="MediatR.Extensions.Microsoft.DependencyInjection" Version="11.0.0" />
+    <PackageReference Include="MediatR" Version="12.2.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="7.0.2" />
     <PackageReference Include="Microsoft.Extensions.Localization.Abstractions" Version="7.0.4" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="7.0.0" />
