@@ -1,7 +1,5 @@
 ﻿using Application.Common.Interfaces;
 using FluentValidation.AspNetCore;
-using Microsoft.AspNetCore.Mvc.Versioning;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
 using NSwag;
 using NSwag.Generation.Processors.Security;
@@ -48,20 +46,6 @@ namespace WebApi.Extensions
 
                 configure.OperationProcessors.Add(new AspNetCoreOperationSecurityScopeProcessor("JWT"));
                 configure.OperationProcessors.Add(new SysLanguageHeaderOperationProcessor());
-            });
-
-            // Swagger versioning 
-            services.AddApiVersioning(options =>
-            {
-                options.ReportApiVersions = true;
-                options.AssumeDefaultVersionWhenUnspecified = true;
-                options.DefaultApiVersion = new ApiVersion(1, 0);
-                options.ApiVersionReader = new UrlSegmentApiVersionReader();
-            }).AddVersionedApiExplorer(options =>
-            {
-                options.DefaultApiVersion = new ApiVersion(1, 0);
-                options.GroupNameFormat = "'v'VVV";
-                options.SubstituteApiVersionInUrl = true;
             });
 
             return services;

@@ -7,7 +7,7 @@ namespace WebApi.Controllers
 {
     [Authorize]
     [ApiController]
-    [Route("api/v{version:apiVersion}/[controller]")]
+    [Route("api/v1/[controller]")]
     public class CurrencyController : ApiControllerBase
     {
         [HttpGet]

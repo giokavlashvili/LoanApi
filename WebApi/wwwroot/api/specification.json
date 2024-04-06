@@ -181,12 +181,7 @@
               "$ref": "#/definitions/PaginatedListOfLoanApplicationDto"
             }
           }
-        },
-        "security": [
-          {
-            "JWT": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/LoanApplication/CreateApplication": {
@@ -233,12 +228,7 @@
               "format": "int32"
             }
           }
-        },
-        "security": [
-          {
-            "JWT": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/LoanApplication/UpdateApplication": {
@@ -279,12 +269,7 @@
               "type": "file"
             }
           }
-        },
-        "security": [
-          {
-            "JWT": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/LoanApplication/UpdateApplicationStatus": {
@@ -325,12 +310,7 @@
               "type": "file"
             }
           }
-        },
-        "security": [
-          {
-            "JWT": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/LoanApplication/DeleteApplication": {
@@ -371,12 +351,7 @@
               "type": "file"
             }
           }
-        },
-        "security": [
-          {
-            "JWT": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/LoanType/GetLoanTypes": {
