@@ -1,11 +1,10 @@
 using Application.Extensions;
 using Infrastructure.Common.Extensions;
 using Infrastructure.Persistence;
-using WebApi.Extensions;
-using WebApi.Middlwares.Extensions;
 using NLog;
 using NLog.Web;
-using Microsoft.AspNetCore.HttpLogging;
+using WebApi.Extensions;
+using WebApi.Middlwares.Extensions;
 
 var logger = NLog.LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
 
@@ -14,7 +13,7 @@ try
     var builder = WebApplication.CreateBuilder(args);
 
     // Add services to the container.
-    builder.Services.AddApplicationServices<Program>();
+    builder.Services.AddApplicationServices<Program>(builder.Configuration);
     builder.Services.AddInfrastructureServices(builder.Configuration);
     builder.Services.AddWebUIServices();
 
@@ -27,7 +26,7 @@ try
     if (app.Environment.IsDevelopment())
     {
         app.UseMigrationsEndPoint();
-        // Initialise and seed database
+        // Initialize and seed database
         using (var scope = app.Services.CreateScope())
         {
             var initialiser = scope.ServiceProvider.GetRequiredService<ApplicationDbContextInitialiser>();
@@ -47,12 +46,9 @@ try
 
     app.UseStaticFiles();
 
-    // Register the Swagger generator and the Swagger UI middlewares
+    // Register the Swagger generator and the Swagger UI middleware
     app.UseOpenApi();
-    app.UseSwaggerUi3(settings =>
-    {
-        settings.DocExpansion = "list";
-    });
+    app.UseSwaggerUI();
 
     app.UseSysLanguageMiddleware();
 

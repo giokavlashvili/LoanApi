@@ -18,24 +18,8 @@ namespace Application.LoanApplications.Dtos
         public void Mapping(Profile Profile)
         {
             Profile.CreateMap<LoanApplication, LoanApplicationDto>()
-                .ForMember(m => m.LoanType, o => o.MapFrom<LoanTypeNameResolver>())
-                .ForMember(m => m.Currency, o => o.MapFrom<CurrencyNameResolver>());
-        }
-
-        private class LoanTypeNameResolver : IValueResolver<LoanApplication, LoanApplicationDto, string?>
-        {
-            public string Resolve(LoanApplication source, LoanApplicationDto destination, string? destMember, ResolutionContext context)
-            {
-                return source.LoanType != null && source.LoanType.Name != null ? source.LoanType.Name : "";
-            }
-        }
-
-        private class CurrencyNameResolver : IValueResolver<LoanApplication, LoanApplicationDto, string?>
-        {
-            public string Resolve(LoanApplication source, LoanApplicationDto destination, string? destMember, ResolutionContext context)
-            {
-                return source.Currency != null && source.Currency.Name != null ? source.Currency.Name : "";
-            }
+                .ForMember(m => m.LoanType, o => o.MapFrom(s => s.LoanType != null && s.LoanType.Name != null ? s.LoanType.Name : ""))
+                .ForMember(m => m.Currency, o => o.MapFrom(s => s.Currency != null && s.Currency.Name != null ? s.Currency.Name : ""));
         }
     }
 }
