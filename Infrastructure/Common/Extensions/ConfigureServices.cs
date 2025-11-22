@@ -5,11 +5,9 @@ using Infrastructure.Identity;
 using Infrastructure.Persistence;
 using Infrastructure.Persistence.Repositories;
 using Infrastructure.Services;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,7 +41,7 @@ namespace Infrastructure.Common.Extensions
 
             services.AddScoped<ApplicationDbContextInitialiser>();
 
-            // For Identity
+            // For Identity - Change from AddIdentityCore to AddIdentity
             services.AddIdentity<ApplicationUser, IdentityRole>(o =>
             {
                 o.Password.RequireDigit = false;
@@ -55,11 +53,12 @@ namespace Infrastructure.Common.Extensions
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
 
-            services.AddSingleton<IEmailSender, NoOpEmailSender>();
-
             // Configure cookie authentication options (AddIdentity already registers it)
             services.ConfigureApplicationCookie(options =>
             {
+                options.LoginPath = "/Identity/Account/Login";
+                options.LogoutPath = "/Identity/Account/Logout";
+                options.AccessDeniedPath = "/Identity/Account/AccessDenied";
                 options.ExpireTimeSpan = TimeSpan.FromMinutes(int.Parse(configuration["JWT:ExpireMinutes"] ?? "180"));
                 options.SlidingExpiration = true;
                 options.Cookie.HttpOnly = true;
@@ -76,10 +75,12 @@ namespace Infrastructure.Common.Extensions
             // Adding Authentication with both JWT Bearer and Cookie
             services.AddAuthentication(options =>
             {
-                // Use a policy scheme that can handle both JWT and Cookie
+                // For authentication, use the policy scheme
                 options.DefaultAuthenticateScheme = "JWT_OR_COOKIE";
-                options.DefaultChallengeScheme = "JWT_OR_COOKIE";
-                options.DefaultScheme = "JWT_OR_COOKIE";
+                // For challenges (redirects), use cookie scheme - this ensures Identity redirects work
+                options.DefaultChallengeScheme = IdentityConstants.ApplicationScheme;
+                // Default scheme for SignIn/SignOut operations
+                options.DefaultScheme = IdentityConstants.ApplicationScheme;
             })
             // Adding Jwt Bearer
             .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
@@ -95,8 +96,7 @@ namespace Infrastructure.Common.Extensions
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["JWT:Secret"]))
                 };
             })
-            // Remove the .AddCookie() call - it's already registered by AddIdentity
-            // Policy scheme that tries both JWT and Cookie
+            // Policy scheme that tries both JWT and Cookie for authentication
             .AddPolicyScheme("JWT_OR_COOKIE", "JWT_OR_COOKIE", options =>
             {
                 options.ForwardDefaultSelector = context =>

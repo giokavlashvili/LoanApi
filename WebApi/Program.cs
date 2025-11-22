@@ -5,8 +5,6 @@ using NLog;
 using NLog.Web;
 using WebApi.Extensions;
 using WebApi.Middlwares.Extensions;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 
 var logger = NLog.LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
 
@@ -46,6 +44,8 @@ try
 
     app.UseHttpsRedirection();
 
+    app.UseApplicationExceptionHandler();
+
     app.UseStaticFiles();
 
     // Register the Swagger generator and the Swagger UI middleware
@@ -53,8 +53,6 @@ try
     app.UseSwaggerUI();
 
     app.UseSysLanguageMiddleware();
-
-    app.UseApplicationExceptionHandler();
 
     app.UseApplicationLogging();
 

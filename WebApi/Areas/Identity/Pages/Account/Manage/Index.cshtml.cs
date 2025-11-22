@@ -10,9 +10,11 @@ using Microsoft.AspNetCore.Identity;
 using Infrastructure.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Authorization;
 
 namespace WebApi.Areas.Identity.Pages.Account.Manage
 {
+    [Authorize]
     public class IndexModel : PageModel
     {
         private readonly UserManager<ApplicationUser> _userManager;
