@@ -5,8 +5,11 @@ using Infrastructure.Identity;
 using Infrastructure.Persistence;
 using Infrastructure.Persistence.Repositories;
 using Infrastructure.Services;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,12 +37,14 @@ namespace Infrastructure.Common.Extensions
                         builder => builder.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
             }
 
+            services.AddRazorPages();
+
             services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
 
             services.AddScoped<ApplicationDbContextInitialiser>();
 
             // For Identity
-            services.AddIdentityCore<ApplicationUser>(o =>
+            services.AddIdentity<ApplicationUser, IdentityRole>(o =>
             {
                 o.Password.RequireDigit = false;
                 o.Password.RequireLowercase = false;
@@ -47,9 +52,20 @@ namespace Infrastructure.Common.Extensions
                 o.Password.RequireNonAlphanumeric = false;
                 o.User.RequireUniqueEmail = true;
             })
-            .AddRoles<IdentityRole>()
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
+
+            services.AddSingleton<IEmailSender, NoOpEmailSender>();
+
+            // Configure cookie authentication options (AddIdentity already registers it)
+            services.ConfigureApplicationCookie(options =>
+            {
+                options.ExpireTimeSpan = TimeSpan.FromMinutes(int.Parse(configuration["JWT:ExpireMinutes"] ?? "180"));
+                options.SlidingExpiration = true;
+                options.Cookie.HttpOnly = true;
+                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                options.Cookie.SameSite = SameSiteMode.Lax;
+            });
 
             services.AddTransient<IDateTime, DateTimeService>();
             services.AddTransient<IUserService, IdentityService>();
@@ -57,15 +73,16 @@ namespace Infrastructure.Common.Extensions
 
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-            // Adding Authentication
+            // Adding Authentication with both JWT Bearer and Cookie
             services.AddAuthentication(options =>
             {
-                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+                // Use a policy scheme that can handle both JWT and Cookie
+                options.DefaultAuthenticateScheme = "JWT_OR_COOKIE";
+                options.DefaultChallengeScheme = "JWT_OR_COOKIE";
+                options.DefaultScheme = "JWT_OR_COOKIE";
             })
             // Adding Jwt Bearer
-            .AddJwtBearer(options =>
+            .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
             {
                 options.SaveToken = true;
                 options.RequireHttpsMetadata = false;
@@ -76,6 +93,20 @@ namespace Infrastructure.Common.Extensions
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["JWT:Secret"]))
+                };
+            })
+            // Remove the .AddCookie() call - it's already registered by AddIdentity
+            // Policy scheme that tries both JWT and Cookie
+            .AddPolicyScheme("JWT_OR_COOKIE", "JWT_OR_COOKIE", options =>
+            {
+                options.ForwardDefaultSelector = context =>
+                {
+                    string? authorization = context.Request.Headers.Authorization.ToString();
+                    if (!string.IsNullOrEmpty(authorization) && authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return JwtBearerDefaults.AuthenticationScheme;
+                    }
+                    return IdentityConstants.ApplicationScheme;
                 };
             });
 

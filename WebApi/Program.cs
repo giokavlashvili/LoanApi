@@ -5,6 +5,8 @@ using NLog;
 using NLog.Web;
 using WebApi.Extensions;
 using WebApi.Middlwares.Extensions;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 var logger = NLog.LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
 
@@ -63,6 +65,8 @@ try
     app.UseAuthorization();
 
     app.MapControllers();
+    app.MapRazorPages()
+        .WithStaticAssets(); ; // Add this line for Identity pages
 
     app.Run();
 }
@@ -70,9 +74,4 @@ catch(Exception ex)
 {
     logger.Error(ex);
     throw;
-}
-finally
-{
-    //Ensure to flush and stop internal timers/ threads before application-exit (Avoid segmentation fault on Linux)
-    NLog.LogManager.Shutdown();
 }

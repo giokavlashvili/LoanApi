@@ -17,8 +17,7 @@ namespace Infrastructure.Persistence.Configurations
                 .IsRequired();
 
             builder.Property(u => u.PersonalNumber)
-                .HasMaxLength(11)
-                .IsRequired();
+                .HasMaxLength(11);
         }
     }
 }
