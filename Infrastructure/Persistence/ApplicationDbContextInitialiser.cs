@@ -27,7 +27,7 @@ namespace Infrastructure.Persistence
         {
             try
             {
-                if (_context.Database.IsSqlServer())
+                if (_context.Database.IsRelational())
                 {
                     await _context.Database.MigrateAsync();
                 }
