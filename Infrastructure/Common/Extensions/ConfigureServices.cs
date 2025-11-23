@@ -39,7 +39,7 @@ namespace Infrastructure.Common.Extensions
 
             services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
 
-            services.AddScoped<ApplicationDbContextInitialiser>();
+            services.AddScoped<ApplicationDbContextInitializers>();
 
             // For Identity - Change from AddIdentityCore to AddIdentity
             services.AddIdentity<ApplicationUser, IdentityRole>(o =>

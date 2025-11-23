@@ -8,14 +8,14 @@ using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Persistence
 {
-    public class ApplicationDbContextInitialiser
+    public class ApplicationDbContextInitializers
     {
-        private readonly ILogger<ApplicationDbContextInitialiser> _logger;
+        private readonly ILogger<ApplicationDbContextInitializers> _logger;
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
 
-        public ApplicationDbContextInitialiser(ILogger<ApplicationDbContextInitialiser> logger, ApplicationDbContext context, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager)
+        public ApplicationDbContextInitializers(ILogger<ApplicationDbContextInitializers> logger, ApplicationDbContext context, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager)
         {
             _logger = logger;
             _context = context;
@@ -23,7 +23,7 @@ namespace Infrastructure.Persistence
             _roleManager = roleManager;
         }
 
-        public async Task InitialiseAsync()
+        public async Task InitializeAsync()
         {
             try
             {
@@ -34,7 +34,7 @@ namespace Infrastructure.Persistence
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "An error occurred while initialising the database.");
+                _logger.LogError(ex, "An error occurred while initialing the database.");
                 throw;
             }
         }
