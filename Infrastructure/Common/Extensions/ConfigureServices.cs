@@ -8,9 +8,11 @@ using Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
@@ -48,7 +50,18 @@ namespace Infrastructure.Common.Extensions
                 o.Password.RequireLowercase = false;
                 o.Password.RequireUppercase = false;
                 o.Password.RequireNonAlphanumeric = false;
+
+                // User settings
                 o.User.RequireUniqueEmail = true;
+                
+                o.User.RequireUniqueEmail = true;
+
+                // Sign-in settings
+                o.SignIn.RequireConfirmedEmail = true; // Require email confirmation before login
+                o.SignIn.RequireConfirmedAccount = true; // Show confirmation page after registration
+
+                // Two-factor settings
+                o.Tokens.EmailConfirmationTokenProvider = TokenOptions.DefaultEmailProvider;
             })
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
@@ -65,6 +78,8 @@ namespace Infrastructure.Common.Extensions
                 options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
                 options.Cookie.SameSite = SameSiteMode.Lax;
             });
+
+            services.AddTransient<IEmailSender, NoOpEmailSender>();
 
             services.AddTransient<IDateTime, DateTimeService>();
             services.AddTransient<IUserService, IdentityService>();

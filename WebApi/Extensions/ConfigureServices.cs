@@ -1,5 +1,4 @@
 ﻿using Application.Common.Interfaces;
-using FluentValidation.AspNetCore;
 using Microsoft.Extensions.Localization;
 using NSwag;
 using NSwag.Generation.Processors.Security;
@@ -26,9 +25,6 @@ namespace WebApi.Extensions
                     // serialize enums as strings in api responses
                     x.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
                 });
-
-
-            services.AddFluentValidationAutoValidation();
 
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             services.AddEndpointsApiExplorer();
