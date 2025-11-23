@@ -63,8 +63,11 @@ try
     app.UseAuthorization();
 
     app.MapControllers();
+
     app.MapRazorPages()
         .WithStaticAssets(); ; // Add this line for Identity pages
+
+    app.MapFallbackToFile("index.html").RequireAuthorization();
 
     app.Run();
 }

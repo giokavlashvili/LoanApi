@@ -15,8 +15,14 @@ import { HttpClient, HttpHeaders, HttpResponse, HttpResponseBase } from '@angula
 export const API_BASE_URL = new InjectionToken<string>('API_BASE_URL');
 
 export interface IAuthenticateClient {
-    login(command: LoginCommand): Observable<LoginDto>;
-    registerUser(command: RegisterUserCommand): Observable<boolean>;
+    /**
+     * @param x_sys_language (optional) System language indicator
+     */
+    authenticate_Login(command: LoginCommand, x_sys_language: string | null | undefined): Observable<LoginDto>;
+    /**
+     * @param x_sys_language (optional) System language indicator
+     */
+    authenticate_RegisterUser(command: RegisterUserCommand, x_sys_language: string | null | undefined): Observable<boolean>;
 }
 
 @Injectable({
@@ -32,7 +38,10 @@ export class AuthenticateClient implements IAuthenticateClient {
         this.baseUrl = baseUrl ?? "";
     }
 
-    login(command: LoginCommand): Observable<LoginDto> {
+    /**
+     * @param x_sys_language (optional) System language indicator
+     */
+    authenticate_Login(command: LoginCommand, x_sys_language: string | null | undefined): Observable<LoginDto> {
         let url_ = this.baseUrl + "/api/v1/Authenticate/Login";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -43,17 +52,18 @@ export class AuthenticateClient implements IAuthenticateClient {
             observe: "response",
             responseType: "blob",
             headers: new HttpHeaders({
+                "x-sys-language": x_sys_language !== undefined && x_sys_language !== null ? "" + x_sys_language : "",
                 "Content-Type": "application/json",
                 "Accept": "application/json"
             })
         };
 
         return this.http.request("post", url_, options_).pipe(_observableMergeMap((response_ : any) => {
-            return this.processLogin(response_);
+            return this.processAuthenticate_Login(response_);
         })).pipe(_observableCatch((response_: any) => {
             if (response_ instanceof HttpResponseBase) {
                 try {
-                    return this.processLogin(response_ as any);
+                    return this.processAuthenticate_Login(response_ as any);
                 } catch (e) {
                     return _observableThrow(e) as any as Observable<LoginDto>;
                 }
@@ -62,7 +72,7 @@ export class AuthenticateClient implements IAuthenticateClient {
         }));
     }
 
-    protected processLogin(response: HttpResponseBase): Observable<LoginDto> {
+    protected processAuthenticate_Login(response: HttpResponseBase): Observable<LoginDto> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -70,21 +80,24 @@ export class AuthenticateClient implements IAuthenticateClient {
 
         let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
         if (status === 200) {
-            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
             result200 = LoginDto.fromJS(resultData200);
             return _observableOf(result200);
             }));
         } else if (status !== 200 && status !== 204) {
-            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             }));
         }
-        return _observableOf<LoginDto>(null as any);
+        return _observableOf(null as any);
     }
 
-    registerUser(command: RegisterUserCommand): Observable<boolean> {
+    /**
+     * @param x_sys_language (optional) System language indicator
+     */
+    authenticate_RegisterUser(command: RegisterUserCommand, x_sys_language: string | null | undefined): Observable<boolean> {
         let url_ = this.baseUrl + "/api/v1/Authenticate/RegisterUser";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -95,17 +108,18 @@ export class AuthenticateClient implements IAuthenticateClient {
             observe: "response",
             responseType: "blob",
             headers: new HttpHeaders({
+                "x-sys-language": x_sys_language !== undefined && x_sys_language !== null ? "" + x_sys_language : "",
                 "Content-Type": "application/json",
                 "Accept": "application/json"
             })
         };
 
         return this.http.request("post", url_, options_).pipe(_observableMergeMap((response_ : any) => {
-            return this.processRegisterUser(response_);
+            return this.processAuthenticate_RegisterUser(response_);
         })).pipe(_observableCatch((response_: any) => {
             if (response_ instanceof HttpResponseBase) {
                 try {
-                    return this.processRegisterUser(response_ as any);
+                    return this.processAuthenticate_RegisterUser(response_ as any);
                 } catch (e) {
                     return _observableThrow(e) as any as Observable<boolean>;
                 }
@@ -114,7 +128,7 @@ export class AuthenticateClient implements IAuthenticateClient {
         }));
     }
 
-    protected processRegisterUser(response: HttpResponseBase): Observable<boolean> {
+    protected processAuthenticate_RegisterUser(response: HttpResponseBase): Observable<boolean> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -122,7 +136,7 @@ export class AuthenticateClient implements IAuthenticateClient {
 
         let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
         if (status === 200) {
-            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
                 result200 = resultData200 !== undefined ? resultData200 : null as any;
@@ -130,16 +144,19 @@ export class AuthenticateClient implements IAuthenticateClient {
             return _observableOf(result200);
             }));
         } else if (status !== 200 && status !== 204) {
-            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             }));
         }
-        return _observableOf<boolean>(null as any);
+        return _observableOf(null as any);
     }
 }
 
 export interface ICurrencyClient {
-    getCurrencies(): Observable<CurrencyDto[]>;
+    /**
+     * @param x_sys_language (optional) System language indicator
+     */
+    currency_GetCurrencies(x_sys_language: string | null | undefined): Observable<CurrencyDto[]>;
 }
 
 @Injectable({
@@ -155,7 +172,10 @@ export class CurrencyClient implements ICurrencyClient {
         this.baseUrl = baseUrl ?? "";
     }
 
-    getCurrencies(): Observable<CurrencyDto[]> {
+    /**
+     * @param x_sys_language (optional) System language indicator
+     */
+    currency_GetCurrencies(x_sys_language: string | null | undefined): Observable<CurrencyDto[]> {
         let url_ = this.baseUrl + "/api/v1/Currency/GetCurrencies";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -163,16 +183,17 @@ export class CurrencyClient implements ICurrencyClient {
             observe: "response",
             responseType: "blob",
             headers: new HttpHeaders({
+                "x-sys-language": x_sys_language !== undefined && x_sys_language !== null ? "" + x_sys_language : "",
                 "Accept": "application/json"
             })
         };
 
         return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
-            return this.processGetCurrencies(response_);
+            return this.processCurrency_GetCurrencies(response_);
         })).pipe(_observableCatch((response_: any) => {
             if (response_ instanceof HttpResponseBase) {
                 try {
-                    return this.processGetCurrencies(response_ as any);
+                    return this.processCurrency_GetCurrencies(response_ as any);
                 } catch (e) {
                     return _observableThrow(e) as any as Observable<CurrencyDto[]>;
                 }
@@ -181,7 +202,7 @@ export class CurrencyClient implements ICurrencyClient {
         }));
     }
 
-    protected processGetCurrencies(response: HttpResponseBase): Observable<CurrencyDto[]> {
+    protected processCurrency_GetCurrencies(response: HttpResponseBase): Observable<CurrencyDto[]> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -189,7 +210,7 @@ export class CurrencyClient implements ICurrencyClient {
 
         let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
         if (status === 200) {
-            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
             if (Array.isArray(resultData200)) {
@@ -203,20 +224,37 @@ export class CurrencyClient implements ICurrencyClient {
             return _observableOf(result200);
             }));
         } else if (status !== 200 && status !== 204) {
-            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             }));
         }
-        return _observableOf<CurrencyDto[]>(null as any);
+        return _observableOf(null as any);
     }
 }
 
 export interface ILoanApplicationClient {
-    getApplications(pageNumber: number | undefined, pageSize: number | undefined): Observable<PaginatedListOfLoanApplicationDto>;
-    createApplication(command: CreateApplicationCommand): Observable<number>;
-    updateApplication(command: UpdateApplicationCommand): Observable<FileResponse | null>;
-    updateApplicationStatus(command: UpdateApplicationStatusCommand): Observable<FileResponse | null>;
-    deleteApplication(command: DeleteApplicationCommand): Observable<FileResponse | null>;
+    /**
+     * @param pageNumber (optional) 
+     * @param pageSize (optional) 
+     * @param x_sys_language (optional) System language indicator
+     */
+    loanApplication_GetApplications(pageNumber: number | undefined, pageSize: number | undefined, x_sys_language: string | null | undefined): Observable<PaginatedListOfLoanApplicationDto>;
+    /**
+     * @param x_sys_language (optional) System language indicator
+     */
+    loanApplication_CreateApplication(command: CreateApplicationCommand, x_sys_language: string | null | undefined): Observable<number>;
+    /**
+     * @param x_sys_language (optional) System language indicator
+     */
+    loanApplication_UpdateApplication(command: UpdateApplicationCommand, x_sys_language: string | null | undefined): Observable<FileResponse | null>;
+    /**
+     * @param x_sys_language (optional) System language indicator
+     */
+    loanApplication_UpdateApplicationStatus(command: UpdateApplicationStatusCommand, x_sys_language: string | null | undefined): Observable<FileResponse | null>;
+    /**
+     * @param x_sys_language (optional) System language indicator
+     */
+    loanApplication_DeleteApplication(command: DeleteApplicationCommand, x_sys_language: string | null | undefined): Observable<FileResponse | null>;
 }
 
 @Injectable({
@@ -232,7 +270,12 @@ export class LoanApplicationClient implements ILoanApplicationClient {
         this.baseUrl = baseUrl ?? "";
     }
 
-    getApplications(pageNumber: number | undefined, pageSize: number | undefined): Observable<PaginatedListOfLoanApplicationDto> {
+    /**
+     * @param pageNumber (optional) 
+     * @param pageSize (optional) 
+     * @param x_sys_language (optional) System language indicator
+     */
+    loanApplication_GetApplications(pageNumber: number | undefined, pageSize: number | undefined, x_sys_language: string | null | undefined): Observable<PaginatedListOfLoanApplicationDto> {
         let url_ = this.baseUrl + "/api/v1/LoanApplication/GetApplications?";
         if (pageNumber === null)
             throw new globalThis.Error("The parameter 'pageNumber' cannot be null.");
@@ -248,16 +291,17 @@ export class LoanApplicationClient implements ILoanApplicationClient {
             observe: "response",
             responseType: "blob",
             headers: new HttpHeaders({
+                "x-sys-language": x_sys_language !== undefined && x_sys_language !== null ? "" + x_sys_language : "",
                 "Accept": "application/json"
             })
         };
 
         return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
-            return this.processGetApplications(response_);
+            return this.processLoanApplication_GetApplications(response_);
         })).pipe(_observableCatch((response_: any) => {
             if (response_ instanceof HttpResponseBase) {
                 try {
-                    return this.processGetApplications(response_ as any);
+                    return this.processLoanApplication_GetApplications(response_ as any);
                 } catch (e) {
                     return _observableThrow(e) as any as Observable<PaginatedListOfLoanApplicationDto>;
                 }
@@ -266,7 +310,7 @@ export class LoanApplicationClient implements ILoanApplicationClient {
         }));
     }
 
-    protected processGetApplications(response: HttpResponseBase): Observable<PaginatedListOfLoanApplicationDto> {
+    protected processLoanApplication_GetApplications(response: HttpResponseBase): Observable<PaginatedListOfLoanApplicationDto> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -274,21 +318,24 @@ export class LoanApplicationClient implements ILoanApplicationClient {
 
         let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
         if (status === 200) {
-            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
             result200 = PaginatedListOfLoanApplicationDto.fromJS(resultData200);
             return _observableOf(result200);
             }));
         } else if (status !== 200 && status !== 204) {
-            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             }));
         }
-        return _observableOf<PaginatedListOfLoanApplicationDto>(null as any);
+        return _observableOf(null as any);
     }
 
-    createApplication(command: CreateApplicationCommand): Observable<number> {
+    /**
+     * @param x_sys_language (optional) System language indicator
+     */
+    loanApplication_CreateApplication(command: CreateApplicationCommand, x_sys_language: string | null | undefined): Observable<number> {
         let url_ = this.baseUrl + "/api/v1/LoanApplication/CreateApplication";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -299,17 +346,18 @@ export class LoanApplicationClient implements ILoanApplicationClient {
             observe: "response",
             responseType: "blob",
             headers: new HttpHeaders({
+                "x-sys-language": x_sys_language !== undefined && x_sys_language !== null ? "" + x_sys_language : "",
                 "Content-Type": "application/json",
                 "Accept": "application/json"
             })
         };
 
         return this.http.request("post", url_, options_).pipe(_observableMergeMap((response_ : any) => {
-            return this.processCreateApplication(response_);
+            return this.processLoanApplication_CreateApplication(response_);
         })).pipe(_observableCatch((response_: any) => {
             if (response_ instanceof HttpResponseBase) {
                 try {
-                    return this.processCreateApplication(response_ as any);
+                    return this.processLoanApplication_CreateApplication(response_ as any);
                 } catch (e) {
                     return _observableThrow(e) as any as Observable<number>;
                 }
@@ -318,7 +366,7 @@ export class LoanApplicationClient implements ILoanApplicationClient {
         }));
     }
 
-    protected processCreateApplication(response: HttpResponseBase): Observable<number> {
+    protected processLoanApplication_CreateApplication(response: HttpResponseBase): Observable<number> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -326,7 +374,7 @@ export class LoanApplicationClient implements ILoanApplicationClient {
 
         let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
         if (status === 200) {
-            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
                 result200 = resultData200 !== undefined ? resultData200 : null as any;
@@ -334,14 +382,17 @@ export class LoanApplicationClient implements ILoanApplicationClient {
             return _observableOf(result200);
             }));
         } else if (status !== 200 && status !== 204) {
-            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             }));
         }
-        return _observableOf<number>(null as any);
+        return _observableOf(null as any);
     }
 
-    updateApplication(command: UpdateApplicationCommand): Observable<FileResponse | null> {
+    /**
+     * @param x_sys_language (optional) System language indicator
+     */
+    loanApplication_UpdateApplication(command: UpdateApplicationCommand, x_sys_language: string | null | undefined): Observable<FileResponse | null> {
         let url_ = this.baseUrl + "/api/v1/LoanApplication/UpdateApplication";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -352,17 +403,18 @@ export class LoanApplicationClient implements ILoanApplicationClient {
             observe: "response",
             responseType: "blob",
             headers: new HttpHeaders({
+                "x-sys-language": x_sys_language !== undefined && x_sys_language !== null ? "" + x_sys_language : "",
                 "Content-Type": "application/json",
                 "Accept": "application/octet-stream"
             })
         };
 
         return this.http.request("patch", url_, options_).pipe(_observableMergeMap((response_ : any) => {
-            return this.processUpdateApplication(response_);
+            return this.processLoanApplication_UpdateApplication(response_);
         })).pipe(_observableCatch((response_: any) => {
             if (response_ instanceof HttpResponseBase) {
                 try {
-                    return this.processUpdateApplication(response_ as any);
+                    return this.processLoanApplication_UpdateApplication(response_ as any);
                 } catch (e) {
                     return _observableThrow(e) as any as Observable<FileResponse | null>;
                 }
@@ -371,7 +423,7 @@ export class LoanApplicationClient implements ILoanApplicationClient {
         }));
     }
 
-    protected processUpdateApplication(response: HttpResponseBase): Observable<FileResponse | null> {
+    protected processLoanApplication_UpdateApplication(response: HttpResponseBase): Observable<FileResponse | null> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -390,14 +442,17 @@ export class LoanApplicationClient implements ILoanApplicationClient {
             }
             return _observableOf({ fileName: fileName, data: responseBlob as any, status: status, headers: _headers });
         } else if (status !== 200 && status !== 204) {
-            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             }));
         }
-        return _observableOf<FileResponse | null>(null as any);
+        return _observableOf(null as any);
     }
 
-    updateApplicationStatus(command: UpdateApplicationStatusCommand): Observable<FileResponse | null> {
+    /**
+     * @param x_sys_language (optional) System language indicator
+     */
+    loanApplication_UpdateApplicationStatus(command: UpdateApplicationStatusCommand, x_sys_language: string | null | undefined): Observable<FileResponse | null> {
         let url_ = this.baseUrl + "/api/v1/LoanApplication/UpdateApplicationStatus";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -408,17 +463,18 @@ export class LoanApplicationClient implements ILoanApplicationClient {
             observe: "response",
             responseType: "blob",
             headers: new HttpHeaders({
+                "x-sys-language": x_sys_language !== undefined && x_sys_language !== null ? "" + x_sys_language : "",
                 "Content-Type": "application/json",
                 "Accept": "application/octet-stream"
             })
         };
 
         return this.http.request("patch", url_, options_).pipe(_observableMergeMap((response_ : any) => {
-            return this.processUpdateApplicationStatus(response_);
+            return this.processLoanApplication_UpdateApplicationStatus(response_);
         })).pipe(_observableCatch((response_: any) => {
             if (response_ instanceof HttpResponseBase) {
                 try {
-                    return this.processUpdateApplicationStatus(response_ as any);
+                    return this.processLoanApplication_UpdateApplicationStatus(response_ as any);
                 } catch (e) {
                     return _observableThrow(e) as any as Observable<FileResponse | null>;
                 }
@@ -427,7 +483,7 @@ export class LoanApplicationClient implements ILoanApplicationClient {
         }));
     }
 
-    protected processUpdateApplicationStatus(response: HttpResponseBase): Observable<FileResponse | null> {
+    protected processLoanApplication_UpdateApplicationStatus(response: HttpResponseBase): Observable<FileResponse | null> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -446,14 +502,17 @@ export class LoanApplicationClient implements ILoanApplicationClient {
             }
             return _observableOf({ fileName: fileName, data: responseBlob as any, status: status, headers: _headers });
         } else if (status !== 200 && status !== 204) {
-            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             }));
         }
-        return _observableOf<FileResponse | null>(null as any);
+        return _observableOf(null as any);
     }
 
-    deleteApplication(command: DeleteApplicationCommand): Observable<FileResponse | null> {
+    /**
+     * @param x_sys_language (optional) System language indicator
+     */
+    loanApplication_DeleteApplication(command: DeleteApplicationCommand, x_sys_language: string | null | undefined): Observable<FileResponse | null> {
         let url_ = this.baseUrl + "/api/v1/LoanApplication/DeleteApplication";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -464,17 +523,18 @@ export class LoanApplicationClient implements ILoanApplicationClient {
             observe: "response",
             responseType: "blob",
             headers: new HttpHeaders({
+                "x-sys-language": x_sys_language !== undefined && x_sys_language !== null ? "" + x_sys_language : "",
                 "Content-Type": "application/json",
                 "Accept": "application/octet-stream"
             })
         };
 
         return this.http.request("delete", url_, options_).pipe(_observableMergeMap((response_ : any) => {
-            return this.processDeleteApplication(response_);
+            return this.processLoanApplication_DeleteApplication(response_);
         })).pipe(_observableCatch((response_: any) => {
             if (response_ instanceof HttpResponseBase) {
                 try {
-                    return this.processDeleteApplication(response_ as any);
+                    return this.processLoanApplication_DeleteApplication(response_ as any);
                 } catch (e) {
                     return _observableThrow(e) as any as Observable<FileResponse | null>;
                 }
@@ -483,7 +543,7 @@ export class LoanApplicationClient implements ILoanApplicationClient {
         }));
     }
 
-    protected processDeleteApplication(response: HttpResponseBase): Observable<FileResponse | null> {
+    protected processLoanApplication_DeleteApplication(response: HttpResponseBase): Observable<FileResponse | null> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -502,16 +562,19 @@ export class LoanApplicationClient implements ILoanApplicationClient {
             }
             return _observableOf({ fileName: fileName, data: responseBlob as any, status: status, headers: _headers });
         } else if (status !== 200 && status !== 204) {
-            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             }));
         }
-        return _observableOf<FileResponse | null>(null as any);
+        return _observableOf(null as any);
     }
 }
 
 export interface ILoanTypeClient {
-    getLoanTypes(): Observable<LoanTypeDto[]>;
+    /**
+     * @param x_sys_language (optional) System language indicator
+     */
+    loanType_GetLoanTypes(x_sys_language: string | null | undefined): Observable<LoanTypeDto[]>;
 }
 
 @Injectable({
@@ -527,7 +590,10 @@ export class LoanTypeClient implements ILoanTypeClient {
         this.baseUrl = baseUrl ?? "";
     }
 
-    getLoanTypes(): Observable<LoanTypeDto[]> {
+    /**
+     * @param x_sys_language (optional) System language indicator
+     */
+    loanType_GetLoanTypes(x_sys_language: string | null | undefined): Observable<LoanTypeDto[]> {
         let url_ = this.baseUrl + "/api/v1/LoanType/GetLoanTypes";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -535,16 +601,17 @@ export class LoanTypeClient implements ILoanTypeClient {
             observe: "response",
             responseType: "blob",
             headers: new HttpHeaders({
+                "x-sys-language": x_sys_language !== undefined && x_sys_language !== null ? "" + x_sys_language : "",
                 "Accept": "application/json"
             })
         };
 
         return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
-            return this.processGetLoanTypes(response_);
+            return this.processLoanType_GetLoanTypes(response_);
         })).pipe(_observableCatch((response_: any) => {
             if (response_ instanceof HttpResponseBase) {
                 try {
-                    return this.processGetLoanTypes(response_ as any);
+                    return this.processLoanType_GetLoanTypes(response_ as any);
                 } catch (e) {
                     return _observableThrow(e) as any as Observable<LoanTypeDto[]>;
                 }
@@ -553,7 +620,7 @@ export class LoanTypeClient implements ILoanTypeClient {
         }));
     }
 
-    protected processGetLoanTypes(response: HttpResponseBase): Observable<LoanTypeDto[]> {
+    protected processLoanType_GetLoanTypes(response: HttpResponseBase): Observable<LoanTypeDto[]> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -561,7 +628,7 @@ export class LoanTypeClient implements ILoanTypeClient {
 
         let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
         if (status === 200) {
-            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
             if (Array.isArray(resultData200)) {
@@ -575,11 +642,11 @@ export class LoanTypeClient implements ILoanTypeClient {
             return _observableOf(result200);
             }));
         } else if (status !== 200 && status !== 204) {
-            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             }));
         }
-        return _observableOf<LoanTypeDto[]>(null as any);
+        return _observableOf(null as any);
     }
 }
 

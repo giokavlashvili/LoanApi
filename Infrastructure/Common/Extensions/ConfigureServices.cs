@@ -53,8 +53,6 @@ namespace Infrastructure.Common.Extensions
 
                 // User settings
                 o.User.RequireUniqueEmail = true;
-                
-                o.User.RequireUniqueEmail = true;
 
                 // Sign-in settings
                 o.SignIn.RequireConfirmedEmail = true; // Require email confirmation before login
@@ -77,6 +75,33 @@ namespace Infrastructure.Common.Extensions
                 options.Cookie.HttpOnly = true;
                 options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
                 options.Cookie.SameSite = SameSiteMode.Lax;
+
+                // For API requests, return 401 immediately instead of redirecting
+                // The Angular interceptor will catch 401 and redirect to login page
+                options.Events.OnRedirectToLogin = context =>
+                {
+                    if (context.Request.Path.StartsWithSegments("/api"))
+                    {
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        return Task.CompletedTask;
+                    }
+                    // For non-API requests (Razor Pages), use default redirect behavior
+                    context.Response.Redirect(context.RedirectUri);
+                    return Task.CompletedTask;
+                };
+
+                options.Events.OnRedirectToAccessDenied = context =>
+                {
+                    // For API requests, return 403 immediately instead of redirecting
+                    if (context.Request.Path.StartsWithSegments("/api"))
+                    {
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        return Task.CompletedTask;
+                    }
+                    // For non-API requests, use default redirect behavior
+                    context.Response.Redirect(context.RedirectUri);
+                    return Task.CompletedTask;
+                };
             });
 
             services.AddTransient<IEmailSender, NoOpEmailSender>();
