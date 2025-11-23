@@ -19,7 +19,11 @@ namespace Application.LoanApplications.Dtos
         {
             Profile.CreateMap<LoanApplication, LoanApplicationDto>()
                 .ForMember(m => m.LoanType, o => o.MapFrom(s => s.LoanType != null && s.LoanType.Name != null ? s.LoanType.Name : ""))
-                .ForMember(m => m.Currency, o => o.MapFrom(s => s.Currency != null && s.Currency.Name != null ? s.Currency.Name : ""));
+                .ForMember(m => m.Currency, o => o.MapFrom(s => s.Currency != null && s.Currency.Name != null ? s.Currency.Name : ""))
+                .ForMember(m => m.Created, o => o.MapFrom(s => 
+                    s.Created.Kind == DateTimeKind.Utc 
+                        ? s.Created.ToLocalTime() 
+                        : DateTime.SpecifyKind(s.Created, DateTimeKind.Utc).ToLocalTime()));
         }
     }
 }

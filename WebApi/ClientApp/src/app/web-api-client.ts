@@ -18,6 +18,10 @@ export interface IAuthenticateClient {
     /**
      * @param x_sys_language (optional) System language indicator
      */
+    authenticate_Check(x_sys_language: string | null | undefined): Observable<AuthCheckDto>;
+    /**
+     * @param x_sys_language (optional) System language indicator
+     */
     authenticate_Login(command: LoginCommand, x_sys_language: string | null | undefined): Observable<LoginDto>;
     /**
      * @param x_sys_language (optional) System language indicator
@@ -36,6 +40,58 @@ export class AuthenticateClient implements IAuthenticateClient {
     constructor(@Inject(HttpClient) http: HttpClient, @Optional() @Inject(API_BASE_URL) baseUrl?: string) {
         this.http = http;
         this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param x_sys_language (optional) System language indicator
+     */
+    authenticate_Check(x_sys_language: string | null | undefined): Observable<AuthCheckDto> {
+        let url_ = this.baseUrl + "/api/v1/Authenticate/Check";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "x-sys-language": x_sys_language !== undefined && x_sys_language !== null ? "" + x_sys_language : "",
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processAuthenticate_Check(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processAuthenticate_Check(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<AuthCheckDto>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<AuthCheckDto>;
+        }));
+    }
+
+    protected processAuthenticate_Check(response: HttpResponseBase): Observable<AuthCheckDto> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = AuthCheckDto.fromJS(resultData200);
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
     }
 
     /**
@@ -648,6 +704,54 @@ export class LoanTypeClient implements ILoanTypeClient {
         }
         return _observableOf(null as any);
     }
+}
+
+export class AuthCheckDto implements IAuthCheckDto {
+    isAuthenticated!: boolean;
+    userId?: string | undefined;
+    userName?: string | undefined;
+    email?: string | undefined;
+
+    constructor(data?: IAuthCheckDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.isAuthenticated = _data["isAuthenticated"];
+            this.userId = _data["userId"];
+            this.userName = _data["userName"];
+            this.email = _data["email"];
+        }
+    }
+
+    static fromJS(data: any): AuthCheckDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new AuthCheckDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["isAuthenticated"] = this.isAuthenticated;
+        data["userId"] = this.userId;
+        data["userName"] = this.userName;
+        data["email"] = this.email;
+        return data;
+    }
+}
+
+export interface IAuthCheckDto {
+    isAuthenticated: boolean;
+    userId?: string | undefined;
+    userName?: string | undefined;
+    email?: string | undefined;
 }
 
 export class LoginDto implements ILoginDto {

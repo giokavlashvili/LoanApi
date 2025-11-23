@@ -6,6 +6,43 @@
     "version": "1.0.0"
   },
   "paths": {
+    "/api/v1/Authenticate/Check": {
+      "get": {
+        "tags": [
+          "Authenticate"
+        ],
+        "operationId": "Authenticate_Check",
+        "produces": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "type": "string",
+            "name": "x-sys-language",
+            "in": "header",
+            "style": "simple",
+            "description": "System language indicator",
+            "default": "en-US"
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": false,
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/AuthCheckDto"
+            }
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ]
+      }
+    },
     "/api/v1/Authenticate/Login": {
       "post": {
         "tags": [
@@ -421,6 +458,26 @@
     }
   },
   "definitions": {
+    "AuthCheckDto": {
+      "type": "object",
+      "required": [
+        "isAuthenticated"
+      ],
+      "properties": {
+        "isAuthenticated": {
+          "type": "boolean"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "userName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        }
+      }
+    },
     "LoginDto": {
       "type": "object",
       "required": [

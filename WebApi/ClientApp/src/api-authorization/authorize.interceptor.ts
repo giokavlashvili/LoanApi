@@ -10,7 +10,7 @@ export class AuthorizeInterceptor implements HttpInterceptor {
   loginUrl: string;
 
   constructor(@Inject('BASE_URL') baseUrl: string) {
-    this.loginUrl = `${baseUrl}Identity/Account/Login`;
+    this.loginUrl = `${baseUrl}/Identity/Account/Login`;
   }
 
   intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {

@@ -9,13 +9,25 @@
     @{
         if (User.Identity?.IsAuthenticated ?? false)
         {
-            <form class="form-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Page("/", new { area = "" })" method="post">
+            <form id="logoutForm" class="form-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Page("/", new { area = "" })" method="post">
                 <button type="submit" class="nav-link btn btn-link text-dark">Click here to Logout</button>
             </form>
+            <script>
+                // Auto-submit the logout form when the page loads
+                document.addEventListener('DOMContentLoaded', function() {
+                    document.getElementById('logoutForm').submit();
+                });
+            </script>
         }
         else
         {
             <p>You have successfully logged out of the application.</p>
+            <script>
+                // Redirect to home page after logout
+                setTimeout(function() {
+                    window.location.href = '/';
+                }, 1000);
+            </script>
         }
     }
 </header>

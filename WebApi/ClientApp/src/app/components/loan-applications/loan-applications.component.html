@@ -1,0 +1,83 @@
+<div class="loan-applications-container">
+  <div class="header">
+    <h1>Loan Applications</h1>
+    <button class="btn-primary" (click)="createNew()">+ New Application</button>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="error-banner">{{ errorMessage() }}</div>
+  }
+
+  @if (isLoading()) {
+    <div class="loading">Loading loan applications...</div>
+  } @else {
+    @if (applications().length === 0) {
+      <div class="empty-state">
+        <p>No loan applications found.</p>
+        <button class="btn-primary" (click)="createNew()">Create Your First Application</button>
+      </div>
+    } @else {
+      <div class="table-container">
+        <table class="applications-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Amount</th>
+              <th>Period (Months)</th>
+              <th>Loan Type</th>
+              <th>Currency</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (app of applications(); track app.id) {
+              <tr>
+                <td>{{ app.id }}</td>
+                <td>{{ formatCurrency(app.amount, app.currency) }}</td>
+                <td>{{ app.periodPerMonth }}</td>
+                <td>{{ app.loanType || 'N/A' }}</td>
+                <td>{{ app.currency || 'N/A' }}</td>
+                <td>
+                  <span class="status-badge" [ngClass]="getStatusClass(app.status)">
+                    {{ app.status }}
+                  </span>
+                </td>
+                <td>{{ formatDate(app.created) }}</td>
+                <td class="actions">
+                  <button class="btn-edit" (click)="editApplication(app.id)">Edit</button>
+                  <button class="btn-delete" (click)="deleteApplication(app.id)">Delete</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (totalPages() > 1) {
+        <div class="pagination">
+          <button 
+            class="btn-page" 
+            [disabled]="!hasPreviousPage()"
+            (click)="goToPage(currentPage() - 1)"
+          >
+            Previous
+          </button>
+          <span class="page-info">
+            Page {{ currentPage() }} of {{ totalPages() }} ({{ totalCount() }} total)
+          </span>
+          <button 
+            class="btn-page" 
+            [disabled]="!hasNextPage()"
+            (click)="goToPage(currentPage() + 1)"
+          >
+            Next
+          </button>
+        </div>
+      }
+    }
+  }
+</div>
+
+
