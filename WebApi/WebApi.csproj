@@ -71,7 +71,27 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <Content Remove="wwwroot\chunk-6YIYEDSD.js" />
+	  <Content Remove="wwwroot\chunk-PNIEDYD4.js" />
+	  <Content Remove="wwwroot\chunk-ZB65DKHY.js" />
+	  <Content Remove="wwwroot\favicon.ico" />
+	  <Content Remove="wwwroot\index.html" />
+	  <Content Remove="wwwroot\main-TMPTFWHD.js" />
+	  <Content Remove="wwwroot\styles-5INURTSO.css" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<Folder Include="wwwroot\api\" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Include="wwwroot\chunk-6YIYEDSD.js" />
+	  <None Include="wwwroot\chunk-PNIEDYD4.js" />
+	  <None Include="wwwroot\chunk-ZB65DKHY.js" />
+	  <None Include="wwwroot\favicon.ico" />
+	  <None Include="wwwroot\index.html" />
+	  <None Include="wwwroot\main-TMPTFWHD.js" />
+	  <None Include="wwwroot\styles-5INURTSO.css" />
 	</ItemGroup>
 
 	<Target Name="DebugEnsureNodeEnv" BeforeTargets="Build" Condition=" '$(Configuration)' == 'Debug' And !Exists('$(SpaRoot)node_modules') ">
@@ -98,11 +118,21 @@
 
 		<!-- Include the newly-built files in the publish output -->
 		<ItemGroup>
-			<DistFiles Include="$(SpaRoot)dist\**; $(SpaRoot)dist-server\**" />
+			<!-- Try dist/browser first (newer Angular build system), then fallback to dist -->
+			<DistFiles Include="$(SpaRoot)dist\browser\**" Condition="Exists('$(SpaRoot)dist\browser')" />
+			<DistFiles Include="$(SpaRoot)dist\**" Condition="!Exists('$(SpaRoot)dist\browser') And Exists('$(SpaRoot)dist')" />
+
 			<ResolvedFileToPublish Include="@(DistFiles->'%(FullPath)')" Exclude="@(ResolvedFileToPublish)">
 				<RelativePath>wwwroot\%(RecursiveDir)%(FileName)%(Extension)</RelativePath>
 				<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
 				<ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+			</ResolvedFileToPublish>
+		</ItemGroup>
+
+		<!-- Transform paths to remove 'browser\' prefix if it exists (safety net) -->
+		<ItemGroup>
+			<ResolvedFileToPublish Update="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(RelativePath)').StartsWith('wwwroot\browser\'))">
+				<RelativePath>$([System.String]::Copy('%(RelativePath)').Replace('wwwroot\browser\', 'wwwroot\'))</RelativePath>
 			</ResolvedFileToPublish>
 		</ItemGroup>
 	</Target>

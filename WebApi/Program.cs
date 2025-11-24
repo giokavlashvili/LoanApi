@@ -5,12 +5,19 @@ using NLog;
 using NLog.Web;
 using WebApi.Extensions;
 using WebApi.Middlwares.Extensions;
+using WebApi.Services;
 
 var logger = NLog.LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
 
 try
 {
     var builder = WebApplication.CreateBuilder(args);
+
+    // Build Angular automatically in Development mode ONLY when running in a container
+    if (builder.Environment.IsDevelopment() && AngularBuildService.IsRunningInContainer())
+    {
+        AngularBuildService.BuildIfNeeded(builder.Environment.ContentRootPath, logger);
+    }
 
     // Add services to the container.
     builder.Services.AddApplicationServices<Program>(builder.Configuration);
