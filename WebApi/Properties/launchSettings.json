@@ -35,6 +35,33 @@
       "publishAllPorts": true,
       "useSSL": true
     }
+    //,
+    //"Docker Compose": {
+    //  "commandName": "DockerCompose",
+    //  "launchBrowser": true,
+    //  "launchUrl": "{Scheme}://localhost:{ServicePort}/swagger",
+    //  "dockerCompose": {
+    //    "composeFile": "../docker-compose.yml",
+    //    "serviceName": "webapi",
+    //    "projectName": "loanapi"
+    //  },
+    //  "environmentVariables": {
+    //    "ASPNETCORE_ENVIRONMENT": "Development"
+    //  }
+    //},
+    //"Docker Compose (Production)": {
+    //  "commandName": "DockerCompose",
+    //  "launchBrowser": true,
+    //  "launchUrl": "{Scheme}://localhost:{ServicePort}/swagger",
+    //  "dockerCompose": {
+    //    "composeFile": "../docker-compose.prod.yml",
+    //    "serviceName": "webapi",
+    //    "projectName": "loanapi"
+    //  },
+    //  "environmentVariables": {
+    //    "ASPNETCORE_ENVIRONMENT": "Production"
+    //  }
+    //}
   },
   "$schema": "https://json.schemastore.org/launchsettings.json",
   "iisSettings": {

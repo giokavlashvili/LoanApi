@@ -32,8 +32,9 @@ namespace Infrastructure.Common.Extensions
             }
             else
             {
+                var connectionString = configuration.GetConnectionString("DefaultConnection");
                 services.AddDbContext<ApplicationDbContext>(options =>
-                    options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"),
+                    options.UseNpgsql(connectionString,
                         builder => builder.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
             }
 
