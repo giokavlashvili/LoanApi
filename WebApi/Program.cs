@@ -1,85 +1,126 @@
 using Application.Extensions;
 using Infrastructure.Common.Extensions;
 using Infrastructure.Persistence;
-using NLog;
-using NLog.Web;
+using Serilog;
 using WebApi.Extensions;
 using WebApi.Middlwares.Extensions;
 using WebApi.Services;
+using WebApi.Sinks;
 
-var logger = NLog.LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
-
-try
+public class Program
 {
-    var builder = WebApplication.CreateBuilder(args);
-
-    // Build Angular automatically in Development mode ONLY when running in a container
-    if (builder.Environment.IsDevelopment() && AngularBuildService.IsRunningInContainer())
+    public static async Task Main(string[] args)
     {
-        AngularBuildService.BuildIfNeeded(builder.Environment.ContentRootPath, logger);
-    }
-
-    // Add services to the container.
-    builder.Services.AddApplicationServices<Program>(builder.Configuration);
-    builder.Services.AddInfrastructureServices(builder.Configuration);
-    builder.Services.AddWebUIServices();
-
-    //Add NLog
-    builder.AddNlog();
-
-    var app = builder.Build();
-
-    // Configure the HTTP request pipeline.
-    if (app.Environment.IsDevelopment())
-    {
-        app.UseMigrationsEndPoint();
-        // Initialize and seed database
-        using (var scope = app.Services.CreateScope())
+        try
         {
-            var initialiser = scope.ServiceProvider.GetRequiredService<ApplicationDbContextInitializers>();
-            await initialiser.InitializeAsync();
-            await initialiser.SeedAsync();
+            var host = CreateHostBuilder(args).Build();
+
+            // Build Angular automatically in Development mode ONLY when running in a container
+            var env = host.Services.GetRequiredService<IWebHostEnvironment>();
+            if (env.IsDevelopment() && AngularBuildService.IsRunningInContainer())
+            {
+                // Create logger factory directly without building service provider
+                using var loggerFactory = LoggerFactory.Create(loggingBuilder =>
+                    loggingBuilder
+                        .AddConsole()
+                        .SetMinimumLevel(LogLevel.Information));
+
+                var logger = loggerFactory.CreateLogger("AngularBuildService");
+                AngularBuildService.BuildIfNeeded(env.ContentRootPath, logger);
+            }
+
+            // Initialize and seed database in Development mode
+            if (env.IsDevelopment())
+            {
+                using (var scope = host.Services.CreateScope())
+                {
+                    var initializer = scope.ServiceProvider.GetRequiredService<ApplicationDbContextInitializers>();
+                    await initializer.InitializeAsync();
+                    await initializer.SeedAsync();
+                }
+            }
+
+            await host.RunAsync();
         }
-
-        app.UseCors("AllowAllCorsPolicy");
+        catch (Exception ex)
+        {
+            Log.Fatal(ex, "Application terminated unexpectedly");
+            throw;
+        }
+        finally
+        {
+            Log.CloseAndFlush();
+        }
     }
-    else
-    {
-        // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-        app.UseHsts();
-    }
 
-    app.UseHttpsRedirection();
+    public static IHostBuilder CreateHostBuilder(string[] args) =>
+        Host.CreateDefaultBuilder(args)
+            .UseSerilog((context, services, configuration) =>
+            {
+                configuration
+                    .ReadFrom.Configuration(context.Configuration)
+                    .ReadFrom.Services(services)
+                    .Enrich.FromLogContext();
 
-    app.UseApplicationExceptionHandler();
+                // Add custom PostgreSQL sink for database logging (Information and above)
+                // This must be added after ReadFrom.Configuration to ensure it uses the correct minimum level
+                var connectionString = context.Configuration.GetConnectionString("DefaultConnection");
+                if (!string.IsNullOrEmpty(connectionString))
+                {
+                    // Explicitly set minimum level to Information to capture all HTTP request/response logs
+                    configuration.WriteTo.PostgreSQL(
+                        connectionString, 
+                        restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Information);
+                }
+            })
+            .ConfigureWebHostDefaults(webBuilder =>
+            {
+                webBuilder.ConfigureServices((context, services) =>
+                {
+                    // Register all services
+                    services.AddApplicationServices<Program>(context.Configuration);
+                    services.AddInfrastructureServices(context.Configuration);
+                    services.AddWebUIServices();
+                })
+                .Configure(app =>
+                {
+                    var env = app.ApplicationServices.GetRequiredService<IWebHostEnvironment>();
 
-    app.UseStaticFiles();
+                    // Configure the HTTP request pipeline
+                    if (env.IsDevelopment())
+                    {
+                        app.UseMigrationsEndPoint();
+                        app.UseCors("AllowAllCorsPolicy");
+                    }
+                    else
+                    {
+                        // The default HSTS value is 30 days
+                        app.UseHsts();
+                    }
 
-    // Register the Swagger generator and the Swagger UI middleware
-    app.UseOpenApi();
-    app.UseSwaggerUI();
+                    app.UseHttpsRedirection();
+                    app.UseApplicationExceptionHandler();
+                    app.UseApplicationLogging();
+                    app.UseStaticFiles();
 
-    app.UseSysLanguageMiddleware();
+                    // Register the Swagger generator and the Swagger UI middleware
+                    app.UseOpenApi();
+                    app.UseSwaggerUI();
 
-    app.UseApplicationLogging();
+                    app.UseSysLanguageMiddleware();
+                    app.UseCorrelationId();
+                    
+                    app.UseRouting();
+                    
+                    app.UseAuthentication();
+                    app.UseAuthorization();
 
-    app.UseResponseCaching();
-
-    app.UseAuthentication();
-
-    app.UseAuthorization();
-
-    app.MapControllers();
-
-    app.MapRazorPages()
-        .WithStaticAssets(); ; // Add this line for Identity pages
-
-    app.MapFallbackToFile("index.html").RequireAuthorization();
-
-    app.Run();
-}
-catch(Exception ex)
-{
-    logger.Error(ex);
-    throw;
+                    app.UseEndpoints(endpoints =>
+                    {
+                        endpoints.MapControllers();
+                        endpoints.MapRazorPages().WithStaticAssets();
+                        endpoints.MapFallbackToFile("index.html");
+                    });
+                });
+            });
 }

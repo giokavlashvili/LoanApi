@@ -47,7 +47,7 @@
       "useDocumentProvider": true,
       "documentName": "v1",
       "aspNetCoreEnvironment": null,
-      "createWebHostBuilderMethod": null,
+      "createWebHostBuilderMethod": "CreateHostBuilder",
       "startupType": null,
       "allowNullableBodyParameters": true,
       "useHttpAttributeNameAsOperationId": false,

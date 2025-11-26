@@ -2,6 +2,8 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
+using System.Reflection;
+using System.Text.Json;
 
 namespace Application.Common.Behaviors
 {
@@ -11,6 +13,7 @@ namespace Application.Common.Behaviors
         private readonly ILogger<TRequest> _logger;
         private readonly ICurrentUserService _currentUserService;
         private readonly IIdentityService _identityService;
+        private static readonly string[] SensitivePropertyNames = { "Password", "ConfirmPassword", "PersonalNumber", "Token", "Secret", "ApiKey" };
 
         public PerformanceBehavior(
             ILogger<TRequest> logger,
@@ -35,7 +38,7 @@ namespace Application.Common.Behaviors
             var elapsedMilliseconds = _timer.ElapsedMilliseconds;
 
             // Log long running actions
-            if (elapsedMilliseconds > 500)
+            if (elapsedMilliseconds > 10000)
             {
                 var requestName = typeof(TRequest).Name;
                 var userId = _currentUserService.UserId ?? string.Empty;
@@ -46,11 +49,58 @@ namespace Application.Common.Behaviors
                     userName = await _identityService.GetUserNameAsync(userId);
                 }
 
-                _logger.LogWarning("Api Long Running Request: {Name} ({ElapsedMilliseconds} milliseconds) {@UserId} {@UserName} {@Request}",
-                    requestName, elapsedMilliseconds, userId, userName, request);
+                // Sanitize request to remove sensitive data
+                var sanitizedRequest = SanitizeRequest(request);
+
+                // CorrelationId will be automatically included via LogContext from CorrelationIdMiddleware
+                _logger.LogWarning("Api Long Running Request: {Name} ({ElapsedMilliseconds} milliseconds) UserId:{UserId} UserName:{UserName} Request:{Request}",
+                    requestName, elapsedMilliseconds, userId, userName, sanitizedRequest);
             }
 
             return response;
+        }
+
+        private static object? SanitizeRequest(TRequest request)
+        {
+            if (request == null)
+                return null;
+
+            try
+            {
+                // Use reflection to create a sanitized copy
+                var requestType = request.GetType();
+                var sanitized = Activator.CreateInstance(requestType);
+
+                if (sanitized == null)
+                    return null;
+
+                var properties = requestType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+                foreach (var property in properties)
+                {
+                    if (property.CanRead && property.CanWrite)
+                    {
+                        var value = property.GetValue(request);
+                        
+                        // Check if property name contains sensitive data
+                        if (SensitivePropertyNames.Any(sensitive => 
+                            property.Name.Contains(sensitive, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            property.SetValue(sanitized, "***REDACTED***");
+                        }
+                        else
+                        {
+                            property.SetValue(sanitized, value);
+                        }
+                    }
+                }
+
+                return sanitized;
+            }
+            catch
+            {
+                // If sanitization fails, return request type name only
+                return new { Type = typeof(TRequest).Name, Message = "Request data sanitization failed" };
+            }
         }
     }
 }

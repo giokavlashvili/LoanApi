@@ -1,8 +1,4 @@
-﻿
-using NLog.Web;
-using NLog;
-
-namespace WebApi.Middlwares.Extensions
+﻿namespace WebApi.Middlwares.Extensions
 {
     public static class ApplicationBuilderExtensions
     {
@@ -21,13 +17,9 @@ namespace WebApi.Middlwares.Extensions
             return builder.UseMiddleware<SysLanguageMiddleware>();
         }
 
-        public static void AddNlog(this WebApplicationBuilder builder)
+        public static IApplicationBuilder UseCorrelationId(this IApplicationBuilder builder)
         {
-            //set nlog connection string
-            GlobalDiagnosticsContext.Set("ConnectionString", builder.Configuration.GetConnectionString("DefaultConnection"));
-
-            builder.Logging.ClearProviders();
-            builder.Host.UseNLog();
+            return builder.UseMiddleware<CorrelationIdMiddleware>();
         }
     }
 }

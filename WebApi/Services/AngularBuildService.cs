@@ -1,6 +1,4 @@
 using System.Diagnostics;
-using NLog;
-using ILogger = NLog.ILogger;
 
 namespace WebApi.Services;
 
@@ -54,7 +52,7 @@ public static class AngularBuildService
     /// Builds Angular SPA if it hasn't been built yet.
     /// </summary>
     /// <param name="contentRootPath">The content root path of the application.</param>
-    /// <param name="logger">NLog logger instance for logging build progress.</param>
+    /// <param name="logger">Logger instance for logging build progress.</param>
     /// <returns>True if build was successful or already exists, false otherwise.</returns>
     public static bool BuildIfNeeded(string contentRootPath, ILogger logger)
     {
@@ -66,47 +64,47 @@ public static class AngularBuildService
         // Check if Angular is already built
         //if (File.Exists(indexHtmlPath))
         //{
-        //    logger.Debug("Angular SPA already built. Skipping build.");
+        //    logger.LogDebug("Angular SPA already built. Skipping build.");
         //    return true;
         //}
 
         // Check if ClientApp directory exists
         if (!Directory.Exists(clientAppPath) || !File.Exists(packageJsonPath))
         {
-            logger.Warn("ClientApp directory or package.json not found. Skipping Angular build.");
+            logger.LogWarning("ClientApp directory or package.json not found. Skipping Angular build.");
             return false;
         }
 
-        logger.Info("Building SPA...");
+        logger.LogInformation("Building SPA...");
 
         try
         {
             // Step 1: Run npm install
             if (!RunNpmCommand(clientAppPath, "install", logger))
             {
-                logger.Warn("npm install completed with warnings. Continuing with build...");
+                logger.LogWarning("npm install completed with warnings. Continuing with build...");
             }
 
             // Step 2: Run npm build
             if (!RunNpmCommand(clientAppPath, "run build", logger))
             {
-                logger.Error("npm build failed. SPA may not be available.");
+                logger.LogError("npm build failed. SPA may not be available.");
                 return false;
             }
 
             // Step 3: Copy built files to wwwroot
             if (!CopyBuildOutputToWwwroot(clientAppPath, wwwrootPath, logger))
             {
-                logger.Error("Failed to copy Angular build output to wwwroot.");
+                logger.LogError("Failed to copy Angular build output to wwwroot.");
                 return false;
             }
 
-            logger.Info("Angular build complete!");
+            logger.LogInformation("Angular build complete!");
             return true;
         }
         catch (Exception ex)
         {
-            logger.Warn(ex, "Failed to build Angular automatically. Please build manually.");
+            logger.LogWarning(ex, "Failed to build Angular automatically. Please build manually.");
             return false;
         }
     }
@@ -132,7 +130,7 @@ public static class AngularBuildService
             using var process = Process.Start(processInfo);
             if (process == null)
             {
-                logger.Error("Failed to start npm process.");
+                logger.LogError("Failed to start npm process.");
                 return false;
             }
 
@@ -141,7 +139,7 @@ public static class AngularBuildService
         }
         catch (Exception ex)
         {
-            logger.Error(ex, "Error running npm command: {Arguments}", arguments);
+            logger.LogError(ex, "Error running npm command: {Arguments}", arguments);
             return false;
         }
     }
@@ -161,17 +159,17 @@ public static class AngularBuildService
             if (Directory.Exists(distBrowserPath))
             {
                 sourcePath = distBrowserPath;
-                logger.Debug("Found Angular build output in dist/browser");
+                logger.LogDebug("Found Angular build output in dist/browser");
             }
             else if (Directory.Exists(distPath))
             {
                 sourcePath = distPath;
-                logger.Debug("Found Angular build output in dist");
+                logger.LogDebug("Found Angular build output in dist");
             }
 
             if (sourcePath == null || !Directory.Exists(sourcePath))
             {
-                logger.Warn("Angular build output not found. Expected dist/ or dist/browser/ folder.");
+                logger.LogWarning("Angular build output not found. Expected dist/ or dist/browser/ folder.");
                 return false;
             }
 
@@ -194,13 +192,13 @@ public static class AngularBuildService
                 File.Copy(file, destPath, overwrite: true);
             }
 
-            logger.Info("Copied {FileCount} files from {SourcePath} to {DestPath}", 
+            logger.LogInformation("Copied {FileCount} files from {SourcePath} to {DestPath}", 
                 files.Length, sourcePath, wwwrootPath);
             return true;
         }
         catch (Exception ex)
         {
-            logger.Error(ex, "Error copying Angular build output to wwwroot");
+            logger.LogError(ex, "Error copying Angular build output to wwwroot");
             return false;
         }
     }

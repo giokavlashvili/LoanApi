@@ -1,33 +1,47 @@
-﻿using System.ComponentModel.DataAnnotations;
-
-namespace Domain.Entities
+﻿namespace Domain.Entities
 {
     public class Log
     {
+        // Primary Key & Timestamp (most queried)
         public long Id { get; set; }
-
         public DateTime When { get; set; }
 
-        [Required]
-        public string? Message { get; set; }
-
-        [Required]
-        [StringLength(10)]
+        // Severity & Filtering
         public string? Level { get; set; }
 
-        [Required]
-        public string? Exception { get; set; }
+        // Request Tracing (for correlation)
+        public string? CorrelationId { get; set; }
+        public string? RequestId { get; set; }
 
-        [Required]
+        // HTTP Context (quick inspection)
+        public string? HttpMethod { get; set; }
+        public int? StatusCode { get; set; }
+        public string? Url { get; set; }
+
+        // Performance Metrics
+        public long? DurationMs { get; set; }
+
+        // User Context
+        public string? UserId { get; set; }
+        public string? UserName { get; set; }
+
+        // Client Context
+        public string? ClientIp { get; set; }
+        public string? UserAgent { get; set; }
+
+        // Message Content
+        public string? Message { get; set; }
+        public string? Exception { get; set; }
         public string? Trace { get; set; }
 
-        [Required]
+        // Source & Channel
         public string? Logger { get; set; }
-
-        [StringLength(100)]
         public string? Channel { get; set; }
 
-        [Required]
-        public string? Url { get; set; }
+        // Detailed Data (large fields, inspected less frequently)
+        public string? RequestHeaders { get; set; }
+        public string? RequestBody { get; set; }
+        public string? ResponseBody { get; set; }
+        public string? Properties { get; set; }
     }
 }
