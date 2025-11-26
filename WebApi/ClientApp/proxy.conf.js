@@ -21,8 +21,8 @@ const PROXY_CONFIG = [
       "/Identity",
       "/signin-google",
       "/signout-google",
-      "/weatherforecast",
-      "/WeatherForecast"
+      "/swagger",
+      "/api/specification" 
    ],
     proxyTimeout: 600000,
     target: target,
