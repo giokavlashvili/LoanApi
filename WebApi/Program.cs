@@ -80,7 +80,7 @@ public class Program
                     // Register all services
                     services.AddApplicationServices<Program>(context.Configuration);
                     services.AddInfrastructureServices(context.Configuration);
-                    services.AddWebUIServices();
+                    services.AddWebUIServices(context.Configuration);
                 })
                 .Configure(app =>
                 {

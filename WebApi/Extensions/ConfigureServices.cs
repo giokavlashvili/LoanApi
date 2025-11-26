@@ -1,10 +1,12 @@
 ﻿using Application.Common.Interfaces;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Localization;
 using NSwag;
 using NSwag.Generation.Processors.Security;
 using System.Text.Json.Serialization;
 using WebApi.Filters;
 using WebApi.Localization;
+using WebApi.Options;
 using WebUI.Filters;
 using WebUI.Services;
 
@@ -12,12 +14,18 @@ namespace WebApi.Extensions
 {
     public static class ConfigureServices
     {
-        public static IServiceCollection AddWebUIServices(this IServiceCollection services)
+        public static IServiceCollection AddWebUIServices(this IServiceCollection services, IConfiguration? configuration = null)
         {
             services.AddDatabaseDeveloperPageExceptionFilter();
             services.AddSingleton<ICurrentUserService, CurrentUserService>();
             services.AddSingleton<IStringLocalizer, JsonStringLocalizer>();
             services.AddHttpContextAccessor();
+
+            // Configure RequestLogging options
+            if (configuration != null)
+            {
+                services.Configure<RequestLoggingOptions>(configuration.GetSection("RequestLogging"));
+            }
 
             services.AddControllers(options => options.Filters.Add<ApiExceptionFilterAttribute>())
                 .AddJsonOptions(x =>

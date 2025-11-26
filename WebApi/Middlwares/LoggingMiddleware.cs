@@ -1,9 +1,11 @@
 ﻿using Application.Common.Interfaces;
+using Microsoft.Extensions.Options;
 using Serilog.Context;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using WebApi.Helpers;
+using WebApi.Options;
 
 namespace WebApi.Middlwares
 {
@@ -12,15 +14,17 @@ namespace WebApi.Middlwares
         private readonly RequestDelegate _next;
         private readonly ILogger<LoggingMiddleware> _logger;
         private readonly ICurrentUserService _currentUserService;
+        private readonly RequestLoggingOptions _options;
         private const string CorrelationIdItemName = "CorrelationId";
         private const string RequestIdItemName = "RequestId";
         private static readonly string[] MethodsWithBody = { "POST", "PUT", "PATCH" };
 
-        public LoggingMiddleware(ILogger<LoggingMiddleware> logger, RequestDelegate next, ICurrentUserService currentUserService)
+        public LoggingMiddleware(ILogger<LoggingMiddleware> logger, RequestDelegate next, ICurrentUserService currentUserService, IOptions<RequestLoggingOptions> options)
         {
             _logger = logger;
             _next = next;
             _currentUserService = currentUserService;
+            _options = options.Value;
         }
 
         public async Task Invoke(HttpContext context)
@@ -60,11 +64,29 @@ namespace WebApi.Middlwares
                 string? responseBody = null;
                 if (!isRazorPage && responseBodyStream != null && originalBodyStream != null)
                 {
-                    // Read body for logging only on errors or slow requests (> 1000ms)
-                    if (statusCode >= 400 || durationMs > 1000)
+                    // Read body for logging only on errors or slow requests
+                    if (statusCode >= _options.WarningStatusCodeThreshold || durationMs > _options.SlowRequestThresholdMs)
                     {
-                        responseBody = await ReadStreamAsync(responseBodyStream);
-                        responseBody = LoggingSanitizer.SanitizeBody(responseBody);
+                        // Check response content type and size before reading
+                        var responseContentType = context.Response.ContentType?.ToLowerInvariant() ?? string.Empty;
+                        var isBinaryResponse = responseContentType.Contains("application/octet-stream", StringComparison.OrdinalIgnoreCase) ||
+                                              responseContentType.Contains("image/", StringComparison.OrdinalIgnoreCase) ||
+                                              responseContentType.Contains("video/", StringComparison.OrdinalIgnoreCase) ||
+                                              responseContentType.Contains("audio/", StringComparison.OrdinalIgnoreCase);
+
+                        if (!isBinaryResponse && responseBodyStream.Length <= _options.MaxBodySizeToLog)
+                        {
+                            responseBody = await ReadStreamAsync(responseBodyStream);
+                            responseBody = LoggingSanitizer.SanitizeBody(responseBody, _options.MaxBodySizeToSanitize);
+                        }
+                        else if (isBinaryResponse)
+                        {
+                            responseBody = $"[{responseBodyStream.Length} bytes - {responseContentType}]";
+                        }
+                        else
+                        {
+                            responseBody = $"[Response too large: {responseBodyStream.Length} bytes - not logged]";
+                        }
                     }
 
                     // Always copy response back to original stream
@@ -90,9 +112,31 @@ namespace WebApi.Middlwares
             string? requestBody = null;
             if (!isRazorPage && MethodsWithBody.Contains(httpMethod, StringComparer.OrdinalIgnoreCase))
             {
-                context.Request.EnableBuffering();
-                requestBody = ReadRequestBody(context.Request);
-                requestBody = LoggingSanitizer.SanitizeBody(requestBody);
+                // Skip file uploads and binary content
+                var contentType = context.Request.ContentType?.ToLowerInvariant() ?? string.Empty;
+                var isFileUpload = contentType.Contains("multipart/form-data", StringComparison.OrdinalIgnoreCase);
+                var isBinary = contentType.Contains("application/octet-stream", StringComparison.OrdinalIgnoreCase) ||
+                               contentType.Contains("image/", StringComparison.OrdinalIgnoreCase) ||
+                               contentType.Contains("video/", StringComparison.OrdinalIgnoreCase) ||
+                               contentType.Contains("audio/", StringComparison.OrdinalIgnoreCase);
+
+                // Check Content-Length before reading
+                var contentLength = context.Request.ContentLength ?? 0;
+
+                if (!isFileUpload && !isBinary && contentLength > 0 && contentLength <= _options.MaxBodySizeToLog)
+                {
+                    context.Request.EnableBuffering();
+                    requestBody = ReadRequestBody(context.Request);
+                    requestBody = LoggingSanitizer.SanitizeBody(requestBody, _options.MaxBodySizeToSanitize);
+                }
+                else if (isFileUpload || isBinary)
+                {
+                    requestBody = $"[{contentLength} bytes - {contentType}]";
+                }
+                else if (contentLength > _options.MaxBodySizeToLog)
+                {
+                    requestBody = $"[Body too large: {contentLength} bytes - not logged]";
+                }
             }
 
             return new RequestContext
@@ -172,10 +216,16 @@ namespace WebApi.Middlwares
             return context.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
         }
 
-        private static string? ReadRequestBody(HttpRequest request)
+        private string? ReadRequestBody(HttpRequest request)
         {
             try
             {
+                // Additional safety check
+                if (request.ContentLength > _options.MaxBodySizeToLog)
+                {
+                    return $"[Body too large: {request.ContentLength} bytes - not logged]";
+                }
+
                 request.Body.Position = 0;
                 using var reader = new StreamReader(request.Body, Encoding.UTF8, leaveOpen: true);
                 var body = reader.ReadToEnd();
@@ -202,14 +252,14 @@ namespace WebApi.Middlwares
             }
         }
 
-        private static LogLevel DetermineLogLevel(int statusCode, long durationMs)
+        private LogLevel DetermineLogLevel(int statusCode, long durationMs)
         {
-            // Error: Server errors (5xx)
-            if (statusCode >= 500)
+            // Error: Server errors
+            if (statusCode >= _options.ErrorStatusCodeThreshold)
                 return LogLevel.Error;
             
-            // Warning: Client errors (4xx)
-            if (statusCode >= 400)
+            // Warning: Client errors
+            if (statusCode >= _options.WarningStatusCodeThreshold)
                 return LogLevel.Warning;
             
             // Information: Successful requests (2xx, 3xx)

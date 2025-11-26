@@ -22,8 +22,6 @@ namespace WebApi.Helpers
             "token", "key", "secret", "password", "apiKey", "apikey"
         };
 
-        private const int MaxBodySize = 10 * 1024; // 10KB
-
         /// <summary>
         /// Sanitizes HTTP headers by removing sensitive headers.
         /// </summary>
@@ -49,7 +47,7 @@ namespace WebApi.Helpers
         /// <summary>
         /// Sanitizes request/response body by removing sensitive fields from JSON.
         /// </summary>
-        public static string? SanitizeBody(string? body)
+        public static string? SanitizeBody(string? body, int maxBodySize = 10240)
         {
             if (string.IsNullOrWhiteSpace(body))
                 return body;
@@ -57,7 +55,7 @@ namespace WebApi.Helpers
             try
             {
                 // Limit body size
-                var limitedBody = LimitBodySize(body);
+                var limitedBody = LimitBodySize(body, maxBodySize);
 
                 // Try to parse as JSON
                 using var doc = JsonDocument.Parse(limitedBody);
@@ -68,7 +66,7 @@ namespace WebApi.Helpers
             catch
             {
                 // If not JSON or parsing fails, return limited body as-is
-                return LimitBodySize(body);
+                return LimitBodySize(body, maxBodySize);
             }
         }
 
@@ -114,15 +112,15 @@ namespace WebApi.Helpers
         /// <summary>
         /// Limits body size to prevent log bloat.
         /// </summary>
-        public static string LimitBodySize(string body)
+        public static string LimitBodySize(string body, int maxBodySize = 10240)
         {
             if (string.IsNullOrEmpty(body))
                 return body;
 
-            if (body.Length <= MaxBodySize)
+            if (body.Length <= maxBodySize)
                 return body;
 
-            return body.Substring(0, MaxBodySize) + "... [TRUNCATED]";
+            return body.Substring(0, maxBodySize) + "... [TRUNCATED]";
         }
 
         /// <summary>
