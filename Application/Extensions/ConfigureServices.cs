@@ -17,6 +17,7 @@ namespace Application.Extensions
             services.AddMediatR(cfg => 
             {
                 cfg.RegisterServicesFromAssemblies(Assembly.GetExecutingAssembly());
+                cfg.AddOpenBehavior(typeof(TransactionBehavior<,>));
                 cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
                 cfg.AddOpenBehavior(typeof(PerformanceBehavior<,>));
             });
