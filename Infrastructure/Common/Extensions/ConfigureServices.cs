@@ -38,6 +38,13 @@ namespace Infrastructure.Common.Extensions
 
             services.AddScoped<ApplicationDbContextInitialiser>();
 
+            // Log retention. Skipped on the in-memory provider, which cannot run the batched
+            // DELETE and has nothing to purge anyway.
+            services.Configure<LogRetentionOptions>(configuration.GetSection(LogRetentionOptions.SectionName));
+
+            if (!configuration.GetValue<bool>("UseInMemoryDatabase"))
+                services.AddHostedService<LogRetentionService>();
+
             // For Identity
             services.AddIdentityCore<ApplicationUser>(o =>
             {

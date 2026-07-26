@@ -6,6 +6,7 @@ using NSwag.Generation.Processors.Security;
 using System.Text.Json.Serialization;
 using WebApi.Filters;
 using WebApi.Localization;
+using WebApi.Middlwares;
 using WebUI.Filters;
 using WebUI.Services;
 
@@ -13,9 +14,10 @@ namespace WebApi.Extensions
 {
     public static class ConfigureServices
     {
-        public static IServiceCollection AddWebUIServices(this IServiceCollection services)
+        public static IServiceCollection AddWebUIServices(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddDatabaseDeveloperPageExceptionFilter();
+            services.Configure<RequestLoggingOptions>(configuration.GetSection(RequestLoggingOptions.SectionName));
             services.AddSingleton<ICurrentUserService, CurrentUserService>();
             services.AddSingleton<IStringLocalizer, JsonStringLocalizer>();
             services.AddHttpContextAccessor();

@@ -9,10 +9,12 @@ namespace WebUI.Filters
     {
         private readonly IDictionary<Type, Action<ExceptionContext>> _exceptionHandlers;
         private readonly IStringLocalizer _stringLocalizer;
+        private readonly ILogger<ApiExceptionFilterAttribute> _logger;
 
-        public ApiExceptionFilterAttribute(IStringLocalizer stringLocalizer)
+        public ApiExceptionFilterAttribute(IStringLocalizer stringLocalizer, ILogger<ApiExceptionFilterAttribute> logger)
         {
             _stringLocalizer = stringLocalizer;
+            _logger = logger;
 
             // Register known exception types and handlers.
             _exceptionHandlers = new Dictionary<Type, Action<ExceptionContext>>
@@ -37,15 +39,40 @@ namespace WebUI.Filters
             Type type = context.Exception.GetType();
             if (_exceptionHandlers.ContainsKey(type))
             {
+                // Without this a mapped 400/403/404 left no server side trace at all, so a
+                // caller reporting "I keep getting 400" could not be investigated.
+                LogHandledException(context, type);
+
                 _exceptionHandlers[type].Invoke(context);
                 return;
             }
 
             if (!context.ModelState.IsValid)
             {
+                LogHandledException(context, typeof(ValidationException));
+
                 HandleInvalidModelStateException(context);
                 return;
             }
+        }
+
+        private void LogHandledException(ExceptionContext context, Type exceptionType)
+        {
+            // Authentication and authorization failures are security relevant, so they are
+            // raised to Warning; routine input validation stays at Information to keep the
+            // Logs table from filling with expected client mistakes.
+            var level = exceptionType == typeof(UnauthorizedAccessException)
+                        || exceptionType == typeof(ForbiddenAccessException)
+                ? LogLevel.Warning
+                : LogLevel.Information;
+
+            _logger.Log(
+                level,
+                context.Exception,
+                "Handled {ExceptionType} for {Method} {Path}",
+                exceptionType.Name,
+                context.HttpContext.Request.Method,
+                context.HttpContext.Request.Path.Value);
         }
 
         private void HandleValidationException(ExceptionContext context)

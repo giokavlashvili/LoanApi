@@ -27,7 +27,15 @@ namespace WebApi.Middlwares.Extensions
             GlobalDiagnosticsContext.Set("ConnectionString", builder.Configuration.GetConnectionString("DefaultConnection"));
 
             builder.Logging.ClearProviders();
-            builder.Host.UseNLog();
+
+            // IncludeScopes is what carries the request/response bodies from ILogger.BeginScope
+            // into ${scopeproperty:...} in nlog.config. Set explicitly rather than relying on
+            // the provider default, because silently losing it would empty two columns.
+            builder.Host.UseNLog(new NLogAspNetCoreOptions
+            {
+                IncludeScopes = true,
+                CaptureMessageProperties = true
+            });
         }
     }
 }

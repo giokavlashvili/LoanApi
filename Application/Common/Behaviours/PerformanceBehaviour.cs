@@ -1,4 +1,5 @@
-﻿using Application.Common.Interfaces;
+using Application.Common.Interfaces;
+using Application.Common.Logging;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
@@ -7,47 +8,43 @@ namespace Application.Common.Behaviors
 {
     public class PerformanceBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse> where TRequest : IRequest<TResponse>
     {
-        private readonly Stopwatch _timer;
+        private const int LongRunningThresholdMs = 500;
+
         private readonly ILogger<TRequest> _logger;
         private readonly ICurrentUserService _currentUserService;
-        private readonly IIdentityService _identityService;
 
         public PerformanceBehavior(
             ILogger<TRequest> logger,
-            ICurrentUserService currentUserService,
-            IIdentityService identityService)
+            ICurrentUserService currentUserService)
         {
-            _timer = new Stopwatch();
-
             _logger = logger;
             _currentUserService = currentUserService;
-            _identityService = identityService;
         }
 
         public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
         {
-            _timer.Start();
+            var timer = Stopwatch.StartNew();
 
             var response = await next();
 
-            _timer.Stop();
+            timer.Stop();
 
-            var elapsedMilliseconds = _timer.ElapsedMilliseconds;
+            var elapsedMilliseconds = timer.ElapsedMilliseconds;
 
             // Log long running actions
-            if (elapsedMilliseconds > 500)
+            if (elapsedMilliseconds > LongRunningThresholdMs)
             {
-                var requestName = typeof(TRequest).Name;
-                var userId = _currentUserService.UserId ?? string.Empty;
-                var userName = string.Empty;
+                // Redacted: LoginCommand/RegisterUserCommand carry passwords, and authentication
+                // handlers are exactly the ones that cross the threshold (password hashing is
+                // deliberately slow), so the raw request must never be handed to a sink.
+                var payload = LogRedactor.RedactObject(request);
 
-                if (!string.IsNullOrEmpty(userId))
-                {
-                    userName = await _identityService.GetUserNameAsync(userId);
-                }
-
-                _logger.LogWarning("Api Long Running Request: {Name} ({ElapsedMilliseconds} milliseconds) {@UserId} {@UserName} {@Request}",
-                    requestName, elapsedMilliseconds, userId, userName, request);
+                _logger.LogWarning(
+                    "Long running request {RequestName} took {DurationMs} ms for user {UserId} — {RequestBody}",
+                    typeof(TRequest).Name,
+                    elapsedMilliseconds,
+                    _currentUserService.UserId ?? string.Empty,
+                    payload);
             }
 
             return response;

@@ -15,7 +15,7 @@ try
     // Add services to the container.
     builder.Services.AddApplicationServices<Program>(builder.Configuration);
     builder.Services.AddInfrastructureServices(builder.Configuration);
-    builder.Services.AddWebUIServices();
+    builder.Services.AddWebUIServices(builder.Configuration);
 
     //Add NLog
     builder.AddNlog();
@@ -50,11 +50,15 @@ try
     app.UseOpenApi();
     app.UseSwaggerUI();
 
-    app.UseSysLanguageMiddleware();
+    // Order matters. Logging is outermost so it observes the final status code and response
+    // body of everything below it — including the 500 the exception handler produces, which
+    // the previous order (handler outside logging) could never record. Static files, Swagger
+    // and the OpenAPI document are registered above and so stay out of the log entirely.
+    app.UseApplicationLogging();
 
     app.UseApplicationExceptionHandler();
 
-    app.UseApplicationLogging();
+    app.UseSysLanguageMiddleware();
 
     app.UseResponseCaching();
 
