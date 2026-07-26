@@ -1,4 +1,5 @@
 ﻿using Application.Common.Behaviors;
+using Application.Common.Models;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.Configuration;
@@ -12,6 +13,11 @@ namespace Application.Extensions
         public static IServiceCollection AddApplicationServices<Type>(this IServiceCollection services, IConfiguration? configuration = null)
         {
             services.AddAutoMapper(Assembly.GetExecutingAssembly());
+
+            if (configuration is not null)
+            {
+                services.Configure<PaginationOptions>(configuration.GetSection(PaginationOptions.SectionName));
+            }
 
             services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
             services.AddMediatR(cfg => 
