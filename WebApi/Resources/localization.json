@@ -47,5 +47,19 @@
       "ka-GE": "განაცხადი უკვე მიღებულია",
       "en-US": "Application is already processed"
     }
+  },
+  {
+    "Key": "InvalidPageNumber",
+    "LocalizedValue": {
+      "ka-GE": "გვერდის ნომერი უნდა აღემატებოდეს 0-ს",
+      "en-US": "Invalid Page Number"
+    }
+  },
+  {
+    "Key": "InvalidPageSize",
+    "LocalizedValue": {
+      "ka-GE": "გვერდის ზომა უნდა იყოს 1-სა და 100-ს შორის",
+      "en-US": "Invalid Page Size"
+    }
   }
 ]

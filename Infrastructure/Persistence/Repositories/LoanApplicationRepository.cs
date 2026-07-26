@@ -19,8 +19,11 @@ namespace Infrastructure.Persistence.Repositories
         public async Task<IEnumerable<LoanApplication>> GetPaginatedListAsync(int pageIndex, int pageSize)
         {
             return await _context.LoanApplications
+                .AsNoTracking()
                 .Include(a => a.Currency)
                 .Include(a => a.LoanType)
+                .OrderByDescending(a => a.Created)
+                .ThenByDescending(a => a.Id)
                 .Skip((pageIndex - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
