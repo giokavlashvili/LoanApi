@@ -22,23 +22,28 @@ namespace WebApi.Middlwares
         private readonly RequestDelegate _next;
         private readonly ILogger<LoggingMiddleware> _logger;
         private readonly ICurrentUserService _currentUserService;
-        private readonly RequestLoggingOptions _options;
+        private readonly IOptionsMonitor<RequestLoggingOptions> _optionsMonitor;
 
         public LoggingMiddleware(
             RequestDelegate next,
             ILogger<LoggingMiddleware> logger,
             ICurrentUserService currentUserService,
-            IOptions<RequestLoggingOptions> options)
+            IOptionsMonitor<RequestLoggingOptions> optionsMonitor)
         {
             _next = next;
             _logger = logger;
             _currentUserService = currentUserService;
-            _options = options.Value;
+            _optionsMonitor = optionsMonitor;
         }
 
         public async Task Invoke(HttpContext context)
         {
-            if (!_options.Enabled || IsIgnoredPath(context.Request.Path))
+            // Resolved once per request into a local, never back into a field: this middleware
+            // instance is shared across concurrently in-flight requests, so a reload landing
+            // mid-flight must not change the options a request started with.
+            var options = _optionsMonitor.CurrentValue;
+
+            if (!options.Enabled || IsIgnoredPath(context.Request.Path, options))
             {
                 await _next(context);
                 return;
@@ -47,16 +52,16 @@ namespace WebApi.Middlwares
             var method = context.Request.Method;
             var path = context.Request.Path.Value ?? string.Empty;
 
-            var requestBody = await CaptureRequestBodyAsync(context.Request);
+            var requestBody = await CaptureRequestBodyAsync(context.Request, options);
 
             var originalResponseBody = context.Response.Body;
             var bufferedResponse = new BoundedResponseBufferStream(
                 originalResponseBody,
                 context.Response,
-                IsLoggableContentType,
-                _options.MaxBodyBytes);
+                contentType => IsLoggableContentType(contentType, options),
+                options.MaxBodyBytes);
 
-            if (_options.LogResponseBody)
+            if (options.LogResponseBody)
                 context.Response.Body = bufferedResponse;
 
             var timer = Stopwatch.StartNew();
@@ -79,33 +84,33 @@ namespace WebApi.Middlwares
                 timer.Stop();
 
                 // Restore before logging so nothing downstream writes into the wrapper.
-                if (_options.LogResponseBody)
+                if (options.LogResponseBody)
                     context.Response.Body = originalResponseBody;
 
-                var responseBody = ResolveResponseBody(context, bufferedResponse);
+                var responseBody = ResolveResponseBody(context, bufferedResponse, options);
 
-                WriteLog(context, method, path, timer.ElapsedMilliseconds, requestBody, responseBody, failure);
+                WriteLog(context, method, path, timer.ElapsedMilliseconds, requestBody, responseBody, failure, options);
 
                 bufferedResponse.Dispose();
             }
         }
 
-        private string? ResolveResponseBody(HttpContext context, BoundedResponseBufferStream bufferedResponse)
+        private string? ResolveResponseBody(HttpContext context, BoundedResponseBufferStream bufferedResponse, RequestLoggingOptions options)
         {
-            if (!_options.LogResponseBody)
+            if (!options.LogResponseBody)
                 return null;
 
             // A partial document cannot be parsed, so it cannot be masked — dropping it is
             // the only safe option, and the marker records that something was there.
             if (bufferedResponse.IsTruncated)
-                return $"[response body omitted: exceeded {_options.MaxBodyBytes} byte cap]";
+                return $"[response body omitted: exceeded {options.MaxBodyBytes} byte cap]";
 
             var captured = bufferedResponse.GetCapturedText();
 
             if (captured is null)
                 return bufferedResponse.SkipReason;
 
-            return LogRedactor.Redact(captured, GetMediaType(context.Response.ContentType), _options.SensitiveProperties);
+            return LogRedactor.Redact(captured, GetMediaType(context.Response.ContentType), options.SensitiveProperties);
         }
 
         private void WriteLog(
@@ -115,7 +120,8 @@ namespace WebApi.Middlwares
             long elapsedMs,
             string? requestBody,
             string? responseBody,
-            Exception? failure)
+            Exception? failure,
+            RequestLoggingOptions options)
         {
             // Read the user only now: authentication runs downstream of this middleware, so
             // the claims principal is not populated on the way in.
@@ -125,7 +131,7 @@ namespace WebApi.Middlwares
                 ? StatusCodes.Status500InternalServerError
                 : context.Response.StatusCode;
 
-            var level = failure is not null || statusCode >= _options.WarningStatusCodeThreshold
+            var level = failure is not null || statusCode >= options.WarningStatusCodeThreshold
                 ? LogLevel.Warning
                 : LogLevel.Information;
 
@@ -148,9 +154,9 @@ namespace WebApi.Middlwares
             }
         }
 
-        private async Task<string?> CaptureRequestBodyAsync(HttpRequest request)
+        private async Task<string?> CaptureRequestBodyAsync(HttpRequest request, RequestLoggingOptions options)
         {
-            if (!_options.LogRequestBody)
+            if (!options.LogRequestBody)
                 return null;
 
             var contentLength = request.ContentLength;
@@ -158,14 +164,14 @@ namespace WebApi.Middlwares
             if (contentLength is null or 0)
                 return null;
 
-            if (!IsLoggableContentType(request.ContentType))
+            if (!IsLoggableContentType(request.ContentType, options))
             {
                 // Uploads land here: record what arrived, never what was in it.
                 return $"[request body omitted: {request.ContentType ?? "unknown content type"}, {contentLength} bytes]";
             }
 
-            if (contentLength > _options.MaxBodyBytes)
-                return $"[request body omitted: {contentLength} bytes exceeds {_options.MaxBodyBytes} byte cap]";
+            if (contentLength > options.MaxBodyBytes)
+                return $"[request body omitted: {contentLength} bytes exceeds {options.MaxBodyBytes} byte cap]";
 
             try
             {
@@ -181,7 +187,7 @@ namespace WebApi.Middlwares
                 var body = await reader.ReadToEndAsync();
                 request.Body.Position = 0;
 
-                return LogRedactor.Redact(body, GetMediaType(request.ContentType), _options.SensitiveProperties);
+                return LogRedactor.Redact(body, GetMediaType(request.ContentType), options.SensitiveProperties);
             }
             catch (Exception ex) when (ex is IOException or InvalidOperationException)
             {
@@ -189,7 +195,7 @@ namespace WebApi.Middlwares
             }
         }
 
-        private bool IsLoggableContentType(string? contentType)
+        private static bool IsLoggableContentType(string? contentType, RequestLoggingOptions options)
         {
             var mediaType = GetMediaType(contentType);
 
@@ -200,7 +206,7 @@ namespace WebApi.Middlwares
             if (mediaType.EndsWith("+json", StringComparison.OrdinalIgnoreCase))
                 return true;
 
-            return _options.LoggableContentTypes.Contains(mediaType, StringComparer.OrdinalIgnoreCase);
+            return options.LoggableContentTypes.Contains(mediaType, StringComparer.OrdinalIgnoreCase);
         }
 
         /// <summary>Strips parameters, so "application/json; charset=utf-8" matches "application/json".</summary>
@@ -213,12 +219,12 @@ namespace WebApi.Middlwares
             return (separator >= 0 ? contentType[..separator] : contentType).Trim();
         }
 
-        private bool IsIgnoredPath(PathString path)
+        private static bool IsIgnoredPath(PathString path, RequestLoggingOptions options)
         {
             if (!path.HasValue)
                 return false;
 
-            foreach (var ignored in _options.IgnoredPaths)
+            foreach (var ignored in options.IgnoredPaths)
             {
                 if (path.StartsWithSegments(ignored, StringComparison.OrdinalIgnoreCase))
                     return true;

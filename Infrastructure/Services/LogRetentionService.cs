@@ -16,42 +16,47 @@ namespace Infrastructure.Services
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<LogRetentionService> _logger;
-        private readonly LogRetentionOptions _options;
+        private readonly IOptionsMonitor<LogRetentionOptions> _optionsMonitor;
 
         public LogRetentionService(
             IServiceScopeFactory scopeFactory,
             ILogger<LogRetentionService> logger,
-            IOptions<LogRetentionOptions> options)
+            IOptionsMonitor<LogRetentionOptions> optionsMonitor)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
-            _options = options.Value;
+            _optionsMonitor = optionsMonitor;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            if (!_options.Enabled || _options.RetentionDays <= 0)
-                return;
-
+            // Enabled/RetentionDays are re-read every iteration rather than checked once up
+            // front, so flipping LogRetention:Enabled back on later actually resumes purging
+            // instead of leaving this task completed forever from an early return.
             while (!stoppingToken.IsCancellationRequested)
             {
-                try
+                var options = _optionsMonitor.CurrentValue;
+
+                if (options.Enabled && options.RetentionDays > 0)
                 {
-                    await PurgeAsync(stoppingToken);
-                }
-                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-                {
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    // A failed purge must never take the host down; it retries next interval.
-                    _logger.LogError(ex, "Log retention purge failed");
+                    try
+                    {
+                        await PurgeAsync(options, stoppingToken);
+                    }
+                    catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                    {
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        // A failed purge must never take the host down; it retries next interval.
+                        _logger.LogError(ex, "Log retention purge failed");
+                    }
                 }
 
                 try
                 {
-                    await Task.Delay(_options.Interval, stoppingToken);
+                    await Task.Delay(options.Interval, stoppingToken);
                 }
                 catch (OperationCanceledException)
                 {
@@ -60,9 +65,9 @@ namespace Infrastructure.Services
             }
         }
 
-        private async Task PurgeAsync(CancellationToken cancellationToken)
+        private async Task PurgeAsync(LogRetentionOptions options, CancellationToken cancellationToken)
         {
-            var cutoff = DateTime.UtcNow.AddDays(-_options.RetentionDays);
+            var cutoff = DateTime.UtcNow.AddDays(-options.RetentionDays);
 
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -74,18 +79,18 @@ namespace Infrastructure.Services
             {
                 // Batched so each statement is short lived and uses IX_Logs_When.
                 deleted = await context.Database.ExecuteSqlInterpolatedAsync(
-                    $"DELETE TOP ({_options.BatchSize}) FROM Logs WHERE [When] < {cutoff}",
+                    $"DELETE TOP ({options.BatchSize}) FROM Logs WHERE [When] < {cutoff}",
                     cancellationToken);
 
                 total += deleted;
             }
-            while (deleted == _options.BatchSize && !cancellationToken.IsCancellationRequested);
+            while (deleted == options.BatchSize && !cancellationToken.IsCancellationRequested);
 
             if (total > 0)
             {
                 _logger.LogInformation(
                     "Log retention removed {DeletedRows} rows older than {RetentionDays} days",
-                    total, _options.RetentionDays);
+                    total, options.RetentionDays);
             }
         }
     }
