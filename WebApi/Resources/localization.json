@@ -10,14 +10,14 @@
     "Key": "InvalidLoanType",
     "LocalizedValue": {
       "ka-GE": "ვერ მოიძებნა სესხის ტიპი",
-      "en-US": "Invalid Currency"
+      "en-US": "Invalid Loan Type"
     }
   },
   {
     "Key": "InvalidApplication",
     "LocalizedValue": {
       "ka-GE": "განაცხადი ვერ მოიძებნა",
-      "en-US": "Invalid Currency"
+      "en-US": "Invalid Application"
     }
   },
   {
@@ -32,6 +32,13 @@
     "LocalizedValue": {
       "ka-GE": "პერიოდი უნდა აღემატებოდეს 0-ს",
       "en-US": "Invalid Period"
+    }
+  },
+  {
+    "Key": "InvalidUser",
+    "LocalizedValue": {
+      "ka-GE": "მომხმარებელი ვერ მოიძებნა",
+      "en-US": "Invalid User"
     }
   },
   {

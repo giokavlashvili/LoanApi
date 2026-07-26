@@ -40,6 +40,9 @@ namespace Domain.Entities
             if (periodPerMonth <= 0)
                 throw new DomainValidationException("InvalidPeriod");
 
+            if (string.IsNullOrWhiteSpace(createdById))
+                throw new DomainValidationException("InvalidUser");
+
             var entity = new LoanApplication()
             {
                 LoanTypeId = loanTypeId,
@@ -71,6 +74,9 @@ namespace Domain.Entities
             if (periodPerMonth <= 0)
                 throw new DomainValidationException("InvalidPeriod");
 
+            if (string.IsNullOrWhiteSpace(lastModifiedBy))
+                throw new DomainValidationException("InvalidUser");
+
             LoanTypeId = loanTypeId;
             Amount = amount;
             CurrencyId = currencyId;
@@ -87,6 +93,9 @@ namespace Domain.Entities
             DateTime lastModified
             )
         {
+            if (string.IsNullOrWhiteSpace(lastModifiedBy))
+                throw new DomainValidationException("InvalidUser");
+
             if (Status == LoanStatus.Accepted || Status == LoanStatus.Rejected)
                 throw new DomainValidationException("ApplicationAlreadyProcessed");
 
