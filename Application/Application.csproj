@@ -7,16 +7,16 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.1.0" />
-    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Localization.Abstractions" Version="10.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0" />
+    <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="10.0.0" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Localization.Abstractions" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.10" />
 
 	<PackageReference Include="AutoMapper" Version="14.0.0" />
 	<PackageReference Include="MediatR" Version="13.1.0" />
-	<PackageReference Include="System.Data.SqlClient" Version="4.9.0" />
-	<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.14.0" />
+	<PackageReference Include="System.Data.SqlClient" Version="4.9.1" />
+	<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.21.0" />
   
   </ItemGroup>
 
