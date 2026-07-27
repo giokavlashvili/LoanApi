@@ -8,8 +8,16 @@ namespace Infrastructure.Persistence.Configurations
     {
         public void Configure(EntityTypeBuilder<Log> builder)
         {
-            builder.Property(l => l.Level).IsRequired().HasMaxLength(10);
-            builder.Property(l => l.Logger).IsRequired().HasMaxLength(255);
+            // 16, not 10: Serilog spells the levels out ("Information" is 11 characters),
+            // where NLog wrote "Info". Too short and every request row fails to insert.
+            builder.Property(l => l.Level).IsRequired().HasMaxLength(16);
+
+            // Nullable: this maps to Serilog's SourceContext, which is absent on events
+            // raised through the static Log.Logger (the bootstrap logger, the host-terminated
+            // fatal in Program.cs). The sink batches and reports failures only to SelfLog,
+            // so a NOT NULL violation here would drop whole batches silently.
+            builder.Property(l => l.Logger).HasMaxLength(255);
+
             builder.Property(l => l.Message).IsRequired();
 
             // Bounded so a long URL or user agent cannot push the row into LOB storage.

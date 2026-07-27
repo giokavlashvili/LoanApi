@@ -13,8 +13,8 @@ namespace WebApi.Middlwares
     /// <para>
     /// Small scalars travel as message-template properties and the two bodies as scope
     /// properties, so the rendered <c>Message</c> stays short while every field is still a
-    /// separate column. Both are plain NLog event/scope properties, so pointing a Seq
-    /// target at this later needs no code change.
+    /// separate column. Serilog makes no distinction between the two — both end up as plain
+    /// structured properties — so pointing a Seq sink at this later needs no code change.
     /// </para>
     /// </summary>
     public class LoggingMiddleware

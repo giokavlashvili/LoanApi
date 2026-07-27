@@ -2,10 +2,11 @@ namespace Application.Common.Logging
 {
     /// <summary>
     /// Names of the structured properties attached to log events. These are the contract
-    /// between the code that logs and the sinks that read them: today the NLog database
-    /// target maps them to columns via <c>${event-properties:item=...}</c>, and a Seq (or
-    /// any other structured) target picks the same names up with no code change.
-    /// Keep in sync with <c>WebApi/nlog.config</c> and <c>Domain/Entities/Log.cs</c>.
+    /// between the code that logs and the sinks that read them: today the SQL Server sink
+    /// binds them to columns by matching name (see <c>WebApi/Extensions/LoggingConfiguration.cs</c>),
+    /// and a Seq (or any other structured) sink picks the same names up with no code change.
+    /// Keep in sync with <c>LoggingConfiguration.BuildColumnOptions</c> and
+    /// <c>Domain/Entities/Log.cs</c>.
     /// </summary>
     public static class LogProperties
     {

@@ -1,12 +1,16 @@
 using Application.Extensions;
 using Infrastructure.Common.Extensions;
 using Infrastructure.Persistence;
-using NLog;
-using NLog.Web;
+using Serilog;
 using WebApi.Extensions;
 using WebApi.Middlwares.Extensions;
 
-var logger = NLog.LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
+// Covers the window before the container exists — a bad connection string or a DI
+// misconfiguration would otherwise fail with no log line at all. Replaced wholesale by
+// the configured pipeline once AddApplicationLogging runs.
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
 
 try
 {
@@ -17,8 +21,8 @@ try
     builder.Services.AddInfrastructureServices(builder.Configuration);
     builder.Services.AddWebUIServices(builder.Configuration);
 
-    //Add NLog
-    builder.AddNlog();
+    //Add Serilog
+    builder.AddApplicationLogging();
 
     var app = builder.Build();
 
@@ -70,13 +74,14 @@ try
 
     app.Run();
 }
-catch(Exception ex)
+catch (Exception ex)
 {
-    logger.Error(ex);
+    Log.Fatal(ex, "Host terminated unexpectedly");
     throw;
 }
 finally
 {
-    //Ensure to flush and stop internal timers/ threads before application-exit (Avoid segmentation fault on Linux)
-    NLog.LogManager.Shutdown();
+    // Drains the batch queues before exit. Matters more than NLog's Shutdown() did: the
+    // database sink holds up to BatchPostingLimit events, and without this they are lost.
+    Log.CloseAndFlush();
 }

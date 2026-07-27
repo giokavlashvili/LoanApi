@@ -1,10 +1,10 @@
 namespace Domain.Entities
 {
     /// <summary>
-    /// A log row written by the NLog database target. Nothing in the application writes this
-    /// through EF — the DbSet exists so logs can be queried. Column shape is configured in
-    /// <c>Infrastructure/Persistence/Configurations/LogConfiguration.cs</c> and must stay in
-    /// sync with the INSERT in <c>WebApi/nlog.config</c>.
+    /// A log row written by the Serilog SQL Server sink. Nothing in the application writes
+    /// this through EF — the DbSet exists so logs can be queried. Column shape is configured
+    /// in <c>Infrastructure/Persistence/Configurations/LogConfiguration.cs</c> and must stay
+    /// in sync with the column mapping in <c>WebApi/Extensions/LoggingConfiguration.cs</c>.
     /// </summary>
     public class Log
     {
