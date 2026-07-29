@@ -9,6 +9,7 @@ alwaysApply: true
 - Namespaces/assemblies: `Domain`, `Application`, `Infrastructure`, `WebApi` (not "LoanApi"). "LoanApi" is only the `.sln` / folder name.
 - Dependencies inward only: `WebApi → Infrastructure → Application → Domain`.
 - App abstractions (`IApplicationDbContext`, `ICurrentUserService`, `IDateTime`, `IIdentityService`, …) live in `Application/Common/Interfaces`. Repo/UoW abstractions live in `Domain/Repositories`.
+- `IDateTime` exposes `UtcNow` only — it is the one clock in the app, and it is UTC. Raw `DateTime.Now`/`UtcNow`/`Today`/`DateTimeOffset.Now`/`UtcNow` are build errors outside `DateTimeService` (`Directory.Build.props` + `BannedSymbols.txt`, `RS0030`).
 - Business rules live in **domain entities**; handlers only orchestrate (user/time → entity → save).
 - Registration is **assembly-scan** — new MediatR handlers, FluentValidation validators, AutoMapper `IMapFrom`, and EF `IEntityTypeConfiguration`s need **no manual DI**.
 - MediatR pipeline behaviors MUST use `where TRequest : notnull` (never `IRequest<TResponse>`). MediatR.Contracts 2.x makes void `IRequest` unrelated to `IRequest<Unit>`; a tighter constraint silently drops validation/OTP on void commands.

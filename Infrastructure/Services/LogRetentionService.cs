@@ -1,3 +1,4 @@
+using Application.Common.Interfaces;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,15 +18,18 @@ namespace Infrastructure.Services
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<LogRetentionService> _logger;
         private readonly IOptionsMonitor<LogRetentionOptions> _optionsMonitor;
+        private readonly IDateTime _dateTime;
 
         public LogRetentionService(
             IServiceScopeFactory scopeFactory,
             ILogger<LogRetentionService> logger,
-            IOptionsMonitor<LogRetentionOptions> optionsMonitor)
+            IOptionsMonitor<LogRetentionOptions> optionsMonitor,
+            IDateTime dateTime)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
             _optionsMonitor = optionsMonitor;
+            _dateTime = dateTime;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -67,7 +71,7 @@ namespace Infrastructure.Services
 
         private async Task PurgeAsync(LogRetentionOptions options, CancellationToken cancellationToken)
         {
-            var cutoff = DateTime.UtcNow.AddDays(-options.RetentionDays);
+            var cutoff = _dateTime.UtcNow.AddDays(-options.RetentionDays);
 
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();

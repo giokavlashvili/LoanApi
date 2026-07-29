@@ -39,7 +39,7 @@ namespace Application.LoanApplications.Commands
                 request.CurrencyId,
                 request.PeriodPerMonth,
                 _currentUserService.UserId,
-                _dateTime.Now);
+                _dateTime.UtcNow);
 
             _unitOfWork.LoanApplicationRepository.Update(entity);
 

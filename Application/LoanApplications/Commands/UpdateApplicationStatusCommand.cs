@@ -47,7 +47,7 @@ namespace Application.LoanApplications.Commands
             entity.UpdateStatus(
                 request.Status,
                 _currentUserService.UserId,
-                _dateTime.Now);
+                _dateTime.UtcNow);
 
             _unitOfWork.LoanApplicationRepository.Update(entity);
 

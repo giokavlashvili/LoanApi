@@ -185,7 +185,7 @@ namespace Infrastructure.Identity
             var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["JWT:Secret"]));
 
             var token = new JwtSecurityToken(
-                expires: _dateTime.Now.AddMinutes(int.Parse(_config["JWT:ExpireMinutes"])),
+                expires: _dateTime.UtcNow.AddMinutes(int.Parse(_config["JWT:ExpireMinutes"])),
                 claims: authClaims,
                 signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
                 );

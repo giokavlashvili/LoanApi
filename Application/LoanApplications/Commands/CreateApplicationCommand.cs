@@ -37,7 +37,7 @@ namespace Application.LoanApplications.Commands
                 request.CurrencyId, 
                 request.PeriodPerMonth,
                 currentUserId,
-                _dateTime.Now);
+                _dateTime.UtcNow);
 
             await _unitOfWork.LoanApplicationRepository.AddAsync(entity);
 

@@ -59,6 +59,10 @@ Notes on the build:
 
 Project references flow inward: `WebApi -> Infrastructure -> Application -> Domain`. Note `Infrastructure` references `Application` (not the reverse) -- abstractions such as `IApplicationDbContext`, `ICurrentUserService`, `IDateTime`, `IIdentityService` live in `Application/Common/Interfaces`, while repository/unit-of-work abstractions live in `Domain/Repositories`. Each layer exposes one `ConfigureServices` extension (`AddApplicationServices`, `AddInfrastructureServices`, `AddWebUIServices`) composed in `WebApi/Program.cs`.
 
+### Time
+
+`IDateTime` exposes a single member, `UtcNow`, and `DateTimeService` (registered as a singleton) is the only place in the solution permitted to read the system clock -- every persisted timestamp (`LoanApplications`, `OtpVerifications`, `Logs`, JWT expiry) is on the same UTC clock. A `Directory.Build.props` at the repository root adds `Microsoft.CodeAnalysis.BannedApiAnalyzers` with `BannedSymbols.txt` banning `DateTime.Now`/`UtcNow`/`Today` and `DateTimeOffset.Now`/`UtcNow` (rule `RS0030`, `WarningsAsErrors`), so a raw clock read anywhere else is a build error, not a review comment. Test projects (`Domain.UnitTests`, `Application.UnitTests`) opt out via `NoWarn` because they legitimately construct fixed instants. Before this, `DateTimeService` returned *local* time while the Serilog sink and the log retention purge (`LogRetentionService`) read `DateTime.UtcNow` directly -- two tables in one database were timestamped on clocks that differed by the UTC offset, and local time is not monotonic across a DST fall-back.
+
 ### Request flow
 
 Controller (thin, `ApiControllerBase.Mediator.Send`) -> `ValidationBehavior` -> `PerformanceBehavior` -> `OtpVerificationBehavior` (when command implements `IRequireOtpVerification`) -> handler -> `IUnitOfWork` repository -> `ApplicationDbContext.SaveChangesAsync` -> domain events dispatched -> response; exceptions shaped by `ApiExceptionFilterAttribute`.

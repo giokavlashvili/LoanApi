@@ -1,0 +1,5 @@
+P:System.DateTime.Now;Use IDateTime.UtcNow — the application has one clock, and it is UTC.
+P:System.DateTime.UtcNow;Use IDateTime.UtcNow so the clock stays injectable and testable.
+P:System.DateTime.Today;Use IDateTime.UtcNow.
+P:System.DateTimeOffset.Now;Use IDateTime.UtcNow.
+P:System.DateTimeOffset.UtcNow;Use IDateTime.UtcNow.

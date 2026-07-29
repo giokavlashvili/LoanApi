@@ -21,7 +21,7 @@ namespace Application.UnitTests.Otp
         private const string Recipient = "+995555123456";
         private const string RequestHash = "request-hash";
 
-        private static readonly DateTime Now = new(2026, 7, 29, 12, 0, 0);
+        private static readonly DateTime Now = new(2026, 7, 29, 12, 0, 0, DateTimeKind.Utc);
 
         private Mock<IApplicationDbContext> _context;
         private Mock<IOtpVerificationRepository> _otpRepository;
@@ -49,7 +49,7 @@ namespace Application.UnitTests.Otp
             _dateTime = new Mock<IDateTime>();
             _options = new OtpOptions { Secret = "test-secret", MaxAttempts = 3, ResendCooldown = TimeSpan.Zero };
 
-            _dateTime.Setup(d => d.Now).Returns(Now);
+            _dateTime.Setup(d => d.UtcNow).Returns(Now);
             _unitOfWork.Setup(uow => uow.SaveAsync(It.IsAny<CancellationToken>())).Returns(Task.FromResult(1));
 
             var optionsMonitor = new Mock<IOptionsMonitor<OtpOptions>>();

@@ -48,7 +48,7 @@ namespace Infrastructure.Services
             CancellationToken cancellationToken = default)
         {
             var options = _optionsMonitor.CurrentValue;
-            var now = _dateTime.Now;
+            var now = _dateTime.UtcNow;
 
             var previous = await _unitOfWork.OtpVerificationRepository.GetLatestAsync(recipient, purpose, cancellationToken);
 
@@ -123,7 +123,7 @@ namespace Infrastructure.Services
 
             try
             {
-                entity.Verify(_codeHasher.Hash(challengeId, code), requestHash, _dateTime.Now);
+                entity.Verify(_codeHasher.Hash(challengeId, code), requestHash, _dateTime.UtcNow);
             }
             finally
             {

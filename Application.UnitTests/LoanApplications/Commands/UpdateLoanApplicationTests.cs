@@ -36,7 +36,7 @@ namespace Application.UnitTests.LoanApplications.Commands
 
             _currentUserService.Setup(u => u.UserId).Returns("userId");
             _loanApplicationRepository.Setup(r => r.Update(It.IsAny<LoanApplication>()));
-            _loanApplicationRepository.Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>())).Returns(Task.FromResult(LoanApplication.Create(1,1,1,1,"UserId", DateTime.Now)));
+            _loanApplicationRepository.Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>())).Returns(Task.FromResult(LoanApplication.Create(1,1,1,1,"UserId", new DateTime(2026, 7, 29, 12, 0, 0, DateTimeKind.Utc))));
             _unitOfWork.Setup(uow => uow.SaveAsync(It.IsAny<CancellationToken>())).Returns(Task.FromResult(1));
         }
 

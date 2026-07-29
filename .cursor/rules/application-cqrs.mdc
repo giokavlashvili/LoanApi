@@ -8,7 +8,7 @@ alwaysApply: false
 
 - Vertical slice: `Application/<Feature>/{Commands,Queries,Dtos,Validators,EventHandlers}`.
 - Command/query **and** handler live in the **same file**. Types are `record`s: `IRequest` or `IRequest<T>`.
-- Handlers orchestrate only: current user / `IDateTime` → entity factory/mutator → `_unitOfWork` → `SaveAsync`.
+- Handlers orchestrate only: current user / `IDateTime.UtcNow` → entity factory/mutator → `_unitOfWork` → `SaveAsync`.
 - FluentValidation for input/lookups (inject `IUnitOfWork`, `IStringLocalizer`). Domain rules stay on the entity.
 - DTOs: implement `IMapFrom<T>`; override `Mapping(Profile)` only for custom members.
 - Event handlers: `INotificationHandler<>` under `Application/<Feature>/EventHandlers`.

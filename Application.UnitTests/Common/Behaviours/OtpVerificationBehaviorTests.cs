@@ -67,7 +67,7 @@ namespace Application.UnitTests.Common.Behaviours
 
             _otpService
                 .Setup(s => s.IssueAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new OtpChallengeDto { ChallengeId = Guid.NewGuid(), ExpiresAt = DateTime.Now.AddMinutes(5) });
+                .ReturnsAsync(new OtpChallengeDto { ChallengeId = Guid.NewGuid(), ExpiresAt = new DateTime(2026, 7, 29, 12, 0, 0, DateTimeKind.Utc).AddMinutes(5) });
         }
 
         private OtpVerificationBehavior<TRequest, TResponse> CreateBehavior<TRequest, TResponse>() where TRequest : notnull =>

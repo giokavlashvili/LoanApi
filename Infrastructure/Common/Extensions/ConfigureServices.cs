@@ -65,7 +65,7 @@ namespace Infrastructure.Common.Extensions
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
 
-            services.AddTransient<IDateTime, DateTimeService>();
+            services.AddSingleton<IDateTime, DateTimeService>();
             services.AddTransient<IUserService, IdentityService>();
             services.AddTransient<IIdentityService, IdentityService>();
 
