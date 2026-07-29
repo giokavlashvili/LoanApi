@@ -55,6 +55,27 @@ Notes on the build:
 - In Development, startup applies migrations and seeds (`Program.cs`), so `dotnet run` needs SQL Server at `localhost\SQLEXPRESS`. To run without one, set `"UseInMemoryDatabase": true` in `WebApi/appsettings.json` (switch honored in `Infrastructure/Common/Extensions/ConfigureServices.cs`).
 - Seeded dev credentials: `administrator@localhost` / `Administrator1!` (role `Administrator`).
 
+### Secrets
+
+`WebApi/appsettings.json` ships `JWT:Secret` and `Otp:Secret` as **empty strings** -- both are
+validated with `ValidateOnStart()` (see `JwtOptions`, `OtpOptions`), so a real deployment that
+does not supply them fails loudly at boot naming the missing setting, rather than throwing on the
+first login or the first issued code. `WebApi/appsettings.Development.json` carries placeholder
+values for both (beside the `Otp:StaticCode` escape hatch), so clone-and-run still works without
+any extra setup.
+
+To run against your own values instead of the committed placeholders, use user secrets (the
+project already has a `UserSecretsId` in `WebApi/WebApi.csproj`):
+
+```bash
+dotnet user-secrets set "JWT:Secret" "<a real secret, at least 32 characters>" --project WebApi
+dotnet user-secrets set "Otp:Secret" "<a real secret>" --project WebApi
+```
+
+Production should source both from a real secret store rather than configuration files or user
+secrets. `Infrastructure` already references `Azure.Identity` (currently unused elsewhere) if Key
+Vault is the destination.
+
 ## Architecture
 
 Project references flow inward: `WebApi -> Infrastructure -> Application -> Domain`. Note `Infrastructure` references `Application` (not the reverse) -- abstractions such as `IApplicationDbContext`, `ICurrentUserService`, `IDateTime`, `IIdentityService` live in `Application/Common/Interfaces`, while repository/unit-of-work abstractions live in `Domain/Repositories`. Each layer exposes one `ConfigureServices` extension (`AddApplicationServices`, `AddInfrastructureServices`, `AddWebUIServices`) composed in `WebApi/Program.cs`.

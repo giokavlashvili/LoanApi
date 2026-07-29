@@ -14,9 +14,10 @@ namespace Infrastructure.Persistence.Repositories
             _context = context;
         }
 
-        public async Task<int> GetCountAsync() => await _context.LoanApplications.CountAsync();
+        public async Task<int> GetCountAsync(CancellationToken cancellationToken = default) =>
+            await _context.LoanApplications.CountAsync(cancellationToken);
 
-        public async Task<IEnumerable<LoanApplication>> GetPaginatedListAsync(int pageIndex, int pageSize)
+        public async Task<IEnumerable<LoanApplication>> GetPaginatedListAsync(int pageIndex, int pageSize, CancellationToken cancellationToken = default)
         {
             return await _context.LoanApplications
                 .AsNoTracking()
@@ -26,7 +27,7 @@ namespace Infrastructure.Persistence.Repositories
                 .ThenByDescending(a => a.Id)
                 .Skip((pageIndex - 1) * pageSize)
                 .Take(pageSize)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
         }
     }
 }

@@ -19,7 +19,7 @@ namespace Application.Currencies.Queries
 
         public async Task<List<CurrencyDto>> Handle(GetCurrenciesQuery request, CancellationToken cancellationToken)
         {
-            var resultList = await _unitOfWork.CurrencyRepository.GetAllAsync();
+            var resultList = await _unitOfWork.CurrencyRepository.GetAllAsync(cancellationToken);
             return _mapper.Map<List<CurrencyDto>>(resultList);
         }
     }

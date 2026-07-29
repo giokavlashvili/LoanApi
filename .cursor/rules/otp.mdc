@@ -13,7 +13,8 @@ alwaysApply: false
 - `OtpService.VerifyAsync` must save in a **`finally`**: wrong codes increment `AttemptCount` then throw; happy-path-only save resets attempts and enables brute force.
 - Challenge stores `RequestHash` (payload minus `ChallengeId`/`OtpCode`) so a code cannot authorize a different body.
 - **Every rejection must happen before the gate.** A check left in the handler fires only after a code is sent *and* consumed, and since the challenge is payload-bound, correcting the input then requires a whole new code. Put lookups and format rules in the FluentValidation validator, and surface framework-level rules there too rather than letting them surprise the handler (see `IIdentityService.IsUserNameAllowed`, which exposes Identity's `AllowedUserNameCharacters` so the validator cannot drift from what `CreateUserAsync` enforces).
-- Codes: keyed HMAC (`Otp:Secret`), never plaintext / unkeyed digest.
+- Codes: keyed HMAC (`OtpOptions.Secret`, bound + `ValidateOnStart()`-checked), never plaintext / unkeyed digest.
+- Hash comparisons in `OtpVerification.Verify` use `CryptographicOperations.FixedTimeEquals`, not `string.Equals` — a timing side-channel is exactly the kind of thing worth closing even when the practical risk is low. A malformed Base64 candidate is treated as a wrong code, not a thrown `FormatException`.
 - Sensitive property names must be in **both** `RequestLogging:SensitiveProperties` and `LogRedactor.DefaultSensitiveProperties` (config replaces defaults when present).
 - Dev SMS: `LoggingSmsSender` logs the code (warns every send). Replace before production.
 - Also see: `Infrastructure/Services/OtpService.cs`, `Domain/Entities/OtpVerification.cs`, skill `add-otp-gate`.

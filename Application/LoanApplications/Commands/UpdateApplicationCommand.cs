@@ -31,7 +31,7 @@ namespace Application.LoanApplications.Commands
 
         public async Task Handle(UpdateApplicationCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _unitOfWork.LoanApplicationRepository.GetByIdAsync(request.Id);
+            var entity = await _unitOfWork.LoanApplicationRepository.GetByIdAsync(request.Id, cancellationToken);
 
             entity.Update(
                 request.LoanTypeId,

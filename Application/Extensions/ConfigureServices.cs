@@ -17,7 +17,16 @@ namespace Application.Extensions
             if (configuration is not null)
             {
                 services.Configure<PaginationOptions>(configuration.GetSection(PaginationOptions.SectionName));
-                services.Configure<OtpOptions>(configuration.GetSection(OtpOptions.SectionName));
+
+                services.AddOptions<OtpOptions>()
+                    .Bind(configuration.GetSection(OtpOptions.SectionName))
+                    .ValidateDataAnnotations()
+                    .ValidateOnStart();
+
+                services.AddOptions<JwtOptions>()
+                    .Bind(configuration.GetSection(JwtOptions.SectionName))
+                    .ValidateDataAnnotations()
+                    .ValidateOnStart();
             }
 
             services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());

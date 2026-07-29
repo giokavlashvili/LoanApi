@@ -1,6 +1,6 @@
 ﻿namespace Domain.Repositories
 {
-    public interface IUnitOfWork : IDisposable
+    public interface IUnitOfWork
     {
         ICurrencyRepository CurrencyRepository { get; }
         ILoanTypeRepository LoanTypeRepository { get; }

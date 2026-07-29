@@ -8,8 +8,10 @@ namespace Domain.UnitTests.Entities
     [TestFixture]
     public class OtpVerificationTests
     {
-        private const string CodeHash = "code-hash";
-        private const string RequestHash = "request-hash";
+        // Valid Base64 so the constant-time comparison in OtpVerification.Verify actually
+        // decodes them, instead of every comparison short-circuiting on a FormatException.
+        private const string CodeHash = "Y29kZS1oYXNo";
+        private const string RequestHash = "cmVxdWVzdC1oYXNo";
 
         private static readonly DateTime Now = new(2026, 7, 29, 12, 0, 0);
 
@@ -74,7 +76,7 @@ namespace Domain.UnitTests.Entities
             var entity = CreateChallenge(maxAttempts: 3);
 
             for (var attempt = 0; attempt < 3; attempt++)
-                Assert.That(() => entity.Verify("wrong-hash", RequestHash, Now.AddMinutes(1)), Throws.InstanceOf<DomainValidationException>());
+                Assert.That(() => entity.Verify("d3JvbmctaGFzaA==", RequestHash, Now.AddMinutes(1)), Throws.InstanceOf<DomainValidationException>());
 
             Assert.That(entity.AttemptCount, Is.EqualTo(3));
             Assert.That(entity.Status, Is.EqualTo(OtpVerificationStatus.Locked));
@@ -90,8 +92,19 @@ namespace Domain.UnitTests.Entities
             var entity = CreateChallenge();
 
             // Confirming a different payload than the one the code was sent for.
-            Assert.That(() => entity.Verify(CodeHash, "different-request-hash", Now.AddMinutes(1)), Throws.InstanceOf<DomainValidationException>());
+            Assert.That(() => entity.Verify(CodeHash, "ZGlmZmVyZW50LXJlcXVlc3QtaGFzaA==", Now.AddMinutes(1)), Throws.InstanceOf<DomainValidationException>());
             Assert.That(entity.Status, Is.EqualTo(OtpVerificationStatus.Pending));
+        }
+
+        [Test]
+        public void VerifyOtp_WithMalformedBase64Candidate_RejectAsInvalidCodeAndCountAttempt()
+        {
+            var entity = CreateChallenge();
+
+            // Not valid Base64 (the '!' is outside the alphabet) — must fail as a wrong code,
+            // not escape as a FormatException.
+            Assert.That(() => entity.Verify("not-valid-base64!", RequestHash, Now.AddMinutes(1)), Throws.InstanceOf<DomainValidationException>());
+            Assert.That(entity.AttemptCount, Is.EqualTo(1));
         }
 
         [Test]

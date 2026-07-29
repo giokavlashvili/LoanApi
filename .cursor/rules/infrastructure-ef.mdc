@@ -9,8 +9,8 @@ alwaysApply: false
 - EF configs: `Infrastructure/Persistence/Configurations/` implementing `IEntityTypeConfiguration<T>` (auto-discovered).
 - Repos: `Infrastructure/Persistence/Repositories/`; register and expose on `UnitOfWork` / `IUnitOfWork`.
 - `ApplicationDbContext` in `Infrastructure/Persistence/`; migrations in `Infrastructure/Migrations/`.
-- Identity: `ApplicationUser` + `IdentityService` (tokens from `JWT:Secret` / `JWT:ExpireMinutes`). Issuer/audience validation disabled by design in the template.
-- DI composition: `AddInfrastructureServices` in `Infrastructure/Common/Extensions/ConfigureServices.cs`.
+- Identity: `ApplicationUser` + `IdentityService` (tokens from `JwtOptions`, bound via `IOptionsMonitor<JwtOptions>` and validated on start). Issuer/audience validation disabled by design in the template.
+- DI composition: `AddInfrastructureServices` in `Infrastructure/Common/Extensions/ConfigureServices.cs`. All four repositories (`ICurrencyRepository`, `ILoanTypeRepository`, `ILoanApplicationRepository`, `IOtpVerificationRepository`) are registered there as scoped services — `UnitOfWork`'s constructor parameters are required, not optional; the container always supplies real instances, tests pass mocks directly.
 - In-memory switch: `UseInMemoryDatabase` from config (honored in that extension).
-- New aggregate checklist: domain interface → EF configuration → repository impl → `IUnitOfWork` + `UnitOfWork` property (optional ctor param for tests) → migration.
+- New aggregate checklist: domain interface → EF configuration → repository impl → DI registration in `AddInfrastructureServices` → `IUnitOfWork` + `UnitOfWork` property → migration.
 - Replace `LoggingSmsSender` before production SMS; one class + one DI line.

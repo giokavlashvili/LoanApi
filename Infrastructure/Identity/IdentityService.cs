@@ -1,19 +1,18 @@
 ﻿using Application.Common.Exceptions;
 using Application.Common.Interfaces;
+using Application.Common.Models;
 using Domain.Common.Models;
 using Domain.Events;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-
-#pragma warning disable CS8604 // Possible null reference argument.
 
 namespace Infrastructure.Identity
 {
@@ -23,7 +22,7 @@ namespace Infrastructure.Identity
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IUserClaimsPrincipalFactory<ApplicationUser> _userClaimsPrincipalFactory;
         private readonly IAuthorizationService _authorizationService;
-        private readonly IConfiguration _config;
+        private readonly IOptionsMonitor<JwtOptions> _jwtOptions;
         private readonly IDateTime _dateTime;
         private readonly IMediator _mediator;
         private readonly ILogger<IdentityService> _logger;
@@ -33,7 +32,7 @@ namespace Infrastructure.Identity
             RoleManager<IdentityRole> roleManager,
             IUserClaimsPrincipalFactory<ApplicationUser> userClaimsPrincipalFactory,
             IAuthorizationService authorizationService,
-            IConfiguration config,
+            IOptionsMonitor<JwtOptions> jwtOptions,
             IDateTime dateTime,
             IMediator mediator,
             ILogger<IdentityService> logger)
@@ -42,7 +41,7 @@ namespace Infrastructure.Identity
             _roleManager = roleManager;
             _userClaimsPrincipalFactory = userClaimsPrincipalFactory;
             _authorizationService = authorizationService;
-            _config = config;
+            _jwtOptions = jwtOptions;
             _dateTime = dateTime;
             _mediator = mediator;
             _logger = logger;
@@ -182,10 +181,11 @@ namespace Infrastructure.Identity
 
         private JwtSecurityToken GetToken(List<Claim> authClaims)
         {
-            var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["JWT:Secret"]));
+            var options = _jwtOptions.CurrentValue;
+            var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(options.Secret));
 
             var token = new JwtSecurityToken(
-                expires: _dateTime.UtcNow.AddMinutes(int.Parse(_config["JWT:ExpireMinutes"])),
+                expires: _dateTime.UtcNow.AddMinutes(options.ExpireMinutes),
                 claims: authClaims,
                 signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
                 );

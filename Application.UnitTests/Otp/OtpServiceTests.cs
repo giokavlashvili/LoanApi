@@ -19,7 +19,8 @@ namespace Application.UnitTests.Otp
     {
         private const string Purpose = "GatedCommand";
         private const string Recipient = "+995555123456";
-        private const string RequestHash = "request-hash";
+        // Valid Base64 so OtpVerification.Verify's constant-time comparison actually decodes it.
+        private const string RequestHash = "cmVxdWVzdC1oYXNo";
 
         private static readonly DateTime Now = new(2026, 7, 29, 12, 0, 0, DateTimeKind.Utc);
 
@@ -70,7 +71,7 @@ namespace Application.UnitTests.Otp
                 Purpose,
                 Recipient,
                 userId: null,
-                "correct-hash",
+                "Y29ycmVjdC1oYXNo",
                 RequestHash,
                 Now.AddMinutes(5),
                 _options.MaxAttempts,
@@ -99,7 +100,7 @@ namespace Application.UnitTests.Otp
         {
             // Arrange — the Development-only escape hatch: a fixed code instead of a random one.
             _options.StaticCode = "123456";
-            _codeHasher.Setup(h => h.Hash(It.IsAny<Guid>(), "123456")).Returns("static-hash");
+            _codeHasher.Setup(h => h.Hash(It.IsAny<Guid>(), "123456")).Returns("c3RhdGljLWhhc2g=");
 
             OtpVerification? stored = null;
             _otpRepository
@@ -161,7 +162,7 @@ namespace Application.UnitTests.Otp
             var entity = CreateChallenge(challengeId);
 
             _otpRepository.Setup(r => r.GetByChallengeIdAsync(challengeId, It.IsAny<CancellationToken>())).ReturnsAsync(entity);
-            _codeHasher.Setup(h => h.Hash(challengeId, "000000")).Returns("wrong-hash");
+            _codeHasher.Setup(h => h.Hash(challengeId, "000000")).Returns("d3JvbmctaGFzaA==");
 
             // Act
             Assert.That(async () => await _service.VerifyAsync(challengeId, Purpose, "000000", RequestHash), Throws.InstanceOf<DomainValidationException>());
@@ -181,7 +182,7 @@ namespace Application.UnitTests.Otp
             var entity = CreateChallenge(challengeId);
 
             _otpRepository.Setup(r => r.GetByChallengeIdAsync(challengeId, It.IsAny<CancellationToken>())).ReturnsAsync(entity);
-            _codeHasher.Setup(h => h.Hash(challengeId, "123456")).Returns("correct-hash");
+            _codeHasher.Setup(h => h.Hash(challengeId, "123456")).Returns("Y29ycmVjdC1oYXNo");
 
             // Act
             await _service.VerifyAsync(challengeId, Purpose, "123456", RequestHash);
@@ -198,7 +199,7 @@ namespace Application.UnitTests.Otp
             var challengeId = Guid.NewGuid();
 
             _otpRepository.Setup(r => r.GetByChallengeIdAsync(challengeId, It.IsAny<CancellationToken>())).ReturnsAsync(CreateChallenge(challengeId));
-            _codeHasher.Setup(h => h.Hash(challengeId, "123456")).Returns("correct-hash");
+            _codeHasher.Setup(h => h.Hash(challengeId, "123456")).Returns("Y29ycmVjdC1oYXNo");
 
             // Act / Assert — a valid code for registration must not approve a loan.
             Assert.That(

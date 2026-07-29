@@ -17,7 +17,7 @@ Progress:
 - [ ] 1. Domain entity + events + enum (if needed)
 - [ ] 2. Repository interface + IUnitOfWork property
 - [ ] 3. Application Commands/Queries/Dtos/Validators/EventHandlers
-- [ ] 4. EF configuration + repository impl + UnitOfWork wiring
+- [ ] 4. EF configuration + repository impl + UnitOfWork wiring + DI registration
 - [ ] 5. Controller action(s)
 - [ ] 6. localization.json keys
 - [ ] 7. Unit tests (Domain + Application)
@@ -33,7 +33,8 @@ Progress:
 ## 2. Unit of work
 
 - Add property to `IUnitOfWork` and `UnitOfWork`.
-- Add optional ctor parameter on `UnitOfWork` for test injection.
+- Add a **required** ctor parameter on `UnitOfWork` (no `= null` default, no `??` fallback) —
+  the container supplies it via the DI registration in step 4; tests pass a mock directly.
 - Update existing `Mock<UnitOfWork>(...)` call sites in unit tests.
 
 ## 3. Application slice
@@ -54,7 +55,10 @@ Application/<Feature>/
 
 - `Persistence/Configurations/<Name>Configuration.cs` (`IEntityTypeConfiguration<T>`).
 - `Persistence/Repositories/<Name>Repository.cs`.
-- Wire into `UnitOfWork` / DI if not already convention-based for that repo type.
+- Wire into `UnitOfWork`. Repositories are **not** assembly-scanned like handlers/validators —
+  add an explicit `services.AddScoped<I<Name>Repository, <Name>Repository>();` line in
+  `AddInfrastructureServices` (`Infrastructure/Common/Extensions/ConfigureServices.cs`), beside
+  the other three repository registrations.
 
 ## 5. WebApi
 
@@ -79,7 +83,8 @@ Use the `ef-migration` skill. Do not hand-edit the model snapshot unless fixing 
 - Business rules in handlers or controllers
 - Manual MediatR/FluentValidation registration
 - Putting repository interfaces in Application
-- Forgetting UoW optional ctor + test mocks
+- Forgetting the repository's DI registration in `AddInfrastructureServices` (there is no
+  optional-ctor-parameter fallback to mask it — it will fail to resolve)
 
 ## Additional resources
 

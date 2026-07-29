@@ -11,7 +11,8 @@ alwaysApply: true
 - App abstractions (`IApplicationDbContext`, `ICurrentUserService`, `IDateTime`, `IIdentityService`, …) live in `Application/Common/Interfaces`. Repo/UoW abstractions live in `Domain/Repositories`.
 - `IDateTime` exposes `UtcNow` only — it is the one clock in the app, and it is UTC. Raw `DateTime.Now`/`UtcNow`/`Today`/`DateTimeOffset.Now`/`UtcNow` are build errors outside `DateTimeService` (`Directory.Build.props` + `BannedSymbols.txt`, `RS0030`).
 - Business rules live in **domain entities**; handlers only orchestrate (user/time → entity → save).
-- Registration is **assembly-scan** — new MediatR handlers, FluentValidation validators, AutoMapper `IMapFrom`, and EF `IEntityTypeConfiguration`s need **no manual DI**.
+- Registration is **assembly-scan** — new MediatR handlers, FluentValidation validators, AutoMapper `IMapFrom`, and EF `IEntityTypeConfiguration`s need **no manual DI**. Repositories are the exception: they are explicitly registered in `AddInfrastructureServices`, and `UnitOfWork`'s constructor parameters are required (no optional-param fallback), so a new repository not registered there fails to resolve rather than silently getting a default instance.
+- `IUnitOfWork` is **not** `IDisposable` — it wraps a container-owned `DbContext`; nothing outside the container disposes it.
 - MediatR pipeline behaviors MUST use `where TRequest : notnull` (never `IRequest<TResponse>`). MediatR.Contracts 2.x makes void `IRequest` unrelated to `IRequest<Unit>`; a tighter constraint silently drops validation/OTP on void commands.
 - Preserve load-bearing spellings: `WebApi/Middlwares`, `WebUI.Filters` / `WebUI.Services`, `CreateApplicationCommandhandler`.
 - Prefer **GitNexus** for explore / impact / refactor. Deep reference: `docs/architecture.md`. Do not invent parallel folder layouts.

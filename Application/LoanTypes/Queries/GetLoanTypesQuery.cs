@@ -26,7 +26,7 @@ namespace Application.LoanTypes.Queries
 
         public async Task<List<LoanTypeDto>> Handle(GetLoanTypesQuery request, CancellationToken cancellationToken)
         {
-            var resultList = await _unitOfWork.LoanTypeRepository.GetAllAsync();
+            var resultList = await _unitOfWork.LoanTypeRepository.GetAllAsync(cancellationToken);
             return _mapper.Map<List<LoanTypeDto>>(resultList);
         }
     }

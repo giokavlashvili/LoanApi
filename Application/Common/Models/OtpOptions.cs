@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Application.Common.Models
 {
     /// <summary>
@@ -8,6 +10,7 @@ namespace Application.Common.Models
         public const string SectionName = "Otp";
 
         /// <summary>Digits in the generated code.</summary>
+        [Range(4, 10)]
         public int CodeLength { get; set; } = 6;
 
         /// <summary>How long an issued code stays usable.</summary>
@@ -17,6 +20,7 @@ namespace Application.Common.Models
         /// Wrong guesses allowed before the challenge locks. A 6 digit code is only a million
         /// possibilities, so this is what makes it safe rather than the code length.
         /// </summary>
+        [Range(1, 20)]
         public int MaxAttempts { get; set; } = 5;
 
         /// <summary>
@@ -33,6 +37,7 @@ namespace Application.Common.Models
         /// table would be reversed instantly; this is what makes the stored hash worth storing.
         /// Treat it like JWT:Secret — user secrets or a key vault outside development.
         /// </summary>
+        [Required]
         public string Secret { get; set; } = string.Empty;
 
         /// <summary>Template for the outgoing message. <c>{0}</c> is the code.</summary>

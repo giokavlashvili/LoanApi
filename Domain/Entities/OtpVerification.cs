@@ -2,6 +2,7 @@ using Domain.Common;
 using Domain.Enums;
 using Domain.Events;
 using Domain.Exceptions;
+using System.Security.Cryptography;
 
 namespace Domain.Entities
 {
@@ -129,10 +130,10 @@ namespace Domain.Entities
             // request that fails a later check.
             AttemptCount++;
 
-            if (!string.Equals(RequestHash, requestHash, StringComparison.Ordinal))
+            if (!HashesMatch(RequestHash, requestHash))
                 throw new DomainValidationException("OtpRequestMismatch");
 
-            if (!string.Equals(CodeHash, candidateHash, StringComparison.Ordinal))
+            if (!HashesMatch(CodeHash, candidateHash))
             {
                 if (AttemptCount >= MaxAttempts)
                     Status = OtpVerificationStatus.Locked;
@@ -145,6 +146,27 @@ namespace Domain.Entities
             LastModified = now;
 
             this.AddDomainEvent(new OtpVerifiedEvent(this));
+        }
+
+        /// <summary>
+        /// Compares two Base64-encoded hashes in constant time, so a timing signal cannot leak
+        /// how many leading bytes matched. A malformed candidate is treated as a mismatch, not a
+        /// FormatException escaping to a 500.
+        /// </summary>
+        private static bool HashesMatch(string? stored, string candidate)
+        {
+            if (string.IsNullOrEmpty(stored))
+                return false;
+
+            try
+            {
+                return CryptographicOperations.FixedTimeEquals(
+                    Convert.FromBase64String(stored), Convert.FromBase64String(candidate));
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
         }
 
         /// <summary>

@@ -24,7 +24,7 @@ namespace Application.LoanApplications.Commands
 
         public async Task Handle(DeleteApplicationCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _unitOfWork.LoanApplicationRepository.GetByIdAsync(request.Id);
+            var entity = await _unitOfWork.LoanApplicationRepository.GetByIdAsync(request.Id, cancellationToken);
 
             _unitOfWork.LoanApplicationRepository.Remove(entity);
 

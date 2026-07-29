@@ -39,7 +39,7 @@ namespace Application.LoanApplications.Commands
                 currentUserId,
                 _dateTime.UtcNow);
 
-            await _unitOfWork.LoanApplicationRepository.AddAsync(entity);
+            await _unitOfWork.LoanApplicationRepository.AddAsync(entity, cancellationToken);
 
             await _unitOfWork.SaveAsync(cancellationToken);
 

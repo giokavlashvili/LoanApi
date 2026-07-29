@@ -108,9 +108,9 @@ namespace Infrastructure.Persistence.Repositories
             return dbSet.ToList();
         }
 
-        public virtual async Task<IEnumerable<TEntity>> GetAllAsync()
+        public virtual async Task<IEnumerable<TEntity>> GetAllAsync(CancellationToken cancellationToken = default)
         {
-            return await dbSet.ToListAsync();
+            return await dbSet.ToListAsync(cancellationToken);
         }
 
         public virtual void Remove(TEntity entity)

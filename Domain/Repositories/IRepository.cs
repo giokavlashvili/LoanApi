@@ -14,7 +14,7 @@ namespace Domain.Repositories
         TEntity? GetById(int id);
         Task<TEntity?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
         IEnumerable<TEntity> GetAll();
-        Task<IEnumerable<TEntity>> GetAllAsync();
+        Task<IEnumerable<TEntity>> GetAllAsync(CancellationToken cancellationToken = default);
         IEnumerable<TEntity> Get(
             Expression<Func<TEntity, bool>>? filter = null,
             Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,

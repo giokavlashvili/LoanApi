@@ -1,4 +1,5 @@
 ﻿using Application.Common.Interfaces;
+using Application.Common.Models;
 using Domain.Common.Interfaces;
 using Domain.Repositories;
 using Infrastructure.Identity;
@@ -75,6 +76,10 @@ namespace Infrastructure.Common.Extensions
             services.AddSingleton<IOtpCodeHasher, HmacOtpCodeHasher>();
             services.AddTransient<ISmsSender, LoggingSmsSender>();
 
+            services.AddScoped<ICurrencyRepository, CurrencyRepository>();
+            services.AddScoped<ILoanTypeRepository, LoanTypeRepository>();
+            services.AddScoped<ILoanApplicationRepository, LoanApplicationRepository>();
+            services.AddScoped<IOtpVerificationRepository, OtpVerificationRepository>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             // Adding Authentication
@@ -88,14 +93,25 @@ namespace Infrastructure.Common.Extensions
             .AddJwtBearer(options =>
             {
                 options.SaveToken = true;
+                // Deliberately false: this is a template with no HTTPS endpoint configured for
+                // local development. A real deployment must run behind HTTPS and set this true.
                 options.RequireHttpsMetadata = false;
+
+                // Bound from the same JwtOptions section IdentityService signs tokens with, so
+                // the signing key and the validation key cannot drift apart.
+                var jwtOptions = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
+                    ?? throw new InvalidOperationException("The JWT configuration section is missing.");
+
                 options.TokenValidationParameters = new TokenValidationParameters()
                 {
+                    // Deliberately false: this template has no issuer/audience configured. A real
+                    // deployment must set both and turn these on, or any token signed with the
+                    // right key is accepted regardless of who issued it or who it was issued for.
                     ValidateIssuer = false,
                     ValidateAudience = false,
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["JWT:Secret"]))
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Secret))
                 };
             });
 
