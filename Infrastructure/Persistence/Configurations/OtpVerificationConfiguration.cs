@@ -46,6 +46,9 @@ namespace Infrastructure.Persistence.Configurations
             builder.Property(o => o.Created)
                 .IsRequired();
 
+            builder.Property(o => o.RowVersion)
+                .IsRowVersion();
+
             // Every lookup during verification goes through the public handle, never the PK.
             builder.HasIndex(o => o.ChallengeId)
                 .IsUnique()
@@ -54,6 +57,15 @@ namespace Infrastructure.Persistence.Configurations
             // Covers the throttle check, which runs on every issue and is the hottest query here.
             builder.HasIndex(o => new { o.Recipient, o.Purpose, o.Created })
                 .HasDatabaseName("IX_OtpVerifications_Recipient_Purpose_Created");
+
+            // At most one live challenge per recipient and purpose. The application also checks this
+            // before inserting, but that read-then-write races: two concurrent issues both see no
+            // predecessor and both insert. This is the only place the rule can actually be enforced.
+            // 0 is OtpVerificationStatus.Pending.
+            builder.HasIndex(o => new { o.Recipient, o.Purpose })
+                .IsUnique()
+                .HasFilter("[Status] = 0")
+                .HasDatabaseName("UX_OtpVerifications_Recipient_Purpose_Pending");
         }
     }
 }

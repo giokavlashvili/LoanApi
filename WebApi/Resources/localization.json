@@ -1,5 +1,12 @@
 ﻿[
   {
+    "Key": "ConcurrencyConflict",
+    "LocalizedValue": {
+      "ka-GE": "ჩანაწერი შეიცვალა სხვა მოთხოვნით, სცადეთ თავიდან",
+      "en-US": "The record was modified by another request. Please try again."
+    }
+  },
+  {
     "Key": "InvalidCurrency",
     "LocalizedValue": {
       "ka-GE": "ვერ მოიძებნა ვალუტა",

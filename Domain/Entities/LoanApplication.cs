@@ -25,6 +25,12 @@ namespace Domain.Entities
         [NotMapped]
         public User? CreatedByUser { get; set; }
 
+        /// <summary>
+        /// Optimistic concurrency token. Two concurrent writers to the same row make the second
+        /// SaveChanges throw DbUpdateConcurrencyException instead of silently overwriting.
+        /// </summary>
+        public byte[] RowVersion { get; private set; } = Array.Empty<byte>();
+
         public static LoanApplication Create(
             int loanTypeId,
             decimal amount,

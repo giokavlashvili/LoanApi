@@ -43,7 +43,7 @@ namespace Infrastructure.Persistence.Repositories
 
         public virtual async Task<TEntity?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            return await dbSet.FindAsync(id, cancellationToken);
+            return await dbSet.FindAsync(new object[] { id }, cancellationToken);
         }
 
         public virtual IEnumerable<TEntity> Get(

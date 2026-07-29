@@ -19,6 +19,7 @@ namespace Application.UnitTests.LoanApplications.Commands
         private Mock<UnitOfWork> _unitOfWork;
         private Mock<ILoanApplicationRepository> _loanApplicationRepository;
         private Mock<IApplicationDbContext> _context;
+        private LoanApplication _entity;
 
         [SetUp]
         public void SetUp()
@@ -35,8 +36,8 @@ namespace Application.UnitTests.LoanApplications.Commands
                 It.IsAny<IOtpVerificationRepository>());
 
             _currentUserService.Setup(u => u.UserId).Returns("userId");
-            _loanApplicationRepository.Setup(r => r.Update(It.IsAny<LoanApplication>()));
-            _loanApplicationRepository.Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>())).Returns(Task.FromResult(LoanApplication.Create(1,1,1,1,"UserId", new DateTime(2026, 7, 29, 12, 0, 0, DateTimeKind.Utc))));
+            _entity = LoanApplication.Create(1, 100, 5, 6, "UserId", new DateTime(2026, 7, 29, 12, 0, 0, DateTimeKind.Utc));
+            _loanApplicationRepository.Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>())).ReturnsAsync(_entity);
             _unitOfWork.Setup(uow => uow.SaveAsync(It.IsAny<CancellationToken>())).Returns(Task.FromResult(1));
         }
 
@@ -46,10 +47,10 @@ namespace Application.UnitTests.LoanApplications.Commands
             // Arrange
             var command = new UpdateApplicationCommand()
             {
-                Amount = 1,
-                CurrencyId = 1,
-                LoanTypeId = 1,
-                PeriodPerMonth = 1,
+                Amount = 500,
+                CurrencyId = 2,
+                LoanTypeId = 3,
+                PeriodPerMonth = 24,
                 Id = 1
             };
 
@@ -58,10 +59,12 @@ namespace Application.UnitTests.LoanApplications.Commands
             // Act
             await handler.Handle(command, default);
 
-            // Assert
-            // Ensure that repository Update Method is called
-            _loanApplicationRepository.Verify(r => r.Update(It.IsAny<LoanApplication>()));
-            // Ensure that unit of work SaveAsync Method is called
+            // Assert — no repository.Update call: the aggregate loaded by GetByIdAsync is
+            // already tracked, so mutating it in place is what actually persists the change.
+            Assert.That(_entity.Amount, Is.EqualTo(command.Amount));
+            Assert.That(_entity.CurrencyId, Is.EqualTo(command.CurrencyId));
+            Assert.That(_entity.LoanTypeId, Is.EqualTo(command.LoanTypeId));
+            Assert.That(_entity.PeriodPerMonth, Is.EqualTo(command.PeriodPerMonth));
             _unitOfWork.Verify(u => u.SaveAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce());
         }
     }

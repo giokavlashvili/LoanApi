@@ -4,6 +4,7 @@ using Application.Otp.Dtos;
 using Domain.Entities;
 using Domain.Exceptions;
 using Domain.Repositories;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Security.Cryptography;
@@ -81,7 +82,14 @@ namespace Infrastructure.Services
 
             await _unitOfWork.OtpVerificationRepository.AddAsync(entity, cancellationToken);
 
-            await _unitOfWork.SaveAsync(cancellationToken);
+            try
+            {
+                await _unitOfWork.SaveAsync(cancellationToken);
+            }
+            catch (DbUpdateException) // lost the race to another concurrent issue
+            {
+                throw new DomainValidationException("OtpThrottled");
+            }
 
             // Sent only after the challenge is committed. Domain events dispatch before the save,
             // so texting from an event handler would hand out codes for challenges a failed save

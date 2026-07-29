@@ -50,7 +50,7 @@ namespace Infrastructure.Identity
 
         public async Task<string?> GetUserNameAsync(string userId)
         {
-            var user = await _userManager.Users.FirstAsync(u => u.Id == userId);
+            var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == userId);
 
             return user?.UserName;
         }
@@ -119,14 +119,14 @@ namespace Infrastructure.Identity
 
         public async Task<bool> IsInRoleAsync(string userId, string role)
         {
-            var user = _userManager.Users.SingleOrDefault(u => u.Id == userId);
+            var user = await _userManager.Users.SingleOrDefaultAsync(u => u.Id == userId);
 
             return user != null && await _userManager.IsInRoleAsync(user, role);
         }
 
         public async Task<bool> AuthorizeAsync(string userId, string policyName)
         {
-            var user = _userManager.Users.SingleOrDefault(u => u.Id == userId);
+            var user = await _userManager.Users.SingleOrDefaultAsync(u => u.Id == userId);
 
             if (user == null)
             {
@@ -142,7 +142,7 @@ namespace Infrastructure.Identity
 
         public async Task<bool> DeleteUserAsync(string userId)
         {
-            var user = _userManager.Users.SingleOrDefault(u => u.Id == userId);
+            var user = await _userManager.Users.SingleOrDefaultAsync(u => u.Id == userId);
 
             return user == null ? false : await DeleteUserAsync(user);
         }

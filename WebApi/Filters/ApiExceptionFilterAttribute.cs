@@ -1,6 +1,7 @@
 ﻿using Application.Common.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 
 namespace WebUI.Filters
@@ -25,6 +26,7 @@ namespace WebUI.Filters
                 { typeof(ForbiddenAccessException), HandleForbiddenAccessException },
                 { typeof(DomainValidationExceptionWrapper), HandleDomainValidationException },
                 { typeof(OtpRequiredException), HandleOtpRequiredException },
+                { typeof(DbUpdateConcurrencyException), HandleDbUpdateConcurrencyException },
             };
         }
 
@@ -178,6 +180,24 @@ namespace WebUI.Filters
             context.Result = new ObjectResult(details)
             {
                 StatusCode = StatusCodes.Status428PreconditionRequired
+            };
+
+            context.ExceptionHandled = true;
+        }
+
+        private void HandleDbUpdateConcurrencyException(ExceptionContext context)
+        {
+            var details = new ProblemDetails()
+            {
+                Status = StatusCodes.Status409Conflict,
+                Type = "https://tools.ietf.org/html/rfc7231#section-6.5.8",
+                Title = "Concurrency conflict",
+                Detail = _stringLocalizer.GetString("ConcurrencyConflict")
+            };
+
+            context.Result = new ObjectResult(details)
+            {
+                StatusCode = StatusCodes.Status409Conflict
             };
 
             context.ExceptionHandled = true;

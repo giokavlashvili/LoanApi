@@ -49,8 +49,6 @@ namespace Application.LoanApplications.Commands
                 _currentUserService.UserId,
                 _dateTime.UtcNow);
 
-            _unitOfWork.LoanApplicationRepository.Update(entity);
-
             await _unitOfWork.SaveAsync(cancellationToken);
         }
     }

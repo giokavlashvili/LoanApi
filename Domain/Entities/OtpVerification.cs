@@ -45,6 +45,12 @@ namespace Domain.Entities
         public OtpVerificationStatus Status { get; private set; }
 
         /// <summary>
+        /// Optimistic concurrency token. Two concurrent writers to the same row make the second
+        /// SaveChanges throw DbUpdateConcurrencyException instead of silently overwriting.
+        /// </summary>
+        public byte[] RowVersion { get; private set; } = Array.Empty<byte>();
+
+        /// <summary>
         /// <paramref name="challengeId"/> is supplied rather than generated here because the
         /// code hash is keyed by it, so the caller has to know it before it can hash.
         /// </summary>

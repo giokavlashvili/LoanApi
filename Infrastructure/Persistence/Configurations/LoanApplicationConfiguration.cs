@@ -28,6 +28,9 @@ namespace Infrastructure.Persistence.Configurations
 
             builder.Property(l => l.CreatedBy)
                 .IsRequired();
+
+            builder.Property(l => l.RowVersion)
+                .IsRowVersion();
         }
     }
 }
