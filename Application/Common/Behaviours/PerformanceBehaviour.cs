@@ -6,7 +6,9 @@ using System.Diagnostics;
 
 namespace Application.Common.Behaviors
 {
-    public class PerformanceBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse> where TRequest : IRequest<TResponse>
+    // "notnull" rather than "TRequest : IRequest<TResponse>" — see ValidationBehavior for why
+    // the tighter constraint silently excluded every void command.
+    public class PerformanceBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse> where TRequest : notnull
     {
         private const int LongRunningThresholdMs = 500;
 

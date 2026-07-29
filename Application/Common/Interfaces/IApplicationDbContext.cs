@@ -12,6 +12,7 @@ namespace Application.Common.Interfaces
         public DbSet<LoanApplication> LoanApplications { get; set; }
         public DbSet<LoanType> LoanTypes { get; set; }
         public DbSet<Currency> Currencies { get; set; }
+        public DbSet<OtpVerification> OtpVerifications { get; set; }
 
         public DbSet<TEntity> Set<TEntity>() where TEntity : class;
 

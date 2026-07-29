@@ -21,6 +21,7 @@ namespace Infrastructure.Persistence
         public DbSet<LoanApplication> LoanApplications { get; set; }
         public DbSet<LoanType> LoanTypes { get; set; }
         public DbSet<Currency> Currencies { get; set; }
+        public DbSet<OtpVerification> OtpVerifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

@@ -1,0 +1,28 @@
+# Build output
+**/bin/
+**/obj/
+**/.vs/
+**/out/
+**/artifacts/
+
+# Logs
+**/logs/
+**/Logs/
+logs/serilog-selflog.txt
+
+# Generated / not part of the template frontend
+WebApi/ClientApp/
+WebApi/ApiClient/web-api-client.ts
+WebApi/wwwroot/api/specification.json
+
+# Tooling caches
+.gitnexus/parse-cache/
+.gitnexus/parsedfile-cache/
+.claude/worktrees/
+
+# IDE / user junk
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.rsuser

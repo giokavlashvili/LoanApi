@@ -29,8 +29,9 @@ namespace Application.UnitTests.LoanApplications.Commands
             _unitOfWork= new Mock<UnitOfWork>(
                 _context.Object, 
                 It.IsAny<ICurrencyRepository>(), 
-                It.IsAny<ILoanTypeRepository>(), 
-                _loanApplicationRepository.Object);
+                It.IsAny<ILoanTypeRepository>(),
+                _loanApplicationRepository.Object,
+                It.IsAny<IOtpVerificationRepository>());
 
             _currentUserService.Setup(u => u.UserId).Returns("userId");
             _loanApplicationRepository.Setup(r => r.AddAsync(It.IsAny<LoanApplication>(), It.IsAny<CancellationToken>()));

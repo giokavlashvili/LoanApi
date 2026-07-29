@@ -1,0 +1,16 @@
+---
+description: Infrastructure EF Core, Identity, and repository conventions
+globs: Infrastructure/**/*.cs
+alwaysApply: false
+---
+
+# Infrastructure
+
+- EF configs: `Infrastructure/Persistence/Configurations/` implementing `IEntityTypeConfiguration<T>` (auto-discovered).
+- Repos: `Infrastructure/Persistence/Repositories/`; register and expose on `UnitOfWork` / `IUnitOfWork`.
+- `ApplicationDbContext` in `Infrastructure/Persistence/`; migrations in `Infrastructure/Migrations/`.
+- Identity: `ApplicationUser` + `IdentityService` (tokens from `JWT:Secret` / `JWT:ExpireMinutes`). Issuer/audience validation disabled by design in the template.
+- DI composition: `AddInfrastructureServices` in `Infrastructure/Common/Extensions/ConfigureServices.cs`.
+- In-memory switch: `UseInMemoryDatabase` from config (honored in that extension).
+- New aggregate checklist: domain interface → EF configuration → repository impl → `IUnitOfWork` + `UnitOfWork` property (optional ctor param for tests) → migration.
+- Replace `LoggingSmsSender` before production SMS; one class + one DI line.

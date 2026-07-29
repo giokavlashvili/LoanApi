@@ -52,7 +52,14 @@ namespace Infrastructure.Common.Extensions
                 o.Password.RequireLowercase = false;
                 o.Password.RequireUppercase = false;
                 o.Password.RequireNonAlphanumeric = false;
-                o.User.RequireUniqueEmail = true;
+                // False, deliberately. Identity's UserValidator rejects a null email when this is
+                // on, so every registration failed until an email was supplied — and deriving one
+                // from the user name only moved the failure, since a handle like "eqsel3" is not
+                // a valid address. This template verifies people by phone (see
+                // OtpVerificationBehavior) and identifies them by PersonalNumber, so email is not
+                // part of the account. Turn this back on only alongside a real Email input that
+                // the validator checks for format and uniqueness *before* the OTP gate.
+                o.User.RequireUniqueEmail = false;
             })
             .AddRoles<IdentityRole>()
             .AddEntityFrameworkStores<ApplicationDbContext>()
@@ -61,6 +68,12 @@ namespace Infrastructure.Common.Extensions
             services.AddTransient<IDateTime, DateTimeService>();
             services.AddTransient<IUserService, IdentityService>();
             services.AddTransient<IIdentityService, IdentityService>();
+
+            // Two step verification. Swapping in a real provider is replacing the ISmsSender
+            // line below — nothing else knows which vendor delivers the message.
+            services.AddScoped<IOtpService, OtpService>();
+            services.AddSingleton<IOtpCodeHasher, HmacOtpCodeHasher>();
+            services.AddTransient<ISmsSender, LoggingSmsSender>();
 
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 

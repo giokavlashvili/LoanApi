@@ -1,0 +1,13 @@
+---
+description: Localization keys for domain and validation messages
+globs: WebApi/Resources/localization.json
+alwaysApply: false
+---
+
+# Localization
+
+- `DomainValidationException` and FluentValidation messages use **keys**, not user-facing English (e.g. `"InvalidAmount"`).
+- Add every new key under **both** `ka-GE` and `en-US` in `WebApi/Resources/localization.json`.
+- Culture comes from `x-sys-language` (`SysLanguageMiddleware`); `JsonStringLocalizer` reads this file at construction.
+- Header is excluded from the generated TS client via `nswag.json` `excludedParameterNames`.
+- Missing keys surface as raw key strings to API clients — always update this file with new domain/validator messages.

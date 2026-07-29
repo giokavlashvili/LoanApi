@@ -1,0 +1,19 @@
+---
+description: NUnit + Moq unit test conventions for Domain and Application
+globs: "**/*Tests*/**/*.cs"
+alwaysApply: false
+---
+
+# Testing
+
+- Frameworks: **NUnit** + **Moq**. Projects: `Domain.UnitTests`, `Application.UnitTests`.
+- Build/test with `-p:SkipNSwag=True`.
+- Mock `UnitOfWork` via its **optional** repository ctor params, e.g. `new Mock<UnitOfWork>(context, currencyRepo, loanTypeRepo, loanAppRepo, otpRepo)`.
+- Application tests: mock `ICurrentUserService`, `IDateTime`, repositories; construct the handler directly; verify `AddAsync` / `SaveAsync`.
+- Domain tests: call entity `Create` / mutators; assert state and thrown `DomainValidationException` keys.
+- Prefer filterable names: `Method_WhenCondition_ExpectedResult`.
+- When adding a UoW repository, update existing `Mock<UnitOfWork>(...)` call sites (optional params shift).
+
+```bash
+dotnet test Application.UnitTests/Application.UnitTests.csproj --filter "FullyQualifiedName~CreateLoanApplicationTests"
+```

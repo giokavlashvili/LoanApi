@@ -24,6 +24,7 @@ namespace WebUI.Filters
                 { typeof(UnauthorizedAccessException), HandleUnauthorizedAccessException },
                 { typeof(ForbiddenAccessException), HandleForbiddenAccessException },
                 { typeof(DomainValidationExceptionWrapper), HandleDomainValidationException },
+                { typeof(OtpRequiredException), HandleOtpRequiredException },
             };
         }
 
@@ -146,6 +147,37 @@ namespace WebUI.Filters
             context.Result = new ObjectResult(details)
             {
                 StatusCode = StatusCodes.Status403Forbidden
+            };
+
+            context.ExceptionHandled = true;
+        }
+
+        /// <summary>
+        /// 428, not 401: the caller is who they say they are, the request is simply missing a
+        /// precondition — a confirmation code — and re-sending it with one will succeed. A 401
+        /// would tell clients to re-authenticate, which is the wrong recovery.
+        /// </summary>
+        private void HandleOtpRequiredException(ExceptionContext context)
+        {
+            var exception = (OtpRequiredException)context.Exception;
+
+            var details = new ProblemDetails()
+            {
+                Status = StatusCodes.Status428PreconditionRequired,
+                Type = "https://tools.ietf.org/html/rfc6585#section-3",
+                Title = "Verification code required",
+                Detail = _stringLocalizer.GetString(exception.Message)
+            };
+
+            // On Extensions rather than in the body so the shape stays a plain ProblemDetails.
+            details.Extensions["challengeId"] = exception.Challenge.ChallengeId;
+            details.Extensions["expiresAt"] = exception.Challenge.ExpiresAt;
+            details.Extensions["recipient"] = exception.Challenge.Recipient;
+            details.Extensions["maxAttempts"] = exception.Challenge.MaxAttempts;
+
+            context.Result = new ObjectResult(details)
+            {
+                StatusCode = StatusCodes.Status428PreconditionRequired
             };
 
             context.ExceptionHandled = true;

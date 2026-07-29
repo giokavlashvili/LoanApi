@@ -6,7 +6,14 @@ using ValidationException = Application.Common.Exceptions.ValidationException;
 
 namespace Application.Common.Behaviors
 {
-    public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse> where TRequest : IRequest<TResponse>
+    // The constraint is "notnull", matching IPipelineBehavior itself, and not
+    // "TRequest : IRequest<TResponse>". MediatR.Contracts 2.x made IRequest and IRequest<T>
+    // unrelated interfaces, so a void command (: IRequest) is not an IRequest<Unit>. MediatR
+    // still resolves IPipelineBehavior<TCommand, Unit> for it, the tighter constraint could not
+    // be satisfied, and the DI container silently skipped the registration rather than failing —
+    // which left every void command with no validation at all, surfacing domain exceptions as
+    // raw 500s instead of the localized 400s the exception filter is built to produce.
+    public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse> where TRequest : notnull
     {
         private readonly IEnumerable<IValidator<TRequest>> _validators;
 

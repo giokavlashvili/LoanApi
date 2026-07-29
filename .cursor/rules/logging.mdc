@@ -1,0 +1,17 @@
+---
+description: Serilog request logging, redaction, and Logs table conventions
+globs: WebApi/Extensions/LoggingConfiguration.cs
+alwaysApply: false
+---
+
+# Logging (Serilog)
+
+- Compose sinks/columns in code: `AddApplicationLogging`. Only **levels** live in the `Serilog` config section.
+- **Do not add a `Logging` section** to appsettings — MEL filters run before Serilog and can silently drop events.
+- `LoggingMiddleware` is outermost (before exception middleware); one structured row per request; `try/finally` always writes.
+- Column binding is by **property name** (`LogProperties.cs` ↔ `Domain/Entities/Log.cs` ↔ `BuildColumnOptions`). Keep all three in sync.
+- `AutoCreateSqlTable` is off — EF owns `Logs`. Mismatched columns fail the batch; check `logs/serilog-selflog.txt`.
+- Persist filter: request rows at `Information`; other loggers need `Warning`+. `Channel` distinguishes `Request` vs `Api`.
+- Levels: `Information` / `Warning` / `Verbose` (not NLog-style `Info`/`Warn`).
+- Bodies: allowlisted content types + byte cap via `RequestLoggingOptions`; `LogRedactor` masks secrets.
+- Related: `Application/Common/Logging/**`, `WebApi/Logging/**`, `WebApi/Middlwares/**`, `LogRetentionService`.

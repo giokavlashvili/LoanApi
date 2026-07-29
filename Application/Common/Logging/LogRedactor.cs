@@ -37,7 +37,11 @@ namespace Application.Common.Logging
             "creditCard",
             "cardNumber",
             "cvv",
-            "pin"
+            "pin",
+            "otpCode",
+            "otp",
+            "code",
+            "phoneNumber"
         };
 
         private static readonly ConcurrentDictionary<Type, string[]> AttributeMarkedProperties = new();

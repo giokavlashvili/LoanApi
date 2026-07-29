@@ -1,0 +1,14 @@
+---
+description: IdentityService and JWT token minting conventions
+globs: Infrastructure/Identity/**/*.cs
+alwaysApply: false
+---
+
+# Auth / Identity (Infrastructure)
+
+- `ApplicationUser : IdentityUser` with FirstName, LastName, PersonalNumber, BirthDate.
+- **Accounts have no email.** `RequireUniqueEmail` is `false` and `CreateUserAsync` leaves `Email` null: user names are free handles (`eqsel3`), people are verified by phone and identified by `PersonalNumber`. Turning it back on needs a real `Email` input validated for format *and* uniqueness in `RegisterUserCommandValidator` — deriving `Email` from `UserName` fails Identity's own format check.
+- Identity rules that can reject a registration must be reachable from the validator, which runs before the OTP gate — `IsUserNameAllowed` exposes `UserOptions.AllowedUserNameCharacters` for exactly that. `CreateUserAsync` still throws `result.ToValidationException()` as a backstop.
+- `IdentityService` implements identity ops **and** mints JWTs from `JWT:Secret` / `JWT:ExpireMinutes`.
+- Issuer/audience validation is **disabled by design** in this template — tighten for production if needed.
+- Rotate `JWT:Secret` when repurposing; never commit production secrets.

@@ -98,6 +98,52 @@
         }
       }
     },
+    "/api/v1/Authenticate/ResendOtp": {
+      "post": {
+        "tags": [
+          "Authenticate"
+        ],
+        "operationId": "Authenticate_ResendOtp",
+        "consumes": [
+          "application/json",
+          "text/json",
+          "application/*+json"
+        ],
+        "produces": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "parameters": [
+          {
+            "name": "command",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ResendOtpCommand"
+            },
+            "x-nullable": false
+          },
+          {
+            "type": "string",
+            "name": "x-sys-language",
+            "in": "header",
+            "style": "simple",
+            "description": "System language indicator",
+            "default": "en-US"
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": false,
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/OtpChallengeDto"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/Currency/GetCurrencies": {
       "get": {
         "tags": [
@@ -462,6 +508,9 @@
         "personalNumber": {
           "type": "string"
         },
+        "phoneNumber": {
+          "type": "string"
+        },
         "password": {
           "type": "string"
         },
@@ -471,6 +520,47 @@
         "birthDate": {
           "type": "string",
           "format": "date-time"
+        },
+        "challengeId": {
+          "type": "string",
+          "format": "guid"
+        },
+        "otpCode": {
+          "type": "string"
+        }
+      }
+    },
+    "OtpChallengeDto": {
+      "type": "object",
+      "required": [
+        "challengeId",
+        "expiresAt",
+        "maxAttempts"
+      ],
+      "properties": {
+        "challengeId": {
+          "type": "string",
+          "format": "guid"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "recipient": {
+          "type": "string"
+        },
+        "maxAttempts": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "ResendOtpCommand": {
+      "type": "object",
+      "properties": {
+        "challengeId": {
+          "type": "string",
+          "format": "guid"
         }
       }
     },
@@ -651,6 +741,13 @@
         },
         "status": {
           "$ref": "#/definitions/LoanStatus"
+        },
+        "challengeId": {
+          "type": "string",
+          "format": "guid"
+        },
+        "otpCode": {
+          "type": "string"
         }
       }
     },

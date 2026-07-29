@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -25,6 +26,7 @@ namespace Infrastructure.Identity
         private readonly IConfiguration _config;
         private readonly IDateTime _dateTime;
         private readonly IMediator _mediator;
+        private readonly ILogger<IdentityService> _logger;
 
         public IdentityService(
             UserManager<ApplicationUser> userManager,
@@ -33,7 +35,8 @@ namespace Infrastructure.Identity
             IAuthorizationService authorizationService,
             IConfiguration config,
             IDateTime dateTime,
-            IMediator mediator)
+            IMediator mediator,
+            ILogger<IdentityService> logger)
         {
             _userManager = userManager;
             _roleManager = roleManager;
@@ -42,6 +45,7 @@ namespace Infrastructure.Identity
             _config = config;
             _dateTime = dateTime;
             _mediator = mediator;
+            _logger = logger;
         }
 
         public async Task<string?> GetUserNameAsync(string userId)
@@ -58,22 +62,59 @@ namespace Infrastructure.Identity
             return user == null? false:true;
         }
 
-        public async Task<bool> CreateUserAsync(string userName, string firstName, string lastName, string password, string personalNumber, DateTime? birthDate = null)
+        public bool IsUserNameAllowed(string userName)
+        {
+            var allowed = _userManager.Options.User.AllowedUserNameCharacters;
+
+            // An empty option means Identity applies no character restriction at all.
+            if (string.IsNullOrEmpty(allowed))
+                return true;
+
+            return !string.IsNullOrWhiteSpace(userName)
+                && userName.All(allowed.Contains);
+        }
+
+        public async Task<bool> CreateUserAsync(string userName, string firstName, string lastName, string password, string personalNumber, string phoneNumber, DateTime? birthDate = null)
         {
             var user = new ApplicationUser
             {
                 UserName = userName,
+                // No Email. The user name is a free handle here, not an address, so assigning it
+                // to Email produced "Email 'eqsel3' is invalid" from Identity's own validator.
+                // Accounts are verified by phone and identified by PersonalNumber; see the
+                // RequireUniqueEmail note in Infrastructure/Common/Extensions/ConfigureServices.cs.
                 BirthDate= birthDate,
                 FirstName= firstName,
                 LastName= lastName,
                 PersonalNumber=personalNumber,
+                PhoneNumber = phoneNumber,
+                // The handler only runs once OtpVerificationBehavior has redeemed a code sent to
+                // this number, so it is confirmed by construction. Leaving it false would ask the
+                // user to prove the same number twice.
+                PhoneNumberConfirmed = true,
             };
 
             var result = await _userManager.CreateAsync(user, password);
 
+            if (!result.Succeeded)
+            {
+                // The identity codes are the only record of *why* registration was refused: the
+                // response carries the descriptions, and nothing else logs them. Not named
+                // {UserName}, which the SQL sink would bind to the Logs.UserName column reserved
+                // for the authenticated caller -- and registration is anonymous.
+                _logger.LogWarning(
+                    "Creating user {AttemptedUserName} failed: {IdentityErrors}",
+                    userName,
+                    string.Join("; ", result.Errors.Select(e => $"{e.Code}: {e.Description}")));
+
+                throw result.ToValidationException();
+            }
+
+            // Inside the success branch: published unconditionally, this announced a user that
+            // CreateAsync had just refused to create, and UserCreatedEventHandler logged it.
             await _mediator.Publish(new UserCreatedEvent(userName));
 
-            return result.Succeeded;
+            return true;
         }
 
         public async Task<bool> IsInRoleAsync(string userId, string role)
@@ -166,6 +207,7 @@ namespace Infrastructure.Identity
                     FirstName= user.FirstName,
                     LastName= user.LastName,
                     PersonalNumber= user.PersonalNumber,
+                    PhoneNumber = user.PhoneNumber,
                     UserName = user.UserName
                 };
         }

@@ -1,0 +1,23 @@
+---
+description: Domain entity, event, and repository conventions
+globs: Domain/**/*.cs
+alwaysApply: false
+---
+
+# Domain conventions
+
+- Entities: `private set` properties, `static Create(...)` factory, mutators that throw `DomainValidationException` and call `AddDomainEvent(...)`.
+- Exception messages are **localization keys** (e.g. `"InvalidAmount"`), not user-facing text — add keys to `WebApi/Resources/localization.json`.
+- Inherit `BaseAuditableEntity` when audit fields apply. See `Domain/Entities/LoanApplication.cs`.
+- Domain events: `Domain/Events/` + queue on the entity; `ApplicationDbContext.SaveChangesAsync` dispatches via MediatR **before** persist.
+- Repositories: interface in `Domain/Repositories`; generic `Repository<T>` plus aggregate-specific methods (paging/includes). Expose on `IUnitOfWork` and `UnitOfWork`.
+- `UnitOfWork` ctor takes repositories as **optional** parameters so tests can inject mocks.
+- Keep sample aggregates replaceable; put reusable types under `Domain/Common`.
+
+```csharp
+// ✅ rules in entity
+if (amount <= 0) throw new DomainValidationException("InvalidAmount");
+entity.AddDomainEvent(new ApplicationCreatedEvent(entity));
+
+// ❌ business rules in the handler
+```

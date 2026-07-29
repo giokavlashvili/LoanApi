@@ -1,0 +1,16 @@
+---
+description: WebApi controllers, filters, localization, and middleware conventions
+globs: WebApi/**/*.cs
+alwaysApply: false
+---
+
+# WebApi
+
+- Controllers inherit `ApiControllerBase`, route `api/v1/[controller]`, `[Route(nameof(Action))]` per action. Protected APIs: `[Authorize]` at class level.
+- Actions stay thin: `Mediator.Send(...)` only. Void commands that return `Ok()` after send are fine (see `LoanApplicationController`).
+- Errors: `ApiExceptionFilterAttribute` maps `ValidationException` → 400, `NotFoundException` → 404, auth exceptions, `DomainValidationExceptionWrapper` → 400 localized. Unmapped → `UnhandledExceptionHandlerMiddlware` → 500.
+- Domain exception keys → add to `WebApi/Resources/localization.json` (`ka-GE` / `en-US`).
+- Culture: `x-sys-language` header (`SysLanguageMiddleware`); stripped from generated TS client via `nswag.json` `excludedParameterNames`.
+- OTP challenges surface as **428** with `challengeId` / `expiresAt`.
+- `WebApi/ClientApp` is **not** a real frontend (build output only). Generated client: `WebApi/ApiClient/web-api-client.ts` via NSwag.
+- Do not "fix" folder `Middlwares` or namespaces `WebUI.*` — load-bearing for existing usings.

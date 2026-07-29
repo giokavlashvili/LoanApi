@@ -17,6 +17,7 @@ export const API_BASE_URL = new InjectionToken<string>('API_BASE_URL');
 export interface IAuthenticateClient {
     login(command: LoginCommand): Observable<LoginDto>;
     registerUser(command: RegisterUserCommand): Observable<boolean>;
+    resendOtp(command: ResendOtpCommand): Observable<OtpChallengeDto>;
 }
 
 @Injectable({
@@ -135,6 +136,58 @@ export class AuthenticateClient implements IAuthenticateClient {
             }));
         }
         return _observableOf<boolean>(null as any);
+    }
+
+    resendOtp(command: ResendOtpCommand): Observable<OtpChallengeDto> {
+        let url_ = this.baseUrl + "/api/v1/Authenticate/ResendOtp";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_ : any = {
+            body: content_,
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("post", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processResendOtp(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processResendOtp(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<OtpChallengeDto>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<OtpChallengeDto>;
+        }));
+    }
+
+    protected processResendOtp(response: HttpResponseBase): Observable<OtpChallengeDto> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = OtpChallengeDto.fromJS(resultData200);
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf<OtpChallengeDto>(null as any);
     }
 }
 
@@ -668,9 +721,12 @@ export class RegisterUserCommand implements IRegisterUserCommand {
     firstName?: string | undefined;
     lastName?: string | undefined;
     personalNumber?: string | undefined;
+    phoneNumber?: string | undefined;
     password?: string | undefined;
     confirmPassword?: string | undefined;
     birthDate?: Date | undefined;
+    challengeId?: string | undefined;
+    otpCode?: string | undefined;
 
     constructor(data?: IRegisterUserCommand) {
         if (data) {
@@ -687,9 +743,12 @@ export class RegisterUserCommand implements IRegisterUserCommand {
             this.firstName = _data["firstName"];
             this.lastName = _data["lastName"];
             this.personalNumber = _data["personalNumber"];
+            this.phoneNumber = _data["phoneNumber"];
             this.password = _data["password"];
             this.confirmPassword = _data["confirmPassword"];
             this.birthDate = _data["birthDate"] ? new Date(_data["birthDate"].toString()) : undefined as any;
+            this.challengeId = _data["challengeId"];
+            this.otpCode = _data["otpCode"];
         }
     }
 
@@ -706,9 +765,12 @@ export class RegisterUserCommand implements IRegisterUserCommand {
         data["firstName"] = this.firstName;
         data["lastName"] = this.lastName;
         data["personalNumber"] = this.personalNumber;
+        data["phoneNumber"] = this.phoneNumber;
         data["password"] = this.password;
         data["confirmPassword"] = this.confirmPassword;
         data["birthDate"] = this.birthDate ? this.birthDate.toISOString() : undefined as any;
+        data["challengeId"] = this.challengeId;
+        data["otpCode"] = this.otpCode;
         return data;
     }
 }
@@ -718,9 +780,96 @@ export interface IRegisterUserCommand {
     firstName?: string | undefined;
     lastName?: string | undefined;
     personalNumber?: string | undefined;
+    phoneNumber?: string | undefined;
     password?: string | undefined;
     confirmPassword?: string | undefined;
     birthDate?: Date | undefined;
+    challengeId?: string | undefined;
+    otpCode?: string | undefined;
+}
+
+export class OtpChallengeDto implements IOtpChallengeDto {
+    challengeId!: string;
+    expiresAt!: Date;
+    recipient?: string | undefined;
+    maxAttempts!: number;
+
+    constructor(data?: IOtpChallengeDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.challengeId = _data["challengeId"];
+            this.expiresAt = _data["expiresAt"] ? new Date(_data["expiresAt"].toString()) : undefined as any;
+            this.recipient = _data["recipient"];
+            this.maxAttempts = _data["maxAttempts"];
+        }
+    }
+
+    static fromJS(data: any): OtpChallengeDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new OtpChallengeDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["challengeId"] = this.challengeId;
+        data["expiresAt"] = this.expiresAt ? this.expiresAt.toISOString() : undefined as any;
+        data["recipient"] = this.recipient;
+        data["maxAttempts"] = this.maxAttempts;
+        return data;
+    }
+}
+
+export interface IOtpChallengeDto {
+    challengeId: string;
+    expiresAt: Date;
+    recipient?: string | undefined;
+    maxAttempts: number;
+}
+
+export class ResendOtpCommand implements IResendOtpCommand {
+    challengeId?: string | undefined;
+
+    constructor(data?: IResendOtpCommand) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.challengeId = _data["challengeId"];
+        }
+    }
+
+    static fromJS(data: any): ResendOtpCommand {
+        data = typeof data === 'object' ? data : {};
+        let result = new ResendOtpCommand();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["challengeId"] = this.challengeId;
+        return data;
+    }
+}
+
+export interface IResendOtpCommand {
+    challengeId?: string | undefined;
 }
 
 export class CurrencyDto implements ICurrencyDto {
@@ -1000,6 +1149,8 @@ export interface IUpdateApplicationCommand {
 export class UpdateApplicationStatusCommand implements IUpdateApplicationStatusCommand {
     id!: number;
     status!: LoanStatus;
+    challengeId?: string | undefined;
+    otpCode?: string | undefined;
 
     constructor(data?: IUpdateApplicationStatusCommand) {
         if (data) {
@@ -1014,6 +1165,8 @@ export class UpdateApplicationStatusCommand implements IUpdateApplicationStatusC
         if (_data) {
             this.id = _data["id"];
             this.status = _data["status"];
+            this.challengeId = _data["challengeId"];
+            this.otpCode = _data["otpCode"];
         }
     }
 
@@ -1028,6 +1181,8 @@ export class UpdateApplicationStatusCommand implements IUpdateApplicationStatusC
         data = typeof data === 'object' ? data : {};
         data["id"] = this.id;
         data["status"] = this.status;
+        data["challengeId"] = this.challengeId;
+        data["otpCode"] = this.otpCode;
         return data;
     }
 }
@@ -1035,6 +1190,8 @@ export class UpdateApplicationStatusCommand implements IUpdateApplicationStatusC
 export interface IUpdateApplicationStatusCommand {
     id: number;
     status: LoanStatus;
+    challengeId?: string | undefined;
+    otpCode?: string | undefined;
 }
 
 export class DeleteApplicationCommand implements IDeleteApplicationCommand {

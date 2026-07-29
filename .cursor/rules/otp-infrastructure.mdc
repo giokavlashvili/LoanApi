@@ -1,0 +1,12 @@
+---
+description: OTP infrastructure services — hasher, SMS, verify finally-save
+globs: Infrastructure/Services/**/*.cs
+alwaysApply: false
+---
+
+# OTP / SMS infrastructure
+
+- `OtpService.VerifyAsync` saves in **`finally`** so failed attempts persist.
+- Codes: keyed HMAC via `HmacOtpCodeHasher` + `Otp:Secret` — never plaintext.
+- `LoggingSmsSender` is dev-only (logs codes). Replace with a real `ISmsSender` before production (one class + one DI line in `AddInfrastructureServices`).
+- Domain rules for attempts/expiry live on `OtpVerification` entity.

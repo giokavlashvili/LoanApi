@@ -31,7 +31,8 @@ namespace Application.UnitTests.LoanApplications.Commands
                 _context.Object,
                 It.IsAny<ICurrencyRepository>(),
                 It.IsAny<ILoanTypeRepository>(),
-                _loanApplicationRepository.Object);
+                _loanApplicationRepository.Object,
+                It.IsAny<IOtpVerificationRepository>());
 
             _currentUserService.Setup(u => u.UserId).Returns("userId");
             _loanApplicationRepository.Setup(r => r.Remove(It.IsAny<LoanApplication>()));

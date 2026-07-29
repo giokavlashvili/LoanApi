@@ -1,0 +1,13 @@
+---
+description: ASP.NET Identity and JWT authenticate slice conventions
+globs: Application/Authenticate/**/*.cs
+alwaysApply: false
+---
+
+# Auth / Identity (Application)
+
+- Slice: `Application/Authenticate/{Commands,Dtos,Validators,EventHandlers}`.
+- `RegisterUserCommand` implements `IRequireOtpVerification` and overrides `OtpRecipient => PhoneNumber` (no account yet). Mark `OtpRecipient` with `[JsonIgnore]` so it is not a client-settable OpenAPI field.
+- Login stays a normal command (no OTP unless you opt in).
+- Controllers: `WebApi/Controllers/AuthenticateController.cs` — thin `Mediator.Send`.
+- Infra details: see `auth-identity-infra` when editing `Infrastructure/Identity/**`.

@@ -1,0 +1,23 @@
+---
+description: Application layer CQRS vertical-slice conventions
+globs: Application/**/*.cs
+alwaysApply: false
+---
+
+# Application CQRS
+
+- Vertical slice: `Application/<Feature>/{Commands,Queries,Dtos,Validators,EventHandlers}`.
+- Command/query **and** handler live in the **same file**. Types are `record`s: `IRequest` or `IRequest<T>`.
+- Handlers orchestrate only: current user / `IDateTime` → entity factory/mutator → `_unitOfWork` → `SaveAsync`.
+- FluentValidation for input/lookups (inject `IUnitOfWork`, `IStringLocalizer`). Domain rules stay on the entity.
+- DTOs: implement `IMapFrom<T>`; override `Mapping(Profile)` only for custom members.
+- Event handlers: `INotificationHandler<>` under `Application/<Feature>/EventHandlers`.
+- OTP opt-in: implement `IRequireOtpVerification` + `ChallengeId` + `[SensitiveData] OtpCode`. No per-feature OTP plumbing.
+- Pipeline: `ValidationBehavior` → `PerformanceBehavior` → (`OtpVerificationBehavior` when opted in) → handler.
+- Do **not** manually register handlers/validators in DI.
+
+```csharp
+// ✅ same file: CreateApplicationCommand + CreateApplicationCommandhandler
+public record CreateApplicationCommand : IRequest<int> { ... }
+public class CreateApplicationCommandhandler : IRequestHandler<CreateApplicationCommand, int> { ... }
+```

@@ -1,0 +1,19 @@
+---
+description: Two-step OTP verification patterns and security gotchas
+globs: Application/**/*Otp*.cs
+alwaysApply: false
+---
+
+# OTP verification
+
+- Opt in: implement `IRequireOtpVerification` on the command; declare `ChallengeId` + `[SensitiveData] OtpCode`.
+- Missing code → challenge issued/SMS → **428** with `challengeId`/`expiresAt`. Caller resends same payload + code.
+- `OtpRecipient`: leave null to use authenticated user's phone (preferred). Override only when no user exists yet (e.g. `RegisterUserCommand` → `PhoneNumber`).
+- `OtpPurpose` defaults to command type name — codes are not reusable across operations.
+- `OtpService.VerifyAsync` must save in a **`finally`**: wrong codes increment `AttemptCount` then throw; happy-path-only save resets attempts and enables brute force.
+- Challenge stores `RequestHash` (payload minus `ChallengeId`/`OtpCode`) so a code cannot authorize a different body.
+- **Every rejection must happen before the gate.** A check left in the handler fires only after a code is sent *and* consumed, and since the challenge is payload-bound, correcting the input then requires a whole new code. Put lookups and format rules in the FluentValidation validator, and surface framework-level rules there too rather than letting them surprise the handler (see `IIdentityService.IsUserNameAllowed`, which exposes Identity's `AllowedUserNameCharacters` so the validator cannot drift from what `CreateUserAsync` enforces).
+- Codes: keyed HMAC (`Otp:Secret`), never plaintext / unkeyed digest.
+- Sensitive property names must be in **both** `RequestLogging:SensitiveProperties` and `LogRedactor.DefaultSensitiveProperties` (config replaces defaults when present).
+- Dev SMS: `LoggingSmsSender` logs the code (warns every send). Replace before production.
+- Also see: `Infrastructure/Services/OtpService.cs`, `Domain/Entities/OtpVerification.cs`, skill `add-otp-gate`.

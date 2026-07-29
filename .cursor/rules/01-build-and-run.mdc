@@ -1,0 +1,30 @@
+---
+description: Build, test, run, and EF migration commands for this solution
+alwaysApply: true
+---
+
+# Build and run
+
+```bash
+dotnet build LoanApi.sln -p:SkipNSwag=True
+dotnet test LoanApi.sln -p:SkipNSwag=True
+dotnet run --project WebApi/WebApi.csproj --launch-profile https
+```
+
+- Debug builds of `WebApi` run **NSwag** post-build (OpenAPI + `WebApi/ApiClient/web-api-client.ts`). Use `-p:SkipNSwag=True` for faster/local builds without the NSwag tool.
+- Single test: `dotnet test Domain.UnitTests/Domain.UnitTests.csproj --filter "FullyQualifiedName~TypeName.Method"`
+- Swagger: `/swagger`. Profiles: http `5041`, https `7233`.
+- Dev startup applies migrations + seed → needs SQL Server `localhost\SQLEXPRESS`, or set `"UseInMemoryDatabase": true` in `WebApi/appsettings.json`.
+- Seeded admin: `administrator@localhost` / `Administrator1!` (role `Administrator`).
+
+## EF Core
+
+Migrations live in `Infrastructure`; startup project is `WebApi`.
+
+```powershell
+$env:SkipNSwag = "True"
+dotnet ef migrations add <Name> --project Infrastructure --startup-project WebApi
+dotnet ef database update --project Infrastructure --startup-project WebApi
+```
+
+`SkipNSwag` must be an **environment variable** for `dotnet ef` (not `-p:`). MSBuild `-p:SkipNSwag=True` does not reach the scaffold host build.

@@ -12,10 +12,17 @@ namespace Application.Authenticate.Validators
         {
             _identityService = identityService;
 
+            // Cascade(Stop) so one bad user name reports one reason, and so the lookups below it
+            // are not run against a value already known to be unusable.
             RuleFor(u => u.UserName)
+                .Cascade(CascadeMode.Stop)
                 .NotEmpty().WithMessage("User name is required")
                 .MaximumLength(200).WithMessage("User name must not exceed 100 characters.")
-                .Must(UserExists).WithMessage("User already exists, choose different user name"); ;
+                // Identity applies this rule too, but only inside CreateUserAsync — which runs
+                // after OtpVerificationBehavior. Left there, a bad user name costs the user an
+                // SMS and a consumed challenge before they are told about it.
+                .Must(UserNameCharactersAllowed).WithMessage("User name can only contain letters, digits and - . _ @ +")
+                .Must(UserExists).WithMessage("User already exists, choose different user name");
 
             RuleFor(v => v.FirstName)
                 .NotEmpty().NotNull().WithMessage("First name is required");
@@ -42,6 +49,12 @@ namespace Application.Authenticate.Validators
                 .MaximumLength(11).WithMessage("only 11 simbols are allowed")
                 .MinimumLength(11).WithMessage("only 11 simbols are allowed")
                 .NotEmpty().NotNull().WithMessage("Personal number is required");
+
+            // Checked here rather than in the OTP machinery: an unusable number must fail before
+            // the pipeline reaches OtpVerificationBehavior and spends a message on it.
+            RuleFor(v => v.PhoneNumber)
+                .NotEmpty().NotNull().WithMessage("Phone number is required")
+                .Matches(@"^\+?[0-9]{9,15}$").WithMessage("Phone number must be 9 to 15 digits, optionally prefixed with +");
         }
 
         private bool PasswordMatch(RegisterUserCommand command)
@@ -51,6 +64,11 @@ namespace Application.Authenticate.Validators
         public bool UserExists(string userName)
         {
             return !_identityService.UserExistsAsync(userName).GetAwaiter().GetResult();
+        }
+
+        public bool UserNameCharactersAllowed(string userName)
+        {
+            return _identityService.IsUserNameAllowed(userName);
         }
     }
 }

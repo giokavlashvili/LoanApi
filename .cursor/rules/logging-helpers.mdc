@@ -1,0 +1,11 @@
+---
+description: Serilog helpers, redactor, log properties, and Log entity sync
+globs: Application/Common/Logging/**/*.cs
+alwaysApply: false
+---
+
+# Application logging helpers
+
+- Property names: `LogProperties.cs` — must match `Domain/Entities/Log.cs` columns and `BuildColumnOptions`.
+- `LogRedactor` + `SensitiveDataAttribute`: mask passwords/tokens/OTP. When `RequestLogging:SensitiveProperties` is set in config, it **replaces** defaults — keep OTP names in **both** config and `DefaultSensitiveProperties`.
+- `PerformanceBehavior` logs redacted requests for handlers slower than 500 ms.

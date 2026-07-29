@@ -1,0 +1,16 @@
+---
+description: Clean Architecture CQRS boilerplate — core identity and constraints
+alwaysApply: true
+---
+
+# Project core
+
+- ASP.NET Core **net10.0** Clean Architecture / CQRS **boilerplate**. Loan domain (`LoanApplication`, `LoanType`, `Currency`) is **sample** — replace when starting a product.
+- Namespaces/assemblies: `Domain`, `Application`, `Infrastructure`, `WebApi` (not "LoanApi"). "LoanApi" is only the `.sln` / folder name.
+- Dependencies inward only: `WebApi → Infrastructure → Application → Domain`.
+- App abstractions (`IApplicationDbContext`, `ICurrentUserService`, `IDateTime`, `IIdentityService`, …) live in `Application/Common/Interfaces`. Repo/UoW abstractions live in `Domain/Repositories`.
+- Business rules live in **domain entities**; handlers only orchestrate (user/time → entity → save).
+- Registration is **assembly-scan** — new MediatR handlers, FluentValidation validators, AutoMapper `IMapFrom`, and EF `IEntityTypeConfiguration`s need **no manual DI**.
+- MediatR pipeline behaviors MUST use `where TRequest : notnull` (never `IRequest<TResponse>`). MediatR.Contracts 2.x makes void `IRequest` unrelated to `IRequest<Unit>`; a tighter constraint silently drops validation/OTP on void commands.
+- Preserve load-bearing spellings: `WebApi/Middlwares`, `WebUI.Filters` / `WebUI.Services`, `CreateApplicationCommandhandler`.
+- Prefer **GitNexus** for explore / impact / refactor. Deep reference: `docs/architecture.md`. Do not invent parallel folder layouts.

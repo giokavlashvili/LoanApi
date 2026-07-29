@@ -12,17 +12,20 @@ namespace Infrastructure.Persistence.Repositories
             IApplicationDbContext context, 
             ICurrencyRepository? currencyRepository = null,
             ILoanTypeRepository? loanTypeRepository = null,
-            ILoanApplicationRepository? loanApplicationRepository = null)
+            ILoanApplicationRepository? loanApplicationRepository = null,
+            IOtpVerificationRepository? otpVerificationRepository = null)
         {
             _context = context;
             CurrencyRepository = currencyRepository ?? new CurrencyRepository(_context);
             LoanTypeRepository = loanTypeRepository ?? new LoanTypeRepository(_context);
             LoanApplicationRepository = loanApplicationRepository ?? new LoanApplicationRepository(_context);
+            OtpVerificationRepository = otpVerificationRepository ?? new OtpVerificationRepository(_context);
         }
 
         public ICurrencyRepository CurrencyRepository { get; private set; }
         public ILoanTypeRepository LoanTypeRepository { get; private set; }
         public ILoanApplicationRepository LoanApplicationRepository { get; private set; }
+        public IOtpVerificationRepository OtpVerificationRepository { get; private set; }
 
         protected virtual void Dispose(bool disposing)
         {

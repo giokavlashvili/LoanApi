@@ -1,0 +1,16 @@
+---
+description: MediatR pipeline behaviors — constraint and registration order
+globs: Application/Common/Behaviours/**/*.cs
+alwaysApply: false
+---
+
+# MediatR behaviors
+
+- Constraint **must** be `where TRequest : notnull` — never `IRequest<TResponse>`. Void `IRequest` commands are not `IRequest<Unit>`; a tighter constraint silently skips DI registration (no validation/OTP on void commands).
+- Guarded by `OtpVerificationBehaviorTests.Handle_ForAVoidCommand_StillGate` (won't compile if constraint is tightened).
+- Registration order in `AddApplicationServices` (outer → inner):
+  1. `ValidationBehavior` — fail before SMS / work
+  2. `PerformanceBehavior`
+  3. `OtpVerificationBehavior` — innermost among these
+- Folder is spelled `Behaviours`; namespace may use `Behaviors` — match existing files.
+- Do not call OTP/validation logic from handlers; behaviors own the cross-cutting gate.

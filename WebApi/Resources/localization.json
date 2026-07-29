@@ -61,5 +61,103 @@
       "ka-GE": "გვერდის ზომა უნდა იყოს 1-სა და 100-ს შორის",
       "en-US": "Invalid Page Size"
     }
+  },
+  {
+    "Key": "OtpRequired",
+    "LocalizedValue": {
+      "ka-GE": "ოპერაციის დასადასტურებლად შეიყვანეთ სმს-ით მიღებული კოდი",
+      "en-US": "Enter the code sent to your phone to confirm this operation"
+    }
+  },
+  {
+    "Key": "InvalidOtpCode",
+    "LocalizedValue": {
+      "ka-GE": "კოდი არასწორია",
+      "en-US": "Invalid verification code"
+    }
+  },
+  {
+    "Key": "OtpExpired",
+    "LocalizedValue": {
+      "ka-GE": "კოდს ვადა გაუვიდა, გამოითხოვეთ ახალი",
+      "en-US": "The verification code has expired, request a new one"
+    }
+  },
+  {
+    "Key": "OtpAlreadyUsed",
+    "LocalizedValue": {
+      "ka-GE": "კოდი უკვე გამოყენებულია",
+      "en-US": "The verification code has already been used"
+    }
+  },
+  {
+    "Key": "OtpLocked",
+    "LocalizedValue": {
+      "ka-GE": "მცდელობების რაოდენობა ამოიწურა, გამოითხოვეთ ახალი კოდი",
+      "en-US": "Too many incorrect attempts, request a new code"
+    }
+  },
+  {
+    "Key": "OtpThrottled",
+    "LocalizedValue": {
+      "ka-GE": "კოდი ცოტა ხნის წინ გამოგზავნილია, სცადეთ მოგვიანებით",
+      "en-US": "A code was sent recently, please try again later"
+    }
+  },
+  {
+    "Key": "OtpChallengeNotFound",
+    "LocalizedValue": {
+      "ka-GE": "დადასტურების მოთხოვნა ვერ მოიძებნა",
+      "en-US": "Verification request was not found"
+    }
+  },
+  {
+    "Key": "OtpPurposeMismatch",
+    "LocalizedValue": {
+      "ka-GE": "კოდი სხვა ოპერაციისთვის იყო გამოგზავნილი",
+      "en-US": "The code was issued for a different operation"
+    }
+  },
+  {
+    "Key": "OtpRequestMismatch",
+    "LocalizedValue": {
+      "ka-GE": "მოთხოვნის მონაცემები შეიცვალა, გამოითხოვეთ ახალი კოდი",
+      "en-US": "The request has changed since the code was sent, request a new one"
+    }
+  },
+  {
+    "Key": "OtpRecipientRequired",
+    "LocalizedValue": {
+      "ka-GE": "ტელეფონის ნომერი ვერ მოიძებნა",
+      "en-US": "No phone number is available to send the code to"
+    }
+  },
+  {
+    "Key": "InvalidOtpPurpose",
+    "LocalizedValue": {
+      "ka-GE": "ოპერაცია არ არის მითითებული",
+      "en-US": "Invalid verification purpose"
+    }
+  },
+  {
+    "Key": "InvalidOtpLifetime",
+    "LocalizedValue": {
+      "ka-GE": "კოდის მოქმედების ვადა არასწორია",
+      "en-US": "Invalid verification code lifetime"
+    }
+  },
+  {
+    "Key": "InvalidOtpMaxAttempts",
+    "LocalizedValue": {
+      "ka-GE": "მცდელობების დასაშვები რაოდენობა არასწორია",
+      "en-US": "Invalid verification attempt limit"
+    }
+  },
+  {
+    "Key": "InvalidPhoneNumber",
+    "LocalizedValue": {
+      "ka-GE": "ტელეფონის ნომერი არასწორია",
+      "en-US": "Invalid phone number"
+    }
   }
 ]
