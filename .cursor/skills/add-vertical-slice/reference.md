@@ -19,18 +19,20 @@ Copy the `LoanApplication` sample. Replace names for the new aggregate.
 | Artifact | Sample path |
 |----------|-------------|
 | Feature root | `Application/LoanApplications/` |
-| Command + handler | `Application/LoanApplications/Commands/CreateApplicationCommand.cs` (repository + `IUnitOfWork` injected directly) |
+| Command + handler | `Application/LoanApplications/Commands/CreateApplicationCommand.cs` (repository + `IUnitOfWork` injected directly; `RequireUserId()` guard, no audit arguments) |
 | Query, paginated | `Application/LoanApplications/Queries/GetApplicationsQuery.cs` (`ProjectTo` + count from one `IQueryable`) |
 | Query, flat list | `Application/Currencies/Queries/GetCurrenciesQuery.cs` |
 | DTO | `Application/LoanApplications/Dtos/LoanApplicationDto.cs` (public setters — `ProjectTo`) |
 | Validator | `Application/LoanApplications/Validators/CreateApplicationCommandValidator.cs` (`IApplicationDbContext` + `MustAsync`) |
 | Event handler | `Application/LoanApplications/EventHandlers/` |
+| Non-domain notification | `Application/Authenticate/Notifications/UserRegisteredNotification.cs` + `NotificationHandlers/` |
 
 ## Infrastructure
 
 | Artifact | Sample path |
 |----------|-------------|
-| EF config | `Infrastructure/Persistence/Configurations/LoanApplicationConfiguration.cs` |
+| EF config | `Infrastructure/Persistence/Configurations/LoanApplicationConfiguration.cs` (relationships live here — the entity has no annotations) |
+| Audit stamping | `Infrastructure/Persistence/Interceptors/AuditableEntityInterceptor.cs` — nothing to add per slice |
 | Repository | `Infrastructure/Persistence/Repositories/LoanApplicationRepository.cs` |
 | Repository base | `Infrastructure/Persistence/Repositories/Repository.cs` |
 | UoW impl | `Infrastructure/Persistence/Repositories/UnitOfWork.cs` |

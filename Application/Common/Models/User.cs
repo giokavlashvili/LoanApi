@@ -1,5 +1,10 @@
-﻿namespace Domain.Common.Models
+namespace Application.Common.Models
 {
+    /// <summary>
+    /// A user as the application sees one — the projection <see cref="Interfaces.IUserService"/>
+    /// returns, deliberately independent of <c>ApplicationUser</c> so nothing outside
+    /// <c>Infrastructure</c> depends on ASP.NET Identity's type.
+    /// </summary>
     public class User
     {
         public string? Id { get; set; }

@@ -1,5 +1,6 @@
 using Application.LoanApplications.Commands;
 using Domain.Entities;
+using Domain.Events;
 using Domain.Repositories;
 using Moq;
 using NUnit.Framework;
@@ -13,6 +14,7 @@ namespace Application.UnitTests.LoanApplications.Commands
     {
         private Mock<ILoanApplicationRepository> _applications;
         private Mock<IUnitOfWork> _unitOfWork;
+        private LoanApplication _entity;
 
         [SetUp]
         public void SetUp()
@@ -21,9 +23,10 @@ namespace Application.UnitTests.LoanApplications.Commands
             _unitOfWork = new Mock<IUnitOfWork>();
 
             _applications.Setup(r => r.Remove(It.IsAny<LoanApplication>()));
+            _entity = LoanApplication.Create(1, 1, 1, 1);
             _applications
                 .Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(LoanApplication.Create(1, 1, 1, 1, "UserId", new DateTime(2026, 7, 29, 12, 0, 0, DateTimeKind.Utc)));
+                .ReturnsAsync(_entity);
             _unitOfWork.Setup(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
         }
 
@@ -46,6 +49,20 @@ namespace Application.UnitTests.LoanApplications.Commands
             _applications.Verify(r => r.Remove(It.IsAny<LoanApplication>()));
             // Ensure that unit of work SaveChangesAsync Method is called
             _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce());
+        }
+
+        /// <summary>
+        /// The event now comes from <c>LoanApplication.Delete()</c> rather than being constructed by
+        /// the handler, so this asserts the handler still causes it to be raised.
+        /// </summary>
+        [Test]
+        public async Task DeleteApplicationCommand_WhenCalled_RaisesDeletedEventFromTheAggregate()
+        {
+            var handler = new DeleteApplicationCommandHandler(_applications.Object, _unitOfWork.Object);
+
+            await handler.Handle(new DeleteApplicationCommand { Id = 1 }, default);
+
+            Assert.That(_entity.DomainEvents.Any(e => e is ApplicationDeletedEvent), Is.True);
         }
     }
 }

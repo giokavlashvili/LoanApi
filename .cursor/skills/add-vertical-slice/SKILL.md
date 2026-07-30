@@ -27,6 +27,13 @@ Progress:
 ## 1. Domain
 
 - `Domain/Entities/<Name>.cs`: `private set`, `static Create(...)`, mutators, `DomainValidationException("Key")`, `AddDomainEvent`.
+- **No audit parameters** on the factory or mutators — `Create(int loanTypeId, decimal amount, ...)`,
+  not `Create(..., string createdById, DateTime created)`. `AuditableEntityInterceptor` stamps
+  `Created`/`CreatedBy`/`LastModified`/`LastModifiedBy` at the save boundary.
+- **No EF annotations** — no `[ForeignKey]`, no `[NotMapped]`, no `[Column]`. Mapping is Fluent API
+  in step 4.
+- If the aggregate raises an event on deletion, give it a `Delete()` that raises it (see
+  `LoanApplication.Delete`); the handler calls `entity.Delete()` then `repository.Remove(entity)`.
 - Is it an **aggregate root**? Mark it `IAggregateRoot` only if it is the entry point to a
   consistency boundary — something with invariants worth protecting. Reference/lookup data is
   **not** a root: it gets no marker, no repository, and is read through query handlers. See
@@ -54,9 +61,12 @@ Application/<Feature>/
   EventHandlers/
 ```
 
-- Command handler: inject `I<Name>Repository` **plus** `IUnitOfWork` (plus `ICurrentUserService` /
-  `IDateTime` if needed). user/time → entity factory or mutator → repository → `SaveChangesAsync`.
-  A loaded aggregate is tracked; do not look for an `Update` method.
+- Command handler: inject `I<Name>Repository` **plus** `IUnitOfWork`. Entity factory or mutator →
+  repository → `SaveChangesAsync`. A loaded aggregate is tracked; do not look for an `Update` method.
+- Writing an auditable entity? Call `_currentUserService.RequireUserId()` first (extension in
+  `Application/Common/Extensions`). It throws `DomainValidationException("InvalidUser")` instead of
+  letting the interceptor write a null `CreatedBy`. Inject `IDateTime` only when a *business rule*
+  needs the time — never to feed an audit column.
 - Query handler: inject `IApplicationDbContext` + `IMapper`, then
   `.AsNoTracking().ProjectTo<TDto>(_mapper.ConfigurationProvider)`. No repository.
 - DTOs need **public setters** for `ProjectTo` to work — a `private set` compiles and then fails at
@@ -68,7 +78,9 @@ Application/<Feature>/
 
 ## 4. Infrastructure
 
-- `Persistence/Configurations/<Name>Configuration.cs` (`IEntityTypeConfiguration<T>`).
+- `Persistence/Configurations/<Name>Configuration.cs` (`IEntityTypeConfiguration<T>`) — including
+  relationships (`HasOne(...).WithMany().HasForeignKey(...)`) and any `Ignore`, since the entity
+  carries no annotations.
 - `Persistence/Repositories/<Name>Repository.cs`, deriving `Repository<TAggregate>`.
 - Repositories are **not** assembly-scanned like handlers/validators — add an explicit
   `services.AddScoped<I<Name>Repository, <Name>Repository>();` line in `AddInfrastructureServices`
@@ -103,6 +115,9 @@ Use the `ef-migration` skill. Do not hand-edit the model snapshot unless fixing 
 - Business rules in handlers or controllers
 - Manual MediatR/FluentValidation registration
 - Putting repository interfaces in Application
+- Threading `createdById` / timestamps through a factory or mutator signature — the interceptor
+  stamps them; drop the parameters and guard with `RequireUserId()` instead
+- EF annotations on an entity, or a handler constructing the aggregate's own domain event
 - Forgetting the repository's DI registration in `AddInfrastructureServices` — it will fail to resolve
 - Adding a repository property to `IUnitOfWork`, or injecting `IUnitOfWork` to reach a repository
   through it: a handler's dependencies belong in its constructor

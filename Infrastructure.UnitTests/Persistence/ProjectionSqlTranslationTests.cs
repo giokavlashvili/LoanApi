@@ -40,9 +40,8 @@ namespace Infrastructure.UnitTests.Persistence
             context.LoanTypes.Add(loanType);
             await context.SaveChangesAsync(default);
 
-            var application = LoanApplication.Create(
-                loanType.Id, 4321m, currency.Id, 18, "projection-test-user", DateTime.UtcNow);
-            context.LoanApplications.Add(application);
+            var application = TestDb.AddApplication(
+                context, loanType.Id, 4321m, currency.Id, 18, "projection-test-user", DateTime.UtcNow);
             await context.SaveChangesAsync(default);
 
             try

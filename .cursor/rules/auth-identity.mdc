@@ -8,6 +8,7 @@ alwaysApply: false
 
 - Slice: `Application/Authenticate/{Commands,Dtos,Validators,EventHandlers}`.
 - `RegisterUserCommand` implements `IRequireOtpVerification` and overrides `OtpRecipient => PhoneNumber` (no account yet). Mark `OtpRecipient` with `[JsonIgnore]` so it is not a client-settable OpenAPI field.
-- Login stays a normal command (no OTP unless you opt in).
+- Login stays a normal command (no OTP unless you opt in). Bad credentials surface as **401** via `InvalidCredentialsException`, with one message covering both "no such user" and "wrong password".
+- A successful registration publishes `UserRegisteredNotification` (`Application/Authenticate/Notifications`), handled in `Application/Authenticate/NotificationHandlers`. It is an integration-style notification published directly through `IMediator`, not a domain event: `DispatchDomainEvents` scans `ChangeTracker.Entries<BaseEntity>()` and `ApplicationUser : IdentityUser` can never be a `BaseEntity`. Do not try to give the Identity user a `DomainEvents` collection — one existed, was unreachable by the dispatcher, and was removed. See `docs/architecture.md`.
 - Controllers: `WebApi/Controllers/AuthenticateController.cs` — thin `Mediator.Send`.
 - Infra details: see `auth-identity-infra` when editing `Infrastructure/Identity/**`.

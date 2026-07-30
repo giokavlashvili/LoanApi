@@ -9,12 +9,19 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Security.Cryptography;
 
-namespace Infrastructure.Services
+namespace Application.Otp.Services
 {
     /// <summary>
     /// Issues and redeems one time passwords. Knows nothing about what any given code protects —
     /// the purpose string is opaque here, which is what lets one implementation serve every
     /// operation that opts in.
+    /// <para>
+    /// Lives in <c>Application</c> because it holds no infrastructure: every collaborator below
+    /// is an abstraction, and the two that are mechanism — <c>IOtpCodeHasher</c> (crypto) and
+    /// <c>ISmsSender</c> (a vendor adapter) — stay in <c>Infrastructure</c>. That split is the
+    /// point: the policy of how many codes, for how long, and how many attempts is a use case
+    /// decision; hashing and delivery are not.
+    /// </para>
     /// </summary>
     public class OtpService : IOtpService
     {

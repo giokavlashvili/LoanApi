@@ -41,8 +41,8 @@ namespace Infrastructure.UnitTests.Queries
 
             for (var i = 0; i < applicationCount; i++)
             {
-                context.LoanApplications.Add(LoanApplication.Create(
-                    loanType.Id, 100 + i, currency.Id, 12, "userId", BaseTime.AddMinutes(i)));
+                TestDb.AddApplication(
+                    context, loanType.Id, 100 + i, currency.Id, 12, "userId", BaseTime.AddMinutes(i));
             }
 
             await context.SaveChangesAsync(default);

@@ -18,4 +18,8 @@ alwaysApply: false
 - Hash comparisons in `OtpVerification.Verify` use `CryptographicOperations.FixedTimeEquals`, not `string.Equals` — a timing side-channel is exactly the kind of thing worth closing even when the practical risk is low. A malformed Base64 candidate is treated as a wrong code, not a thrown `FormatException`.
 - Sensitive property names must be in **both** `RequestLogging:SensitiveProperties` and `LogRedactor.DefaultSensitiveProperties` (config replaces defaults when present).
 - Dev SMS: `LoggingSmsSender` logs the code (warns every send). Replace before production.
-- Also see: `Infrastructure/Services/OtpService.cs`, `Domain/Entities/OtpVerification.cs`, skill `add-otp-gate`.
+- **`OtpService` is Application, not Infrastructure** (`Application/Otp/Services/OtpService.cs`,
+  registered in `AddApplicationServices`). It holds no infrastructure — it orchestrates a
+  repository, options, a hasher and a sender, all through abstractions. `HmacOtpCodeHasher` and
+  `LoggingSmsSender` stay in Infrastructure: policy here, mechanism there.
+- Also see: `Application/Otp/Services/OtpService.cs`, `Domain/Entities/OtpVerification.cs`, skill `add-otp-gate`.

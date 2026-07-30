@@ -1,5 +1,6 @@
 using Application.Common.Mappings;
 using AutoMapper;
+using Domain.Entities;
 using Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -46,6 +47,35 @@ namespace Infrastructure.UnitTests
                     .UseSqlServer(SqlServerConnectionString)
                     .Options,
                 new Mock<IMediator>().Object);
+
+        /// <summary>
+        /// Adds a <see cref="LoanApplication"/> and stamps its audit columns.
+        /// <para>
+        /// The factory stopped taking a user id and a timestamp once
+        /// <c>AuditableEntityInterceptor</c> took over filling them at the save boundary. Fixtures
+        /// that build a bare context have no interceptor attached, and several of them order or
+        /// filter by <c>Created</c> / <c>CreatedBy</c> — so they set the values here instead. The
+        /// setters are <c>protected</c>, which is why this goes through the change tracker rather
+        /// than assigning directly.
+        /// </para>
+        /// </summary>
+        internal static LoanApplication AddApplication(
+            ApplicationDbContext context,
+            int loanTypeId,
+            decimal amount,
+            int currencyId,
+            int period,
+            string createdBy,
+            DateTime created)
+        {
+            var entity = LoanApplication.Create(loanTypeId, amount, currencyId, period);
+
+            var entry = context.LoanApplications.Add(entity);
+            entry.Property(e => e.Created).CurrentValue = created;
+            entry.Property(e => e.CreatedBy).CurrentValue = createdBy;
+
+            return entity;
+        }
 
         /// <summary>
         /// The real <see cref="MappingProfile"/>, so projections behave as they do in the app.

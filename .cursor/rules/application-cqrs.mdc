@@ -9,14 +9,16 @@ alwaysApply: false
 - Vertical slice: `Application/<Feature>/{Commands,Queries,Dtos,Validators,EventHandlers}`.
 - Command/query **and** handler live in the **same file**. Types are `record`s: `IRequest` or `IRequest<T>`.
 - **Commands go through repositories; queries project from the context.** That split is the layer's main shape:
-  - *Command handler*: inject the aggregate repositories it actually uses **plus** `IUnitOfWork`, never a registry to reach through. Orchestrate only — current user / `IDateTime.UtcNow` → entity factory/mutator → repository → `_unitOfWork.SaveChangesAsync`. A loaded aggregate is tracked, so mutating it is what persists; there is no `Update` call.
+  - *Command handler*: inject the aggregate repositories it actually uses **plus** `IUnitOfWork`, never a registry to reach through. Orchestrate only — entity factory/mutator → repository → `_unitOfWork.SaveChangesAsync`. A loaded aggregate is tracked, so mutating it is what persists; there is no `Update` call.
+  - **Do not pass audit values to an entity.** `AuditableEntityInterceptor` stamps them at the save boundary, so a handler needs `IDateTime` only when the *business rule* needs a time. What a command handler that writes an auditable entity does still owe is the guard: call `_currentUserService.RequireUserId()`, which throws `DomainValidationException("InvalidUser")` rather than letting the row be written with a null `CreatedBy`. Discarding its return value is fine — the guard is the point.
   - *Query handler*: inject `IApplicationDbContext` + `IMapper` and `.AsNoTracking().ProjectTo<TDto>(_mapper.ConfigurationProvider)`. No repository, no entity materialised to throw away. Derive a count and its page from **one** `IQueryable` so they cannot drift.
   - `IRepository.PageAsync` also exists and is correct, but it returns **entities**. Reaching for it from a query handler loads every column and discards most of them — project instead, and keep `PageAsync` for write-side paging over aggregates.
 - `ProjectTo` needs DTOs with **public setters** — it builds a member-init expression, unlike `IMapper.Map`, which assigns by reflection and tolerates `private set`. A `MapFrom` containing a method call will not translate; map it explicitly rather than falling back to materialisation.
 - FluentValidation for input/lookups (inject `IApplicationDbContext`, `IStringLocalizer`). Existence checks are reads, so they query the context (`AnyAsync`), not a repository. Domain rules stay on the entity.
 - **Lookup rules use `MustAsync`/`CustomAsync`.** `ValidationBehavior` calls `ValidateAsync` (no MVC auto-validation). I/O checks take `CancellationToken` and await EF/`IIdentityService`. Pure format/range rules may stay synchronous. Smoke: `ValidatorLookupAsyncTests`.
 - DTOs: implement `IMapFrom<T>`; override `Mapping(Profile)` only for custom members.
-- Event handlers: `INotificationHandler<>` under `Application/<Feature>/EventHandlers`.
+- Event handlers: `INotificationHandler<>` under `Application/<Feature>/EventHandlers`. Notifications that are **not** domain events — raised outside an aggregate, like `UserRegisteredNotification` — go under `Application/<Feature>/Notifications` with handlers in `NotificationHandlers`, and must say in their own doc comment why they do not travel the `BaseEntity.DomainEvents` path.
+- Services that are pure policy over abstractions belong here too, not in `Infrastructure` — `Application/Otp/Services/OtpService.cs` is the worked example, registered by hand in `AddApplicationServices` because it is not part of any assembly scan.
 - OTP opt-in: implement `IRequireOtpVerification` + `ChallengeId` + `[SensitiveData] OtpCode`. No per-feature OTP plumbing.
 - Pipeline: `ValidationBehavior` → `PerformanceBehavior` → (`OtpVerificationBehavior` when opted in) → handler.
 - Do **not** manually register handlers/validators in DI.
@@ -26,11 +28,15 @@ alwaysApply: false
 public record CreateApplicationCommand : IRequest<int> { ... }
 public class CreateApplicationCommandHandler : IRequestHandler<CreateApplicationCommand, int>
 {
-    // the one repository it needs, not IUnitOfWork.LoanApplicationRepository
+    // the one repository it needs, not IUnitOfWork.LoanApplicationRepository.
+    // No IDateTime: the interceptor stamps the audit columns.
     public CreateApplicationCommandHandler(
         ILoanApplicationRepository applications,
         IUnitOfWork unitOfWork,
-        ICurrentUserService currentUserService,
-        IDateTime dateTime) { ... }
+        ICurrentUserService currentUserService) { ... }
+
+    // in Handle: guard, then a factory call with no audit arguments
+    _currentUserService.RequireUserId();
+    var entity = LoanApplication.Create(request.LoanTypeId, request.Amount, request.CurrencyId, request.PeriodPerMonth);
 }
 ```

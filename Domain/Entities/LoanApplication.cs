@@ -1,10 +1,7 @@
 ﻿using Domain.Common;
-using Domain.Common.Models;
 using Domain.Enums;
 using Domain.Events;
 using Domain.Exceptions;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Xml.Linq;
 
 namespace Domain.Entities
 {
@@ -16,14 +13,15 @@ namespace Domain.Entities
         public int PeriodPerMonth { get; private set; }
         public LoanStatus Status { get; private set; }
 
-        [ForeignKey(nameof(LoanTypeId))]
+        /// <remarks>
+        /// The relationship to <see cref="LoanTypeId"/> is declared by Fluent API in
+        /// <c>LoanApplicationConfiguration</c>, not by a <c>[ForeignKey]</c> annotation — persistence
+        /// mapping is Infrastructure's concern and every other entity is configured that way.
+        /// </remarks>
         public LoanType? LoanType { get; private set; }
 
-        [ForeignKey(nameof(CurrencyId))]
+        /// <inheritdoc cref="LoanType"/>
         public Currency? Currency { get; private set; }
-
-        [NotMapped]
-        public User? CreatedByUser { get; set; }
 
         /// <summary>
         /// Optimistic concurrency token. Two concurrent writers to the same row make the second
@@ -31,14 +29,17 @@ namespace Domain.Entities
         /// </summary>
         public byte[] RowVersion { get; private set; } = Array.Empty<byte>();
 
+        /// <remarks>
+        /// Takes no <c>createdById</c> or <c>created</c>: <c>AuditableEntityInterceptor</c> stamps
+        /// both at the save boundary. The <c>InvalidUser</c> invariant that used to be checked here
+        /// moved to the command handlers via <c>ICurrentUserService.RequireUserId()</c> — the entity
+        /// no longer receives a user id, so it can no longer be the one to insist on it.
+        /// </remarks>
         public static LoanApplication Create(
             int loanTypeId,
             decimal amount,
             int currencyId,
-            int periodPerMonth,
-            string createdById,
-        DateTime created
-            )
+            int periodPerMonth)
         {
             if (amount <= 0)
                 throw new DomainValidationException("InvalidAmount");
@@ -46,18 +47,13 @@ namespace Domain.Entities
             if (periodPerMonth <= 0)
                 throw new DomainValidationException("InvalidPeriod");
 
-            if (string.IsNullOrWhiteSpace(createdById))
-                throw new DomainValidationException("InvalidUser");
-
             var entity = new LoanApplication()
             {
                 LoanTypeId = loanTypeId,
                 Amount = amount,
                 CurrencyId = currencyId,
                 PeriodPerMonth = periodPerMonth,
-                CreatedBy = createdById,
-                Status = LoanStatus.Sent,
-                Created = created
+                Status = LoanStatus.Sent
             };
 
             entity.AddDomainEvent(new ApplicationCreatedEvent(entity));
@@ -69,10 +65,7 @@ namespace Domain.Entities
             int loanTypeId,
             decimal amount,
             int currencyId,
-            int periodPerMonth,
-            string lastModifiedBy,
-            DateTime lastModified
-            )
+            int periodPerMonth)
         {
             if (amount <= 0)
                 throw new DomainValidationException("InvalidAmount");
@@ -80,35 +73,36 @@ namespace Domain.Entities
             if (periodPerMonth <= 0)
                 throw new DomainValidationException("InvalidPeriod");
 
-            if (string.IsNullOrWhiteSpace(lastModifiedBy))
-                throw new DomainValidationException("InvalidUser");
-
             LoanTypeId = loanTypeId;
             Amount = amount;
             CurrencyId = currencyId;
             PeriodPerMonth = periodPerMonth;
-            LastModifiedBy = lastModifiedBy;
-            LastModified = lastModified;
 
             this.AddDomainEvent(new ApplicationUpdatedEvent(this));
         }
 
-        public void UpdateStatus(
-            LoanStatus newStatus,
-            string lastModifiedBy,
-            DateTime lastModified
-            )
+        public void UpdateStatus(LoanStatus newStatus)
         {
-            if (string.IsNullOrWhiteSpace(lastModifiedBy))
-                throw new DomainValidationException("InvalidUser");
-
             if (Status == LoanStatus.Accepted || Status == LoanStatus.Rejected)
                 throw new DomainValidationException("ApplicationAlreadyProcessed");
 
             this.Status = newStatus;
-            this.LastModifiedBy = lastModifiedBy;
-            this.LastModified = lastModified;
             this.AddDomainEvent(new ApplicationStatusChangedEvent(this));
+        }
+
+        /// <summary>
+        /// Raises <see cref="ApplicationDeletedEvent"/>. Call this before handing the aggregate to
+        /// the repository's <c>Remove</c>.
+        /// <para>
+        /// The handler used to raise the event itself. That worked only because dispatch happens
+        /// before <c>SaveChanges</c> and the entity is still in the change tracker in the
+        /// <c>Deleted</c> state — a detail no handler should need to know, and the one event in the
+        /// aggregate not raised by the aggregate.
+        /// </para>
+        /// </summary>
+        public void Delete()
+        {
+            this.AddDomainEvent(new ApplicationDeletedEvent(this));
         }
     }
 }

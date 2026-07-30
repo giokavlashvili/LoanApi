@@ -11,13 +11,17 @@ namespace Infrastructure.UnitTests.Repositories
     public class RepositoryTests
     {
         private static readonly DateTime Created = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        private static readonly DateTime Modified = new(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc);
 
         private static ApplicationDbContext CreateContext(string databaseName) => TestDb.InMemory(databaseName);
 
-        private static LoanApplication NewApplication(
-            int loanTypeId = 1, decimal amount = 100, int currencyId = 1, int period = 12, DateTime? created = null) =>
-            LoanApplication.Create(loanTypeId, amount, currencyId, period, "userId", created ?? Created);
+        private static LoanApplication AddApplication(
+            ApplicationDbContext context,
+            int loanTypeId,
+            decimal amount,
+            int currencyId,
+            int period,
+            DateTime created) =>
+            TestDb.AddApplication(context, loanTypeId, amount, currencyId, period, "userId", created);
 
         /// <summary>Seeds through its own context so the querying context starts with a clean tracker.</summary>
         private static async Task<string> SeedAsync(int applicationCount, bool withReferenceData = false)
@@ -40,7 +44,7 @@ namespace Infrastructure.UnitTests.Repositories
             }
 
             for (var i = 0; i < applicationCount; i++)
-                context.LoanApplications.Add(NewApplication(loanTypeId, 100 + i, currencyId, 12, Created.AddMinutes(i)));
+                AddApplication(context, loanTypeId, 100 + i, currencyId, 12, Created.AddMinutes(i));
 
             await context.SaveChangesAsync(default);
             return databaseName;
@@ -53,8 +57,7 @@ namespace Infrastructure.UnitTests.Repositories
             // the CancellationToken as a second key value; this only surfaces against a real
             // DbSet, never against a mocked repository.
             await using var context = CreateContext(Guid.NewGuid().ToString());
-            var entity = NewApplication();
-            context.LoanApplications.Add(entity);
+            var entity = AddApplication(context, 1, 100, 1, 12, Created);
             await context.SaveChangesAsync(default);
 
             var repository = new Repository<LoanApplication>(context);
@@ -77,14 +80,13 @@ namespace Infrastructure.UnitTests.Repositories
 
             await using (var context = CreateContext(databaseName))
             {
-                var entity = NewApplication();
-                context.LoanApplications.Add(entity);
+                var entity = AddApplication(context, 1, 100, 1, 12, Created);
                 await context.SaveChangesAsync(default);
                 entityId = entity.Id;
 
                 var repository = new Repository<LoanApplication>(context);
                 var tracked = await repository.GetByIdAsync(entityId, CancellationToken.None);
-                tracked!.Update(2, 250, 3, 24, "userId", Modified);
+                tracked!.Update(2, 250, 3, 24);
 
                 // Act — no repository.Update(tracked) call here.
                 await context.SaveChangesAsync(default);
@@ -109,14 +111,13 @@ namespace Infrastructure.UnitTests.Repositories
 
             await using (var context = CreateContext(databaseName))
             {
-                var entity = NewApplication();
-                context.LoanApplications.Add(entity);
+                var entity = AddApplication(context, 1, 100, 1, 12, Created);
                 await context.SaveChangesAsync(default);
                 entityId = entity.Id;
 
                 var repository = new Repository<LoanApplication>(context);
                 var tracked = await repository.GetByIdAsync(entityId, CancellationToken.None);
-                tracked!.Update(2, 250, 3, 24, "userId", Modified);
+                tracked!.Update(2, 250, 3, 24);
 
                 repository.Update(tracked);
 
@@ -196,7 +197,7 @@ namespace Infrastructure.UnitTests.Repositories
                 var detached = await repository.QueryAsNoTracking().FirstAsync();
                 entityId = detached.Id;
 
-                detached.Update(2, 250, 3, 24, "userId", Modified);
+                detached.Update(2, 250, 3, 24);
                 repository.Update(detached);
 
                 await context.SaveChangesAsync(default);
@@ -321,7 +322,24 @@ namespace Infrastructure.UnitTests.Repositories
             await using (var context = CreateContext(databaseName))
             {
                 var repository = new Repository<LoanApplication>(context);
-                await repository.AddRangeAsync(new[] { NewApplication(amount: 10), NewApplication(amount: 20) });
+
+                // Through AddRangeAsync rather than the seeding helper, because exercising that
+                // repository method is the point of this case. CreatedBy is IsRequired() in
+                // LoanApplicationConfiguration, so it still has to be stamped before the save.
+                var batch = new[]
+                {
+                    LoanApplication.Create(1, 10, 1, 12),
+                    LoanApplication.Create(1, 20, 1, 12)
+                };
+                await repository.AddRangeAsync(batch);
+
+                foreach (var entity in batch)
+                {
+                    var entry = context.Entry(entity);
+                    entry.Property(e => e.Created).CurrentValue = Created;
+                    entry.Property(e => e.CreatedBy).CurrentValue = "userId";
+                }
+
                 await context.SaveChangesAsync(default);
             }
 
@@ -350,7 +368,7 @@ namespace Infrastructure.UnitTests.Repositories
             {
                 var untracked = await new Repository<LoanApplication>(context).QueryAsNoTracking().FirstAsync();
                 entityId = untracked.Id;
-                untracked.Update(9, 999, 9, 99, "userId", Modified);
+                untracked.Update(9, 999, 9, 99);
                 await context.SaveChangesAsync(default);
             }
 

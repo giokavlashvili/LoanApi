@@ -1,10 +1,9 @@
 using Application.Common.Behaviors;
 using Application.Common.Exceptions;
 using Application.Common.Interfaces;
+using Application.Common.Models;
 using Application.Common.Otp;
 using Application.Otp.Dtos;
-using Domain.Common.Interfaces;
-using Domain.Common.Models;
 using Domain.Exceptions;
 using MediatR;
 using Microsoft.Extensions.Logging;

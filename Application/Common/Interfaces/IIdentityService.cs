@@ -1,6 +1,4 @@
-﻿using Domain.Common.Interfaces;
-
-namespace Application.Common.Interfaces
+﻿namespace Application.Common.Interfaces
 {
     public interface IIdentityService : IUserService
     {

@@ -39,9 +39,21 @@ namespace Infrastructure.UnitTests.Persistence
 
             var seeded = new List<LoanApplication>();
             for (var i = 0; i < 5; i++)
-                seeded.Add(LoanApplication.Create(loanType.Id, 900 + i, currency.Id, 12, CreatedBy, DateTime.UtcNow.AddSeconds(i)));
+                seeded.Add(LoanApplication.Create(loanType.Id, 900 + i, currency.Id, 12));
 
+            // Seeded through AddRangeAsync rather than TestDb.AddApplication because exercising
+            // that repository method is part of what this fixture is for.
             await repository.AddRangeAsync(seeded);
+
+            // Stamped by hand once tracked: the factory no longer takes audit values and this
+            // context has no interceptor attached, yet every assertion below filters on CreatedBy.
+            for (var i = 0; i < seeded.Count; i++)
+            {
+                var entry = context.Entry(seeded[i]);
+                entry.Property(e => e.Created).CurrentValue = DateTime.UtcNow.AddSeconds(i);
+                entry.Property(e => e.CreatedBy).CurrentValue = CreatedBy;
+            }
+
             await context.SaveChangesAsync(default);
 
             try
@@ -94,7 +106,7 @@ namespace Infrastructure.UnitTests.Persistence
                 {
                     var updateRepository = new Repository<LoanApplication>(updateContext);
                     var detached = await updateRepository.QueryAsNoTracking().FirstAsync(a => a.Id == detachedId);
-                    detached.Update(loanType.Id, 1234m, currency.Id, 24, CreatedBy, DateTime.UtcNow);
+                    detached.Update(loanType.Id, 1234m, currency.Id, 24);
                     updateRepository.Update(detached);
                     await updateContext.SaveChangesAsync(default);
                 }

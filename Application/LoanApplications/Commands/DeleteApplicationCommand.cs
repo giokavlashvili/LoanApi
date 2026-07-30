@@ -1,9 +1,7 @@
-using Domain.Events;
 using Domain.Repositories;
 using MediatR;
 
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-#pragma warning disable CS8604 // Possible null reference argument.
 
 namespace Application.LoanApplications.Commands
 {
@@ -27,9 +25,11 @@ namespace Application.LoanApplications.Commands
         {
             var entity = await _applications.GetByIdAsync(request.Id, cancellationToken);
 
-            _applications.Remove(entity);
+            // The aggregate raises its own deletion event, like every other event it has. The
+            // handler used to construct ApplicationDeletedEvent itself.
+            entity.Delete();
 
-            entity.AddDomainEvent(new ApplicationDeletedEvent(entity));
+            _applications.Remove(entity);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }

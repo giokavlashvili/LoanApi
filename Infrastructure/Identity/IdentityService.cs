@@ -1,18 +1,12 @@
-﻿using Application.Common.Exceptions;
+﻿using Application.Authenticate.Notifications;
+using Application.Common.Exceptions;
 using Application.Common.Interfaces;
 using Application.Common.Models;
-using Domain.Common.Models;
-using Domain.Events;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 
 namespace Infrastructure.Identity
 {
@@ -22,8 +16,7 @@ namespace Infrastructure.Identity
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IUserClaimsPrincipalFactory<ApplicationUser> _userClaimsPrincipalFactory;
         private readonly IAuthorizationService _authorizationService;
-        private readonly IOptionsMonitor<JwtOptions> _jwtOptions;
-        private readonly IDateTime _dateTime;
+        private readonly IJwtTokenGenerator _tokenGenerator;
         private readonly IMediator _mediator;
         private readonly ILogger<IdentityService> _logger;
 
@@ -32,8 +25,7 @@ namespace Infrastructure.Identity
             RoleManager<IdentityRole> roleManager,
             IUserClaimsPrincipalFactory<ApplicationUser> userClaimsPrincipalFactory,
             IAuthorizationService authorizationService,
-            IOptionsMonitor<JwtOptions> jwtOptions,
-            IDateTime dateTime,
+            IJwtTokenGenerator tokenGenerator,
             IMediator mediator,
             ILogger<IdentityService> logger)
         {
@@ -41,8 +33,7 @@ namespace Infrastructure.Identity
             _roleManager = roleManager;
             _userClaimsPrincipalFactory = userClaimsPrincipalFactory;
             _authorizationService = authorizationService;
-            _jwtOptions = jwtOptions;
-            _dateTime = dateTime;
+            _tokenGenerator = tokenGenerator;
             _mediator = mediator;
             _logger = logger;
         }
@@ -58,7 +49,7 @@ namespace Infrastructure.Identity
         {
             var user = await _userManager.Users.FirstOrDefaultAsync(u => u.UserName == userName);
 
-            return user == null? false:true;
+            return user is not null;
         }
 
         public bool IsUserNameAllowed(string userName)
@@ -110,8 +101,12 @@ namespace Infrastructure.Identity
             }
 
             // Inside the success branch: published unconditionally, this announced a user that
-            // CreateAsync had just refused to create, and UserCreatedEventHandler logged it.
-            await _mediator.Publish(new UserCreatedEvent(userName));
+            // CreateAsync had just refused to create, and the handler logged it.
+            //
+            // Published directly rather than through the domain event path because that path is
+            // closed to ApplicationUser: DispatchDomainEvents scans ChangeTracker.Entries<BaseEntity>()
+            // and an IdentityUser can never be one. See the notification's own remarks.
+            await _mediator.Publish(new UserRegisteredNotification(userName, firstName, lastName));
 
             return true;
         }
@@ -157,40 +152,14 @@ namespace Infrastructure.Identity
         {
             var user = await _userManager.FindByNameAsync(usernName);
 
+            // One exception for both failures, and no logging of which: distinguishing "no such
+            // user" from "wrong password" turns this endpoint into a user name oracle.
             if (user == null || !await _userManager.CheckPasswordAsync(user, password))
-                throw new NotFoundException("UserNotFound");
+                throw new InvalidCredentialsException();
 
             var userRoles = await _userManager.GetRolesAsync(user);
 
-            var authClaims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, usernName),
-                new Claim(ClaimTypes.NameIdentifier, user.Id),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            };
-
-            foreach (var userRole in userRoles)
-            {
-                authClaims.Add(new Claim(ClaimTypes.Role, userRole));
-            }
-
-            var token = GetToken(authClaims);
-
-            return (new JwtSecurityTokenHandler().WriteToken(token), token.ValidTo);
-        }
-
-        private JwtSecurityToken GetToken(List<Claim> authClaims)
-        {
-            var options = _jwtOptions.CurrentValue;
-            var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(options.Secret));
-
-            var token = new JwtSecurityToken(
-                expires: _dateTime.UtcNow.AddMinutes(options.ExpireMinutes),
-                claims: authClaims,
-                signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
-                );
-
-            return token;
+            return _tokenGenerator.Generate(user.Id, usernName, userRoles);
         }
 
         public async Task<User?> GetUserByIdAsync(string userId)

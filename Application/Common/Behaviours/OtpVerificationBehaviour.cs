@@ -1,7 +1,6 @@
 using Application.Common.Exceptions;
 using Application.Common.Interfaces;
 using Application.Common.Otp;
-using Domain.Common.Interfaces;
 using Domain.Exceptions;
 using MediatR;
 using Microsoft.Extensions.Logging;

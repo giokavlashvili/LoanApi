@@ -1,9 +1,9 @@
 ﻿using Application.Common.Interfaces;
 using Application.Common.Models;
-using Domain.Common.Interfaces;
 using Domain.Repositories;
 using Infrastructure.Identity;
 using Infrastructure.Persistence;
+using Infrastructure.Persistence.Interceptors;
 using Infrastructure.Persistence.Repositories;
 using Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -22,17 +22,27 @@ namespace Infrastructure.Common.Extensions
     {
         public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
         {
+            // Stamps the audit columns at the save boundary. Scoped, because it reads the scoped
+            // ICurrentUserService — which is why the AddDbContext calls below use the two-argument
+            // overload: the single-argument one has no access to the provider.
+            services.AddScoped<AuditableEntityInterceptor>();
+
             // For Entity Framework
             if (configuration.GetValue<bool>("UseInMemoryDatabase"))
             {
-                services.AddDbContext<ApplicationDbContext>(options =>
-                    options.UseInMemoryDatabase("DefaultConnection"));
+                // The interceptor goes on this branch too. Attached to only the SQL Server branch,
+                // auditing would stop working wherever UseInMemoryDatabase is true and nothing
+                // would report it.
+                services.AddDbContext<ApplicationDbContext>((provider, options) =>
+                    options.UseInMemoryDatabase("DefaultConnection")
+                        .AddInterceptors(provider.GetRequiredService<AuditableEntityInterceptor>()));
             }
             else
             {
-                services.AddDbContext<ApplicationDbContext>(options =>
+                services.AddDbContext<ApplicationDbContext>((provider, options) =>
                     options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"),
-                        builder => builder.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
+                        builder => builder.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName))
+                        .AddInterceptors(provider.GetRequiredService<AuditableEntityInterceptor>()));
             }
 
             services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
@@ -70,9 +80,14 @@ namespace Infrastructure.Common.Extensions
             services.AddTransient<IUserService, IdentityService>();
             services.AddTransient<IIdentityService, IdentityService>();
 
-            // Two step verification. Swapping in a real provider is replacing the ISmsSender
-            // line below — nothing else knows which vendor delivers the message.
-            services.AddScoped<IOtpService, OtpService>();
+            // Signing only. IdentityService decides whether to issue a token; this mints it.
+            // Safe as a singleton: both its dependencies are singletons, and it reads
+            // IOptionsMonitor.CurrentValue per call so a rotated secret still takes effect.
+            services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
+
+            // Two step verification, mechanism half only. Swapping in a real provider is replacing
+            // the ISmsSender line below — nothing else knows which vendor delivers the message.
+            // IOtpService itself is policy and is registered in AddApplicationServices.
             services.AddSingleton<IOtpCodeHasher, HmacOtpCodeHasher>();
             services.AddTransient<ISmsSender, LoggingSmsSender>();
 

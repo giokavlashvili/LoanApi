@@ -1,9 +1,9 @@
+using Application.Common.Extensions;
 using Application.Common.Interfaces;
 using Domain.Repositories;
 using MediatR;
 
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-#pragma warning disable CS8604 // Possible null reference argument.
 
 namespace Application.LoanApplications.Commands
 {
@@ -21,31 +21,28 @@ namespace Application.LoanApplications.Commands
         private readonly ILoanApplicationRepository _applications;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUserService;
-        private readonly IDateTime _dateTime;
 
         public UpdateApplicationCommandHandler(
             ILoanApplicationRepository applications,
             IUnitOfWork unitOfWork,
-            ICurrentUserService currentUserService,
-            IDateTime dateTime)
+            ICurrentUserService currentUserService)
         {
             _applications = applications;
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
-            _dateTime = dateTime;
         }
 
         public async Task Handle(UpdateApplicationCommand request, CancellationToken cancellationToken)
         {
+            _currentUserService.RequireUserId();
+
             var entity = await _applications.GetByIdAsync(request.Id, cancellationToken);
 
             entity.Update(
                 request.LoanTypeId,
                 request.Amount,
                 request.CurrencyId,
-                request.PeriodPerMonth,
-                _currentUserService.UserId,
-                _dateTime.UtcNow);
+                request.PeriodPerMonth);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }

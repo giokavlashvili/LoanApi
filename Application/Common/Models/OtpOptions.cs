@@ -52,8 +52,8 @@ namespace Application.Common.Models
         /// Left null in <c>appsettings.json</c> and set only in
         /// <c>appsettings.Development.json</c>, the same way <c>UseInMemoryDatabase</c> is
         /// environment scoped — never set this in a base or production configuration file.
-        /// <see cref="Infrastructure.Services.OtpService"/> logs a warning on every issue while
-        /// it is set, so an accidental production value cannot go unnoticed.
+        /// <see cref="Otp.Services.OtpService"/> logs a warning on every issue while it is set,
+        /// so an accidental production value cannot go unnoticed.
         /// </para>
         /// </summary>
         public string? StaticCode { get; set; }

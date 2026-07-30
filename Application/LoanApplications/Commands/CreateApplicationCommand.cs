@@ -1,9 +1,8 @@
+using Application.Common.Extensions;
 using Application.Common.Interfaces;
 using Domain.Entities;
 using Domain.Repositories;
 using MediatR;
-
-#pragma warning disable CS8604 // Possible null reference argument.
 
 namespace Application.LoanApplications.Commands
 {
@@ -20,31 +19,29 @@ namespace Application.LoanApplications.Commands
         private readonly ILoanApplicationRepository _applications;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUserService;
-        private readonly IDateTime _dateTime;
 
         public CreateApplicationCommandHandler(
             ILoanApplicationRepository applications,
             IUnitOfWork unitOfWork,
-            ICurrentUserService currentUserService,
-            IDateTime dateTime)
+            ICurrentUserService currentUserService)
         {
             _applications = applications;
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
-            _dateTime = dateTime;
         }
 
         public async Task<int> Handle(CreateApplicationCommand request, CancellationToken cancellationToken)
         {
-            var currentUserId = _currentUserService.UserId;
+            // The audit columns are stamped by AuditableEntityInterceptor, so the id is not passed
+            // to the factory — but it still has to exist, or the row would be written with a null
+            // CreatedBy. Discarding the return value is deliberate: the guard is the point.
+            _currentUserService.RequireUserId();
 
             var entity = LoanApplication.Create(
                 request.LoanTypeId,
                 request.Amount,
                 request.CurrencyId,
-                request.PeriodPerMonth,
-                currentUserId,
-                _dateTime.UtcNow);
+                request.PeriodPerMonth);
 
             await _applications.AddAsync(entity, cancellationToken);
 

@@ -23,6 +23,7 @@ namespace WebUI.Filters
                 { typeof(ValidationException), HandleValidationException },
                 { typeof(NotFoundException), HandleNotFoundException },
                 { typeof(UnauthorizedAccessException), HandleUnauthorizedAccessException },
+                { typeof(InvalidCredentialsException), HandleInvalidCredentialsException },
                 { typeof(ForbiddenAccessException), HandleForbiddenAccessException },
                 { typeof(DomainValidationExceptionWrapper), HandleDomainValidationException },
                 { typeof(OtpRequiredException), HandleOtpRequiredException },
@@ -66,6 +67,10 @@ namespace WebUI.Filters
             // Logs table from filling with expected client mistakes.
             var level = exceptionType == typeof(UnauthorizedAccessException)
                         || exceptionType == typeof(ForbiddenAccessException)
+                        // A failed login is the one input error worth Warning: it is the signal a
+                        // credential-stuffing run shows up as, and at Information it would be
+                        // indistinguishable from ordinary validation noise.
+                        || exceptionType == typeof(InvalidCredentialsException)
                 ? LogLevel.Warning
                 : LogLevel.Information;
 
@@ -129,6 +134,31 @@ namespace WebUI.Filters
                 Status = StatusCodes.Status401Unauthorized,
                 Title = "Unauthorized",
                 Type = "https://tools.ietf.org/html/rfc7235#section-3.1"
+            };
+
+            context.Result = new ObjectResult(details)
+            {
+                StatusCode = StatusCodes.Status401Unauthorized
+            };
+
+            context.ExceptionHandled = true;
+        }
+
+        /// <summary>
+        /// 401, where this used to be a 404. A wrong password is not a missing resource, and the
+        /// 404 also disclosed which user names exist. The body carries the same localized message
+        /// whether the user name was unknown or the password was wrong.
+        /// </summary>
+        private void HandleInvalidCredentialsException(ExceptionContext context)
+        {
+            var exception = (InvalidCredentialsException)context.Exception;
+
+            var details = new ProblemDetails
+            {
+                Status = StatusCodes.Status401Unauthorized,
+                Type = "https://tools.ietf.org/html/rfc7235#section-3.1",
+                Title = "Unauthorized",
+                Detail = _stringLocalizer.GetString(exception.Message)
             };
 
             context.Result = new ObjectResult(details)

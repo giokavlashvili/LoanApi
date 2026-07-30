@@ -14,6 +14,13 @@
     }
   },
   {
+    "Key": "InvalidCredentials",
+    "LocalizedValue": {
+      "ka-GE": "მომხმარებლის სახელი ან პაროლი არასწორია",
+      "en-US": "The user name or password is incorrect"
+    }
+  },
+  {
     "Key": "InvalidCurrency",
     "LocalizedValue": {
       "ka-GE": "ვერ მოიძებნა ვალუტა",

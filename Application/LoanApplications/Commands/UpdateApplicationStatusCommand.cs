@@ -1,3 +1,4 @@
+using Application.Common.Extensions;
 using Application.Common.Interfaces;
 using Application.Common.Logging;
 using Application.Common.Otp;
@@ -5,7 +6,6 @@ using Domain.Enums;
 using Domain.Repositories;
 using MediatR;
 
-#pragma warning disable CS8604 // Possible null reference argument.
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
 
 namespace Application.LoanApplications.Commands
@@ -32,28 +32,24 @@ namespace Application.LoanApplications.Commands
         private readonly ILoanApplicationRepository _applications;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUserService;
-        private readonly IDateTime _dateTime;
 
         public UpdateApplicationStatusCommandHandler(
             ILoanApplicationRepository applications,
             IUnitOfWork unitOfWork,
-            ICurrentUserService currentUserService,
-            IDateTime dateTime)
+            ICurrentUserService currentUserService)
         {
             _applications = applications;
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
-            _dateTime = dateTime;
         }
 
         public async Task Handle(UpdateApplicationStatusCommand request, CancellationToken cancellationToken)
         {
+            _currentUserService.RequireUserId();
+
             var entity = await _applications.GetByIdAsync(request.Id, cancellationToken);
 
-            entity.UpdateStatus(
-                request.Status,
-                _currentUserService.UserId,
-                _dateTime.UtcNow);
+            entity.UpdateStatus(request.Status);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }

@@ -1,5 +1,7 @@
 ﻿using Application.Common.Behaviors;
+using Application.Common.Interfaces;
 using Application.Common.Models;
+using Application.Otp.Services;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.Configuration;
@@ -31,6 +33,12 @@ namespace Application.Extensions
                     .ValidateDataAnnotations()
                     .ValidateOnStart();
             }
+
+            // Policy, so it lives here. Its two mechanism dependencies — IOtpCodeHasher and
+            // ISmsSender — are registered in AddInfrastructureServices, which is the only reason
+            // this line resolves at all: Application declares the contracts, Infrastructure
+            // supplies the implementations.
+            services.AddScoped<IOtpService, OtpService>();
 
             services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
             services.AddMediatR(cfg =>

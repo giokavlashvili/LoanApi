@@ -1,6 +1,7 @@
 using Application.Common.Interfaces;
 using Application.LoanApplications.Commands;
 using Domain.Entities;
+using Domain.Exceptions;
 using Domain.Repositories;
 using Moq;
 using NUnit.Framework;
@@ -13,7 +14,6 @@ namespace Application.UnitTests.LoanApplications.Commands
     public class CreateLoanApplicationTests
     {
         private Mock<ICurrentUserService> _currentUserService;
-        private Mock<IDateTime> _dateTime;
         private Mock<ILoanApplicationRepository> _applications;
         private Mock<IUnitOfWork> _unitOfWork;
 
@@ -21,9 +21,9 @@ namespace Application.UnitTests.LoanApplications.Commands
         public void SetUp()
         {
             // One repository, mocked through its interface. The handler declares what it needs,
-            // so there is nothing here to stub for repositories it never touches.
+            // so there is nothing here to stub for repositories it never touches. No IDateTime
+            // either — AuditableEntityInterceptor owns the timestamps now.
             _currentUserService = new Mock<ICurrentUserService>();
-            _dateTime = new Mock<IDateTime>();
             _applications = new Mock<ILoanApplicationRepository>();
             _unitOfWork = new Mock<IUnitOfWork>();
 
@@ -49,8 +49,7 @@ namespace Application.UnitTests.LoanApplications.Commands
             var handler = new CreateApplicationCommandHandler(
                 _applications.Object,
                 _unitOfWork.Object,
-                _currentUserService.Object,
-                _dateTime.Object);
+                _currentUserService.Object);
 
             // Act
             var result = await handler.Handle(command, default);
@@ -63,6 +62,42 @@ namespace Application.UnitTests.LoanApplications.Commands
             _applications.Verify(r => r.AddAsync(It.IsAny<LoanApplication>(), It.IsAny<CancellationToken>()));
             // Ensure that unit of work SaveChangesAsync Method is called
             _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce());
+        }
+
+        /// <summary>
+        /// The InvalidUser invariant used to sit in <c>LoanApplication.Create</c>, which could
+        /// enforce it because it was handed a user id. The entity no longer receives one, so this
+        /// is where the rule lives — and nothing must be written when it fails.
+        /// </summary>
+        [TestCase(null)]
+        [TestCase("")]
+        [TestCase("   ")]
+        public void CreateApplicationCommand_WithNoAuthenticatedUser_ThrowsAndPersistsNothing(string? userId)
+        {
+            _currentUserService.Setup(u => u.UserId).Returns(userId);
+
+            var handler = new CreateApplicationCommandHandler(
+                _applications.Object,
+                _unitOfWork.Object,
+                _currentUserService.Object);
+
+            var command = new CreateApplicationCommand
+            {
+                Amount = 1,
+                CurrencyId = 1,
+                LoanTypeId = 1,
+                PeriodPerMonth = 1
+            };
+
+            Assert.That(
+                async () => await handler.Handle(command, default),
+                Throws.InstanceOf<DomainValidationException>()
+                      .With.Message.EqualTo("InvalidUser"));
+
+            _applications.Verify(
+                r => r.AddAsync(It.IsAny<LoanApplication>(), It.IsAny<CancellationToken>()),
+                Times.Never());
+            _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never());
         }
     }
 }

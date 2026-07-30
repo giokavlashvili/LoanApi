@@ -9,11 +9,23 @@ alwaysApply: false
 - `ApplicationUser : IdentityUser` with FirstName, LastName, PersonalNumber, BirthDate.
 - **Accounts have no email.** `RequireUniqueEmail` is `false` and `CreateUserAsync` leaves `Email` null: user names are free handles (`eqsel3`), people are verified by phone and identified by `PersonalNumber`. Turning it back on needs a real `Email` input validated for format *and* uniqueness in `RegisterUserCommandValidator` — deriving `Email` from `UserName` fails Identity's own format check.
 - Identity rules that can reject a registration must be reachable from the validator, which runs before the OTP gate — `IsUserNameAllowed` exposes `UserOptions.AllowedUserNameCharacters` for exactly that. `CreateUserAsync` still throws `result.ToValidationException()` as a backstop.
-- `IdentityService` implements identity ops **and** mints JWTs, reading `JwtOptions` (`Secret`,
-  `ExpireMinutes`) via `IOptionsMonitor<JwtOptions>` — bound and `ValidateOnStart()`-checked in
-  `Application/Extensions/ConfigureServices.cs`, so a missing/short secret fails at boot rather
-  than on first login. `AddJwtBearer`'s validation key is bound from the same section
+- **Token minting is its own service.** `JwtTokenGenerator` (`IJwtTokenGenerator`, in
+  `Application/Common/Interfaces`) owns the `JwtSecurityToken`, the signing key and the claims,
+  reading `JwtOptions` (`Secret`, `ExpireMinutes`) via `IOptionsMonitor<JwtOptions>` — bound and
+  `ValidateOnStart()`-checked in `Application/Extensions/ConfigureServices.cs`, so a missing/short
+  secret fails at boot rather than on first login. Registered as a **singleton**: both its
+  dependencies are singletons and it reads `CurrentValue` per call, so a rotated secret still takes
+  effect. `AddJwtBearer`'s validation key is bound from the same section
   (`Infrastructure/Common/Extensions/ConfigureServices.cs`) so it cannot drift from the signing key.
+- `IdentityService` decides *whether* to issue a token, never how: `AuthenticateAsync` is find user
+  → check password → get roles → delegate.
+- **Bad credentials are `InvalidCredentialsException` → 401**, not `NotFoundException` → 404. The
+  message is identical for an unknown user and a wrong password, and neither is logged —
+  distinguishing them turns the endpoint into a user name oracle. Mapped in
+  `WebApi/Filters/ApiExceptionFilterAttribute.cs`; key `InvalidCredentials`.
+- `CreateUserAsync` publishes `UserRegisteredNotification` **inside the success branch**, directly
+  through `IMediator`. This is an integration-style notification, not a domain event — see
+  `docs/architecture.md`.
 - Issuer/audience validation is **disabled by design** in this template — tighten for production if needed.
 - `WebApi/appsettings.json` ships `JWT:Secret` empty; the working placeholder lives in
   `appsettings.Development.json`. Rotate `JWT:Secret` when repurposing — via user secrets or a
