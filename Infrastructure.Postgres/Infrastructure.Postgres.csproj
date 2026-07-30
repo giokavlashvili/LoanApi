@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Holds nothing but the PostgreSQL migration set for ApplicationDbContext.
+
+    A separate assembly is not a stylistic choice: EF resolves migrations by scanning the
+    migrations assembly for types carrying [DbContext(typeof(ApplicationDbContext))], and both
+    providers share that one context. Two migration sets in a single assembly would therefore
+    both be discovered, and EF would try to apply SQL Server DDL to PostgreSQL. Splitting them
+    is the only way one context can carry per-provider migrations.
+
+    The SQL Server set stays where it has always been, in Infrastructure/Migrations.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Infrastructure\Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />
+  </ItemGroup>
+
+</Project>

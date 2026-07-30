@@ -38,8 +38,7 @@ namespace Infrastructure.Persistence.Configurations
             builder.Property(r => r.Created)
                 .IsRequired();
 
-            builder.Property(r => r.RowVersion)
-                .IsRowVersion();
+            // RowVersion is configured per provider; see LoanApplicationConfiguration for the note.
 
             // The presented token is looked up by hash and never by PK, and the value is globally
             // unique by construction, so the unique index is both the access path and the guard

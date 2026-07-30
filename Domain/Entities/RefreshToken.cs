@@ -14,7 +14,7 @@ namespace Domain.Entities
     /// is what makes both revocation targets possible: one token, or the whole lineage.
     /// </para>
     /// </summary>
-    public class RefreshToken : BaseAuditableEntity, IAggregateRoot
+    public class RefreshToken : BaseAuditableEntity, IAggregateRoot, IHasRowVersion
     {
         /// <summary>
         /// The rotation lineage — every replacement inherits it. Reuse of a spent token cannot be

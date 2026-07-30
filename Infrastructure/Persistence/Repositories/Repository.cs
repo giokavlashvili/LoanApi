@@ -3,6 +3,7 @@ using Domain.Common;
 using Domain.Exceptions;
 using Domain.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using System.Linq.Expressions;
 
 namespace Infrastructure.Persistence.Repositories
@@ -163,10 +164,18 @@ namespace Infrastructure.Persistence.Repositories
         /// rewrites the whole row — including bumping the <c>RowVersion</c> token for columns that
         /// never changed.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The entity is detached and its concurrency token is a shadow property, which PostgreSQL's
+        /// <c>xmin</c> is. See <see cref="GuardAgainstShadowConcurrencyToken"/>.
+        /// </exception>
         public virtual void Update(TEntity entity)
         {
-            if (_context.Entry(entity).State == EntityState.Detached)
+            var entry = _context.Entry(entity);
+
+            if (entry.State == EntityState.Detached)
             {
+                GuardAgainstShadowConcurrencyToken(entry, nameof(Update));
+
                 _dbSet.Update(entity);
             }
         }
@@ -179,13 +188,57 @@ namespace Infrastructure.Persistence.Repositories
             }
         }
 
+        /// <inheritdoc cref="Update"/>
         public virtual void Remove(TEntity entity)
         {
-            if (_context.Entry(entity).State == EntityState.Detached)
+            var entry = _context.Entry(entity);
+
+            if (entry.State == EntityState.Detached)
             {
+                // Same trap as Update: EF puts the concurrency token in the DELETE's WHERE clause
+                // too, so a detached remove fails its concurrency check for exactly the same reason.
+                GuardAgainstShadowConcurrencyToken(entry, nameof(Remove));
+
                 _dbSet.Attach(entity);
             }
             _dbSet.Remove(entity);
+        }
+
+        /// <summary>
+        /// Rejects a detached write when the entity's concurrency token is a shadow property, which
+        /// is the case for every aggregate on PostgreSQL — the token there is the system
+        /// <c>xmin</c> column (see <c>Configurations/Providers/PostgresModelConfiguration.cs</c>).
+        /// <para>
+        /// A shadow property's value lives in the change tracker's entry, not on the entity, so
+        /// detaching discards it. <c>Update</c>/<c>Attach</c> then take the token's original value to
+        /// be the CLR default, EF writes <c>WHERE xmin = 0</c>, no row matches, and
+        /// <c>SaveChangesAsync</c> raises <see cref="DbUpdateConcurrencyException"/> — which reads as
+        /// "someone else changed this row" when in fact nothing did. On SQL Server the same call
+        /// works, because <c>RowVersion</c> is a real property that travels with the detached
+        /// instance.
+        /// </para>
+        /// <para>
+        /// Throwing here rather than letting the save fail is the whole point: the exception names
+        /// the real problem at the call site instead of surfacing a misleading concurrency conflict
+        /// one layer away. Load the aggregate through this repository and mutate it — the tracked
+        /// path works identically on both providers, and it is what every handler in this template
+        /// already does.
+        /// </para>
+        /// </summary>
+        private static void GuardAgainstShadowConcurrencyToken(EntityEntry entry, string operation)
+        {
+            var shadowToken = entry.Metadata.GetProperties()
+                .FirstOrDefault(property => property.IsConcurrencyToken && property.IsShadowProperty());
+
+            if (shadowToken is null)
+                return;
+
+            throw new InvalidOperationException(
+                $"{typeof(TEntity).Name}.{operation} was called with a detached entity, but this "
+                + $"provider's concurrency token ('{shadowToken.Name}') is a shadow property whose "
+                + "value cannot survive detachment. The write would fail its concurrency check even "
+                + "though nothing else changed the row. Load the entity through this repository and "
+                + "mutate the tracked instance instead.");
         }
 
         public virtual void RemoveRange(IEnumerable<TEntity> entities)

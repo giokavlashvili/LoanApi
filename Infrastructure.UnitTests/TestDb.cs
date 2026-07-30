@@ -49,6 +49,19 @@ namespace Infrastructure.UnitTests
                 new Mock<IMediator>().Object);
 
         /// <summary>
+        /// A context over the PostgreSQL provider. Building the model never opens a connection, so
+        /// this is usable from a plain unit test to assert what
+        /// <c>PostgresModelConfiguration</c> produced — which is the only way that code is reachable
+        /// without a live server.
+        /// </summary>
+        internal static ApplicationDbContext Postgres() =>
+            new(
+                new DbContextOptionsBuilder<ApplicationDbContext>()
+                    .UseNpgsql("Host=localhost;Database=model-only;Username=none;Password=none;")
+                    .Options,
+                new Mock<IMediator>().Object);
+
+        /// <summary>
         /// Adds a <see cref="LoanApplication"/> and stamps its audit columns.
         /// <para>
         /// The factory stopped taking a user id and a timestamp once

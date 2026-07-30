@@ -14,8 +14,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
-#pragma warning disable CS8604 // Possible null reference argument.
-
 namespace Infrastructure.Common.Extensions
 {
     public static class ConfigureServices
@@ -34,22 +32,41 @@ namespace Infrastructure.Common.Extensions
             // captive-dependency bug, and this way that never arises.
             services.AddScoped<AuditableEntityInterceptor>();
 
-            // For Entity Framework
-            if (configuration.GetValue<bool>("UseInMemoryDatabase"))
+            // For Entity Framework. One provider per process — the model itself differs between
+            // them (PostgresModelConfiguration), so this is not a per-request decision.
+            var databaseProvider = configuration.GetDatabaseProvider();
+
+            // The interceptor is attached on every branch. Attached to only one of them, auditing
+            // would stop working on the others and nothing would report it.
+            switch (databaseProvider)
             {
-                // The interceptor goes on this branch too. Attached to only the SQL Server branch,
-                // auditing would stop working wherever UseInMemoryDatabase is true and nothing
-                // would report it.
-                services.AddDbContext<ApplicationDbContext>((provider, options) =>
-                    options.UseInMemoryDatabase("DefaultConnection")
-                        .AddInterceptors(provider.GetRequiredService<AuditableEntityInterceptor>()));
-            }
-            else
-            {
-                services.AddDbContext<ApplicationDbContext>((provider, options) =>
-                    options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"),
-                        builder => builder.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName))
-                        .AddInterceptors(provider.GetRequiredService<AuditableEntityInterceptor>()));
+                case DatabaseProvider.SqlServer:
+                    services.AddDbContext<ApplicationDbContext>((provider, options) =>
+                        options.UseSqlServer(
+                            configuration.GetDatabaseConnectionString(DatabaseProvider.SqlServer),
+                            builder => builder.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName))
+                            .AddInterceptors(provider.GetRequiredService<AuditableEntityInterceptor>()));
+                    break;
+
+                case DatabaseProvider.Postgres:
+                    services.AddDbContext<ApplicationDbContext>((provider, options) =>
+                        options.UseNpgsql(
+                            configuration.GetDatabaseConnectionString(DatabaseProvider.Postgres),
+                            // Named, not inferred: the PostgreSQL migrations live in their own
+                            // assembly because EF resolves migrations per DbContext type, and both
+                            // providers share ApplicationDbContext. See DatabaseConfiguration.
+                            builder => builder.MigrationsAssembly(DatabaseConfiguration.PostgresMigrationsAssembly))
+                            .AddInterceptors(provider.GetRequiredService<AuditableEntityInterceptor>()));
+                    break;
+
+                case DatabaseProvider.InMemory:
+                    services.AddDbContext<ApplicationDbContext>((provider, options) =>
+                        options.UseInMemoryDatabase("DefaultConnection")
+                            .AddInterceptors(provider.GetRequiredService<AuditableEntityInterceptor>()));
+                    break;
+
+                default:
+                    throw new InvalidOperationException($"Unhandled database provider {databaseProvider}.");
             }
 
             services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
@@ -60,7 +77,7 @@ namespace Infrastructure.Common.Extensions
             // DELETE and has nothing to purge anyway.
             services.Configure<LogRetentionOptions>(configuration.GetSection(LogRetentionOptions.SectionName));
 
-            if (!configuration.GetValue<bool>("UseInMemoryDatabase"))
+            if (databaseProvider != DatabaseProvider.InMemory)
                 services.AddHostedService<LogRetentionService>();
 
             // For Identity

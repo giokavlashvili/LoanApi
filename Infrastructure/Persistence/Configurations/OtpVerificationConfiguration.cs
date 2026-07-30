@@ -46,8 +46,7 @@ namespace Infrastructure.Persistence.Configurations
             builder.Property(o => o.Created)
                 .IsRequired();
 
-            builder.Property(o => o.RowVersion)
-                .IsRowVersion();
+            // RowVersion is configured per provider; see LoanApplicationConfiguration for the note.
 
             // Every lookup during verification goes through the public handle, never the PK.
             builder.HasIndex(o => o.ChallengeId)

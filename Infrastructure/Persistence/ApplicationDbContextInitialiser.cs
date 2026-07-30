@@ -27,7 +27,12 @@ namespace Infrastructure.Persistence
         {
             try
             {
-                if (_context.Database.IsSqlServer())
+                // IsRelational, not IsSqlServer: the point of the check is to skip the in-memory
+                // provider, which has no migrations to apply. Naming one provider meant adding
+                // PostgreSQL would have silently skipped migration there and left the application
+                // starting against an empty database — a failure that only shows up as the first
+                // query erroring on a missing table.
+                if (_context.Database.IsRelational())
                 {
                     await _context.Database.MigrateAsync();
                 }

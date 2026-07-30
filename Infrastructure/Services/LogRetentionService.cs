@@ -76,15 +76,30 @@ namespace Infrastructure.Services
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
+            var isPostgres = context.Database.IsNpgsql();
+
             var total = 0;
             int deleted;
 
             do
             {
                 // Batched so each statement is short lived and uses IX_Logs_When.
-                deleted = await context.Database.ExecuteSqlInterpolatedAsync(
-                    $"DELETE TOP ({options.BatchSize}) FROM Logs WHERE [When] < {cutoff}",
-                    cancellationToken);
+                //
+                // The two dialects have no shared spelling for a bounded delete: PostgreSQL has no
+                // DELETE ... LIMIT, so the bound has to be applied by a subquery selecting the keys
+                // first. Both forms parameterise the batch size and the cutoff — string
+                // interpolation into ExecuteSqlInterpolatedAsync produces parameters, not literals.
+                deleted = isPostgres
+                    ? await context.Database.ExecuteSqlInterpolatedAsync(
+                        $"""
+                        DELETE FROM "Logs" WHERE "Id" IN (
+                            SELECT "Id" FROM "Logs" WHERE "When" < {cutoff} LIMIT {options.BatchSize}
+                        )
+                        """,
+                        cancellationToken)
+                    : await context.Database.ExecuteSqlInterpolatedAsync(
+                        $"DELETE TOP ({options.BatchSize}) FROM Logs WHERE [When] < {cutoff}",
+                        cancellationToken);
 
                 total += deleted;
             }

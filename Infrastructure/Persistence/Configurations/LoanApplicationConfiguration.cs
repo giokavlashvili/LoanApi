@@ -29,8 +29,9 @@ namespace Infrastructure.Persistence.Configurations
             builder.Property(l => l.CreatedBy)
                 .IsRequired();
 
-            builder.Property(l => l.RowVersion)
-                .IsRowVersion();
+            // RowVersion is configured per provider: SQL Server maps it as a rowversion column,
+            // PostgreSQL leaves it unmapped and uses xmin instead. See
+            // Configurations/Providers/{SqlServer,Postgres}ModelConfiguration.cs.
 
             // These two were [ForeignKey] annotations on the entity. Declared here, the domain
             // carries no persistence mapping and the shape is unchanged: both FK properties are

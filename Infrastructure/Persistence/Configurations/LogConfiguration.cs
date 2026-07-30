@@ -4,10 +4,27 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Infrastructure.Persistence.Configurations
 {
-    internal class LogConfiguration : IEntityTypeConfiguration<Log>
+    public class LogConfiguration : IEntityTypeConfiguration<Log>
     {
+        /// <summary>
+        /// The table both Serilog database sinks write to, declared here because this is the class
+        /// that defines the table.
+        /// <para>
+        /// It is a constant rather than a literal in each sink so the name is stated once. Deriving
+        /// it from <c>nameof(ApplicationDbContext.Logs)</c> would look equivalent but is not — that
+        /// tracks the <c>DbSet</c> property name, which only coincides with the table name for as
+        /// long as nobody calls <c>ToTable</c>. Renaming the table there would leave both sinks
+        /// inserting into a table that does not exist, reported only to SelfLog.
+        /// </para>
+        /// </summary>
+        public const string TableName = "Logs";
+
         public void Configure(EntityTypeBuilder<Log> builder)
         {
+            // Explicit, so TableName is the single source of the name rather than a guess that
+            // happens to match EF's DbSet-name convention.
+            builder.ToTable(TableName);
+
             // 16, not 10: Serilog spells the levels out ("Information" is 11 characters),
             // where NLog wrote "Info". Too short and every request row fails to insert.
             builder.Property(l => l.Level).IsRequired().HasMaxLength(16);

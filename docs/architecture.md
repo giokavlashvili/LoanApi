@@ -9,8 +9,8 @@ A **Clean Architecture / CQRS boilerplate** for ASP.NET Core (net10.0) Web APIs.
 The project name is not baked into the code: assemblies/namespaces are the generic `Domain`, `Application`, `Infrastructure`, `WebApi`, and the string "LoanApi" appears only in the solution *filename* and repo folder name. When repurposing:
 
 - Rename `LoanApi.sln` and the repo folder (solution *contents* need no edits).
-- `WebApi/appsettings.json`: `ConnectionStrings:DefaultConnection` (`Database=LoanDB`) and `JWT:Secret`.
-- Replace the sample vertical slices: `Domain/Entities`, `Domain/Events`, `Domain/Enums`, `Domain/Repositories`, `Application/LoanApplications`, `Application/Currencies`, `Application/LoanTypes`, `Infrastructure/Persistence/{Configurations,Repositories}`, `WebApi/Controllers/{LoanApplication,Currency,LoanType}Controller.cs`, the seed data in `ApplicationDbContextInitialiser.TrySeedAsync`, `WebApi/Resources/localization.json`, and the existing `Infrastructure/Migrations` (delete and re-create an Initial migration for a new domain).
+- The database name `LoanDB`, which appears in `ConnectionStrings:DefaultConnection` (`WebApi/appsettings.json`) and `ConnectionStrings:PostgresConnection` (`WebApi/appsettings.Development.json` -- the base file ships it empty, see [Secrets](#secrets)).
+- Replace the sample vertical slices: `Domain/Entities`, `Domain/Events`, `Domain/Enums`, `Domain/Repositories`, `Application/LoanApplications`, `Application/Currencies`, `Application/LoanTypes`, `Infrastructure/Persistence/{Configurations,Repositories}`, `WebApi/Controllers/{LoanApplication,Currency,LoanType}Controller.cs`, the seed data in `ApplicationDbContextInitialiser.TrySeedAsync`, `WebApi/Resources/localization.json`, and the existing migration sets in `Infrastructure/Migrations` **and** `Infrastructure.Postgres/Migrations` (delete and re-create an Initial migration per provider for a new domain).
 - Keep: `Domain/Common`, `Application/Common`, `Application/Authenticate`, `Infrastructure/Identity`, `WebApi/{Filters,Middlwares,Extensions,Localization,Services}` -- that is the reusable skeleton.
 
 ## Commands
@@ -35,7 +35,7 @@ Run the API (Swagger UI at `/swagger`; http profile = 5041, https = 7233):
 dotnet run --project WebApi/WebApi.csproj --launch-profile https
 ```
 
-EF Core migrations -- `Infrastructure` holds the migrations, `WebApi` is the startup project:
+EF Core migrations -- `Infrastructure` holds the **SQL Server** migrations, `WebApi` is the startup project:
 
 ```bash
 SkipNSwag=True dotnet ef migrations add <Name> --project Infrastructure --startup-project WebApi
@@ -45,6 +45,18 @@ SkipNSwag=True dotnet ef migrations add <Name> --project Infrastructure --startu
 dotnet ef database update --project Infrastructure --startup-project WebApi
 ```
 
+**PostgreSQL has a second, separate migration set** in `Infrastructure.Postgres` (see [Database providers](#database-providers) for why it cannot share the assembly). Both the provider *and* the project have to be pointed at it, or you will scaffold SQL Server DDL into the PostgreSQL folder:
+
+```bash
+Database__Provider=Postgres SkipNSwag=True dotnet ef migrations add <Name> --project Infrastructure.Postgres --startup-project WebApi
+```
+
+```bash
+Database__Provider=Postgres dotnet ef database update --project Infrastructure.Postgres --startup-project WebApi
+```
+
+PowerShell equivalent: `$env:Database__Provider = "Postgres"; $env:SkipNSwag = "True"; dotnet ef ...`. **Any schema change needs both sets regenerated** -- nothing checks that they agree.
+
 `SkipNSwag` has to be an **environment variable** here, not `-p:SkipNSwag=True`: `dotnet ef` forwards everything after `--` to the *application*, not to MSBuild, so the flag never reaches the build and NSwag runs anyway. PowerShell equivalent: `$env:SkipNSwag = "True"; dotnet ef migrations add ...`. Without it the scaffold build fails wherever the NSwag tool isn't restorable.
 
 Two expected-and-harmless noises from `dotnet ef`: a tools/runtime version warning (the installed `dotnet-ef` is 9.0.7 against EF Core 10.0.10 -- it works, it just nags), and a `HostAbortedException` stack trace, which is how the EF tooling stops the host after building the service provider.
@@ -52,17 +64,41 @@ Two expected-and-harmless noises from `dotnet ef`: a tools/runtime version warni
 Notes on the build:
 
 - A **Debug build of `WebApi` runs NSwag as a post-build step** (`NSwag` target in `WebApi/WebApi.csproj`): it generates `WebApi/wwwroot/api/specification.json` and the Angular client `WebApi/ApiClient/web-api-client.ts`. It boots the app's OpenAPI document provider, so a DI/startup regression fails the *build*, not just runtime. It does not need a database. Pass `-p:SkipNSwag=True` to skip it (faster, and required if the NSwag tool isn't restorable).
-- In Development, startup applies migrations and seeds (`Program.cs`), so `dotnet run` needs SQL Server at `localhost\SQLEXPRESS`. To run without one, set `"UseInMemoryDatabase": true` in `WebApi/appsettings.json` (switch honored in `Infrastructure/Common/Extensions/ConfigureServices.cs`).
+- In Development, startup applies migrations and seeds (`Program.cs`), so `dotnet run` needs whichever database `Database:Provider` selects -- by default SQL Server at `localhost\SQLEXPRESS`. To run without one, set `"UseInMemoryDatabase": true` in `WebApi/appsettings.json` (switch honored in `Infrastructure/Common/Extensions/ConfigureServices.cs`). See [Database providers](#database-providers).
 - Seeded dev credentials: `administrator@localhost` / `Administrator1!` (role `Administrator`).
 
 ### Secrets
 
-`WebApi/appsettings.json` ships `JWT:Secret` and `Otp:Secret` as **empty strings** -- both are
-validated with `ValidateOnStart()` (see `JwtOptions`, `OtpOptions`), so a real deployment that
-does not supply them fails loudly at boot naming the missing setting, rather than throwing on the
-first login or the first issued code. `WebApi/appsettings.Development.json` carries placeholder
-values for both (beside the `Otp:StaticCode` escape hatch), so clone-and-run still works without
+Every secret ships **empty** in `WebApi/appsettings.json` -- `JWT:Secret`, `RefreshToken:Secret`,
+`Otp:Secret` and `ConnectionStrings:PostgresConnection` -- and is supplied per environment.
+`JwtOptions`, `RefreshTokenOptions` and `OtpOptions` are each bound with
+`.ValidateDataAnnotations().ValidateOnStart()` (`Application/Extensions/ConfigureServices.cs`) and
+carry `[Required, MinLength(32)]` on `Secret`, so a deployment that does not provide them aborts at
+host start naming every missing one at once:
+
+```
+OptionsValidationException: DataAnnotation validation failed for 'JwtOptions'
+members: 'Secret' with the error: 'The Secret field is required.'
+```
+
+That is the whole point of the empty defaults: the failure lands at boot rather than on the first
+login, the first issued code, or the first query. `WebApi/appsettings.Development.json` carries local
+values for all four (beside the `Otp:StaticCode` escape hatch), so clone-and-run still works without
 any extra setup.
+
+Two caveats worth knowing. `JWT:Secret` and `RefreshToken:Secret` previously shipped with real values
+in `appsettings.json`, so **those two keys are in git history** -- rotate them rather than reusing
+them anywhere real. And validation only runs when `AddApplicationServices` is given a configuration
+instance; it is null-guarded for tests, which pass nothing and are therefore not subject to it.
+
+`ConnectionStrings:PostgresConnection` gets the same treatment and for the same reason -- unlike
+`DefaultConnection`, which uses `Trusted_Connection` and carries no credentials, a PostgreSQL
+connection string has to embed a username and password. It ships **empty** in `appsettings.json`,
+with a local value in `appsettings.Development.json`. `GetDatabaseConnectionString` treats empty as
+missing and throws at boot naming the key and the `user-secrets` command, so switching
+`Database:Provider` to `Postgres` without supplying one fails immediately rather than on the first
+query. (`dotnet ef` defaults to the Development environment, so the migration commands pick up the
+Development value without extra flags.)
 
 To run against your own values instead of the committed placeholders, use user secrets (the
 project already has a `UserSecretsId` in `WebApi/WebApi.csproj`):
@@ -70,6 +106,7 @@ project already has a `UserSecretsId` in `WebApi/WebApi.csproj`):
 ```bash
 dotnet user-secrets set "JWT:Secret" "<a real secret, at least 32 characters>" --project WebApi
 dotnet user-secrets set "Otp:Secret" "<a real secret>" --project WebApi
+dotnet user-secrets set "ConnectionStrings:PostgresConnection" "Host=...;Database=...;Username=...;Password=..." --project WebApi
 ```
 
 Production should source both from a real secret store rather than configuration files or user
@@ -78,7 +115,37 @@ Vault is the destination.
 
 ## Architecture
 
-Project references flow inward: `WebApi -> Infrastructure -> Application -> Domain`. Note `Infrastructure` references `Application` (not the reverse) -- abstractions such as `IApplicationDbContext`, `ICurrentUserService`, `IDateTime`, `IUserService`/`IIdentityService`, `IJwtTokenGenerator`, `IOtpService`, `IOtpCodeHasher` and `ISmsSender` live in `Application/Common/Interfaces`, while repository/unit-of-work abstractions live in `Domain/Repositories`. `Domain` declares no outbound service contracts at all: `IUserService` and its `User` projection used to sit in `Domain/Common`, which had the innermost layer describing a dependency it never called. Each layer exposes one `ConfigureServices` extension (`AddApplicationServices`, `AddInfrastructureServices`, `AddWebUIServices`) composed in `WebApi/Program.cs`.
+Project references flow inward: `WebApi -> Infrastructure -> Application -> Domain`, plus `WebApi -> Infrastructure.Postgres -> Infrastructure` (migrations only -- see [Database providers](#database-providers)). Note `Infrastructure` references `Application` (not the reverse) -- abstractions such as `IApplicationDbContext`, `ICurrentUserService`, `IDateTime`, `IUserService`/`IIdentityService`, `IJwtTokenGenerator`, `IOtpService`, `IOtpCodeHasher` and `ISmsSender` live in `Application/Common/Interfaces`, while repository/unit-of-work abstractions live in `Domain/Repositories`. `Domain` declares no outbound service contracts at all: `IUserService` and its `User` projection used to sit in `Domain/Common`, which had the innermost layer describing a dependency it never called. Each layer exposes one `ConfigureServices` extension (`AddApplicationServices`, `AddInfrastructureServices`, `AddWebUIServices`) composed in `WebApi/Program.cs`.
+
+### Database providers
+
+`Database:Provider` in `WebApi/appsettings.json` selects one of `SqlServer` (default), `Postgres` or `InMemory`, resolved in `Infrastructure/Persistence/DatabaseConfiguration.cs`. The legacy `"UseInMemoryDatabase": true` flag still works and still wins, so existing config files behave exactly as before.
+
+The setting drives **both** the EF provider and the Serilog database sink, and each provider has its own connection string:
+
+| Provider | `ConnectionStrings` key | Migrations live in |
+|---|---|---|
+| `SqlServer` | `DefaultConnection` | `Infrastructure/Migrations` |
+| `Postgres` | `PostgresConnection` (empty in `appsettings.json` -- see [Secrets](#secrets)) | `Infrastructure.Postgres/Migrations` |
+| `InMemory` | -- | none (no migrations, no log sink, no retention service) |
+
+Neither provider creates the *database*; migrations only create the schema inside one that exists.
+
+Four things about this are worth knowing before touching it.
+
+**The two migration sets cannot be merged.** EF resolves migrations by scanning the migrations assembly for types carrying `[DbContext(typeof(ApplicationDbContext))]`, and both providers share that one context -- so two sets in a single assembly are both discovered, and EF would try to apply SQL Server DDL to PostgreSQL. A separate assembly is the only way one context carries per-provider migrations. `Infrastructure` deliberately does **not** reference `Infrastructure.Postgres` (the dependency runs the other way); the migrations assembly is named by string in `DatabaseConfiguration.PostgresMigrationsAssembly`, and `WebApi` references the project so the assembly is loaded at runtime.
+
+**Where the providers disagree, the difference lives in `Configurations/Providers/`.** `{SqlServer,Postgres}ModelConfiguration.cs` run as a second pass over the shared `IEntityTypeConfiguration` classes, applied from `OnModelCreating` under `Database.IsSqlServer()` / `Database.IsNpgsql()`. Both branches reproduce exactly the model the shared configurations used to build, so `ApplicationDbContextModelSnapshot` and the seven applied SQL Server migrations are untouched -- `dotnet ef migrations has-pending-model-changes` is clean for both providers. The in-memory provider gets neither pass: it enforces no concurrency tokens and ignores index filters.
+
+Index filters are the asymmetric part: they stay in the shared configurations in T-SQL, and the PostgreSQL pass re-declares each one with double-quoted identifiers. **A filter added to the shared configuration and forgotten in the override silently produces an unfiltered index on PostgreSQL** -- for the two `UX_` indexes that would apply the uniqueness rule to every row rather than only the live one, and ordinary inserts would start failing. `ProviderIndexFilterTests` exists to catch exactly that: it asserts the two providers declare the same set of filtered indexes and that neither dialect's quoting leaks into the other.
+
+**Optimistic concurrency uses a different column per provider.** PostgreSQL has no `rowversion` and nothing that bumps a `bytea` on update, so `byte[] RowVersion` is left unmapped there and the system `xmin` column is the token instead (a `uint` shadow property that is a concurrency token and `ValueGeneratedOnAddOrUpdate` -- Npgsql 10 dropped the `UseXminAsConcurrencyToken()` shorthand but kept the convention). `xmin` is a system column, so `NpgsqlMigrationsSqlGenerator.SystemColumnNames` keeps it out of the emitted DDL even though the scaffolded migration lists it. The three entities carrying a token implement `IHasRowVersion` (`Domain/Common/`) purely so both provider passes reach the property through a lambda: `EntityTypeBuilder.Ignore(string)` does not validate the name, so with the string form a rename would silently leave `RowVersion` mapped and add a dead `bytea` column to the next PostgreSQL migration. This is also why `IsRowVersion()` is **not** in the shared configurations: mapping the property there and ignoring it for PostgreSQL made EF log *"The property 'X.RowVersion' was first mapped explicitly and then ignored"* three times at every boot -- at `Warning` level, which `ShouldPersist` then wrote into the `Logs` table on every start. `RowVersion` stays `Array.Empty<byte>()` on PostgreSQL, and the note in `Repository.Update` about `Update` churning the token describes SQL Server only.
+
+**The two tokens are not interchangeable, and detached writes are the difference.** `xmin` is a *shadow* property, so its value lives in the change tracker's entry rather than on the entity, and detaching discards it. A detached `Update` or `Remove` therefore takes the token's original value to be `0`, EF emits `WHERE xmin = 0`, no row matches, and the save raises `DbUpdateConcurrencyException` -- which reads as a lost-update race when nothing touched the row. On SQL Server the same call works, because `RowVersion` is a real property that travels with the detached instance (`RepositorySqlTranslationTests` has an `[Explicit]` test for that round trip). `Repository.Update`/`Remove` guard against this and throw `InvalidOperationException` naming the cause at the call site, rather than letting a misleading concurrency conflict surface a layer away; `DetachedWriteGuardTests` pins the behaviour on all three providers. **The tracked path is identical everywhere** -- load the aggregate through the repository and mutate it, which is what every handler here already does, so nothing in the application is affected.
+
+**The two providers legitimately differ on Identity's indexes, and that is not ours to fix.** EF's SQL Server provider adds `[Column] IS NOT NULL` to a unique index over a nullable column, because SQL Server treats two NULLs as equal for uniqueness; PostgreSQL treats them as distinct and needs no filter. So `UserNameIndex` and `RoleNameIndex` are filtered in the SQL Server snapshot and unfiltered in the PostgreSQL one. `ProviderIndexFilterTests` scopes itself to `Domain.Entities` for this reason.
+
+**`DateTime` maps to `timestamptz`, which requires `DateTimeKind.Utc`.** Npgsql throws on any other kind. That is safe here only because `BannedSymbols.txt` plus `WarningsAsErrors=RS0030` make every clock read other than `IDateTime.UtcNow` a build error -- if that guard is ever relaxed, this becomes a runtime failure on write.
 
 ### Where a service lives
 
@@ -162,8 +229,12 @@ Controller (thin, `ApiControllerBase.Mediator.Send`) -> `ValidationBehavior` -> 
   - **`LoggingMiddleware` writes one structured row per request** -- correlation id, method, url, status, duration, user, client ip, and the redacted request/response bodies. It is registered **outermost** (before `UseApplicationExceptionHandler`) so it observes the final status code and body of everything below it, including 500s. Its `try/finally` guarantees a row even when the request throws.
   - **Log columns come from two sources.** Message-template holes and `ILogger.BeginScope` values are both just structured properties to Serilog; `BuildColumnOptions` binds them to columns **by matching name**, so adding a property named like a column is all it takes. Request context that no single call site knows (correlation id, url, method, ip, username) is attached by `HttpContextEnricher` -- the replacement for NLog's ambient `${aspnet-*}` renderers, and the reason a warning raised deep in a handler still carries its request. `DefaultChannelEnricher` supplies `Channel=Api` via `AddPropertyIfAbsent`, which is why the middleware's explicit `Request` value wins. Property names are declared in `Application/Common/Logging/LogProperties.cs` and must stay in sync with `Domain/Entities/Log.cs` and `BuildColumnOptions`.
   - **`AutoCreateSqlTable` is off** -- EF owns the `Logs` schema. The consequence: the column set in `BuildColumnOptions` must match the table *exactly*, standard columns the table lacks (`Properties`, `MessageTemplate`, `LogEvent`, `TraceId`, `SpanId`, and the IDENTITY `Id`) are removed from `Store`, and a mismatch fails the whole batch reporting only to `Serilog.Debugging.SelfLog`. This is the one place where a mistake is silent, which is why `EnableSelfLog` writes `logs/serilog-selflog.txt` in **every** environment (the replacement for NLog's `internalLogFile`) -- check it first when the table stops filling.
+  - **The database sink follows `Database:Provider`** (`WriteTo.Database` in `LoggingConfiguration.cs`), so log rows always land in the database EF migrated the `Logs` table into. `SqlServer` uses `Serilog.Sinks.MSSqlServer` with `BuildColumnOptions`; `Postgres` uses `Serilog.Sinks.Postgresql.Alternative` with `BuildPostgresColumnWriters`, which is the same mapping expressed as a `ColumnWriterBase` dictionary -- **both have to be updated when a column changes**, and both fail silently into SelfLog when they drift. On `InMemory` no database sink is attached at all (it previously still wrote to `DefaultConnection`, i.e. to a database the rest of the application was not using). Three PostgreSQL specifics: the sink quotes every identifier, which is what lets the PascalCase column names be shared with SQL Server; `useCopy` is turned **off** because binary `COPY` requires each declared `NpgsqlDbType` to line up with the real column type and a mismatch loses the whole batch; and `queueLimit` is set explicitly because this sink defaults it to `int.MaxValue`, so an unreachable database would queue events in memory until the process died. `MSSqlServerSinkOptions` exposes no queue limit, so that sink takes Serilog's batching default -- the one batching setting that cannot be aligned between the two.
+  - **The table name is `LogConfiguration.TableName`**, referenced by both sinks. It is deliberately not `nameof(ApplicationDbContext.Logs)`: that tracks the *`DbSet` property* name, which coincides with the table name only until someone calls `ToTable`, and the mismatch would surface as batches failing into SelfLog. `LogConfiguration` calls `ToTable(TableName)` so the constant is the source of the name rather than a guess that happens to match EF's convention.
+  - **The schema comes from `DatabaseConfiguration.GetDefaultSchema(provider)`** (`dbo` / `public`), stated explicitly on both sinks rather than left to each one's default. Those are the providers' own defaults, which is where EF puts the table because nothing calls `HasDefaultSchema` and no configuration passes a schema to `ToTable` -- an assumption, so `LogsTableSchemaTests` asserts the model really does leave the schema unset and that the mapped table name matches the constant. Set a schema anywhere and those tests fail instead of the sink silently inserting into a table that is not there.
   - **Routing rules**: the `ShouldPersist` filter on the database sub-logger -- request rows reach the database at `Information`, every other logger needs `Warning`+ to get in. `Channel` distinguishes `Request` rows from `Api` rows.
-  - **Levels are spelled out**: `Information`/`Warning`/`Verbose`, not NLog's `Info`/`Warn`/`Trace`. `Logs.Level` is `nvarchar(16)` for this reason, and the `SerilogLogColumnAdjustments` migration rewrites historical rows so the table carries one vocabulary.
+  - **Levels are spelled out**: `Information`/`Warning`/`Verbose`, not NLog's `Info`/`Warn`/`Trace`. `Logs.Level` is `nvarchar(16)` (`character varying(16)` on PostgreSQL) for this reason, and the `SerilogLogColumnAdjustments` migration rewrites historical rows so the table carries one vocabulary.
+  - **Retention is provider-specific SQL.** `LogRetentionService` deletes in batches, and there is no shared spelling for a bounded delete: SQL Server uses `DELETE TOP (n)`, PostgreSQL has no `DELETE ... LIMIT` and needs a key subquery. Both parameterise the cutoff and the batch size.
   - **Bodies are never blindly buffered.** `RequestLoggingOptions` (the `RequestLogging` section of `appsettings.json`) holds a content-type **allowlist**, a byte cap, a sensitive-property list and ignored paths. `BoundedResponseBufferStream` defers the capture decision to the first write, when `Content-Type` is known, so file downloads and uploads are recorded as `[body omitted: <type>, <n> bytes]` rather than copied into memory. `LogRedactor` masks passwords/tokens/etc. in JSON and form bodies, and is also applied by `PerformanceBehavior` before it logs a slow request.
   - `PerformanceBehavior` warns on handlers slower than 500 ms, logging the **redacted** request.
   - `LogRetentionService` (Infrastructure, `LogRetention` config section) purges rows past the retention window (default 90 days) in batches. Not registered when `UseInMemoryDatabase` is true.

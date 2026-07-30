@@ -5,7 +5,7 @@ using Domain.Exceptions;
 
 namespace Domain.Entities
 {
-    public class LoanApplication : BaseAuditableEntity, IAggregateRoot
+    public class LoanApplication : BaseAuditableEntity, IAggregateRoot, IHasRowVersion
     {
         public int LoanTypeId { get; private set; }
         public decimal Amount { get; private set; }
