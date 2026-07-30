@@ -1,12 +1,11 @@
-﻿namespace Domain.Repositories
+namespace Domain.Repositories
 {
+    /// <summary>
+    /// One transactional boundary per request. Repositories are injected directly into the
+    /// handlers that use them — this exists only to commit.
+    /// </summary>
     public interface IUnitOfWork
     {
-        ICurrencyRepository CurrencyRepository { get; }
-        ILoanTypeRepository LoanTypeRepository { get; }
-        ILoanApplicationRepository LoanApplicationRepository { get; }
-        IOtpVerificationRepository OtpVerificationRepository { get; }
-        int Save();
-        Task<int> SaveAsync(CancellationToken cancellationToken = default);
+        Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
 }

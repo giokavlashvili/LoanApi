@@ -11,7 +11,7 @@ namespace Domain.Entities
     /// expiry, attempt budget, single use, and the payload it was issued for. The code itself is
     /// never stored — only a hash produced outside the domain, so no crypto lives in here.
     /// </summary>
-    public class OtpVerification : BaseAuditableEntity
+    public class OtpVerification : BaseAuditableEntity, IAggregateRoot
     {
         /// <summary>
         /// The handle handed to the client. <see cref="BaseEntity.Id"/> is a sequential int and

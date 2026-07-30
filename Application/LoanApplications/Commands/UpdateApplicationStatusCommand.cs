@@ -1,4 +1,4 @@
-﻿using Application.Common.Interfaces;
+using Application.Common.Interfaces;
 using Application.Common.Logging;
 using Application.Common.Otp;
 using Domain.Enums;
@@ -29,27 +29,33 @@ namespace Application.LoanApplications.Commands
 
     public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateApplicationStatusCommand>
     {
+        private readonly ILoanApplicationRepository _applications;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUserService;
         private readonly IDateTime _dateTime;
-        private readonly IUnitOfWork _unitOfWork;
 
-        public UpdateApplicationStatusCommandHandler(ICurrentUserService currentUserService, IDateTime dateTime, IUnitOfWork uow)
+        public UpdateApplicationStatusCommandHandler(
+            ILoanApplicationRepository applications,
+            IUnitOfWork unitOfWork,
+            ICurrentUserService currentUserService,
+            IDateTime dateTime)
         {
+            _applications = applications;
+            _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
             _dateTime = dateTime;
-            _unitOfWork = uow;
         }
 
         public async Task Handle(UpdateApplicationStatusCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _unitOfWork.LoanApplicationRepository.GetByIdAsync(request.Id, cancellationToken);
+            var entity = await _applications.GetByIdAsync(request.Id, cancellationToken);
 
             entity.UpdateStatus(
                 request.Status,
                 _currentUserService.UserId,
                 _dateTime.UtcNow);
 
-            await _unitOfWork.SaveAsync(cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
     }
 }

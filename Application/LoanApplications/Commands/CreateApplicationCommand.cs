@@ -1,4 +1,4 @@
-﻿using Application.Common.Interfaces;
+using Application.Common.Interfaces;
 using Domain.Entities;
 using Domain.Repositories;
 using MediatR;
@@ -15,16 +15,23 @@ namespace Application.LoanApplications.Commands
         public int PeriodPerMonth { get; set; }
     }
 
-    public class CreateApplicationCommandhandler : IRequestHandler<CreateApplicationCommand, int>
+    public class CreateApplicationCommandHandler : IRequestHandler<CreateApplicationCommand, int>
     {
+        private readonly ILoanApplicationRepository _applications;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUserService;
         private readonly IDateTime _dateTime;
-        private readonly IUnitOfWork _unitOfWork;
-        public CreateApplicationCommandhandler(ICurrentUserService currentUserService, IDateTime dateTime, IUnitOfWork uow)
+
+        public CreateApplicationCommandHandler(
+            ILoanApplicationRepository applications,
+            IUnitOfWork unitOfWork,
+            ICurrentUserService currentUserService,
+            IDateTime dateTime)
         {
+            _applications = applications;
+            _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
             _dateTime = dateTime;
-            _unitOfWork = uow;
         }
 
         public async Task<int> Handle(CreateApplicationCommand request, CancellationToken cancellationToken)
@@ -32,16 +39,16 @@ namespace Application.LoanApplications.Commands
             var currentUserId = _currentUserService.UserId;
 
             var entity = LoanApplication.Create(
-                request.LoanTypeId, 
-                request.Amount, 
-                request.CurrencyId, 
+                request.LoanTypeId,
+                request.Amount,
+                request.CurrencyId,
                 request.PeriodPerMonth,
                 currentUserId,
                 _dateTime.UtcNow);
 
-            await _unitOfWork.LoanApplicationRepository.AddAsync(entity, cancellationToken);
+            await _applications.AddAsync(entity, cancellationToken);
 
-            await _unitOfWork.SaveAsync(cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return entity.Id;
         }

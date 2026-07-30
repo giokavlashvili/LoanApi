@@ -112,7 +112,9 @@ namespace WebUI.Filters
             {
                 Type = "https://tools.ietf.org/html/rfc7231#section-6.5.4",
                 Title = "The specified resource was not found.",
-                Detail = exception.Message,
+                // Localized like the OTP and domain-validation handlers: NotFoundException carries
+                // a key, not a sentence, so the 404 body is not hardcoded English.
+                Detail = _stringLocalizer.GetString(exception.Message),
             };
 
             context.Result = new NotFoundObjectResult(details);

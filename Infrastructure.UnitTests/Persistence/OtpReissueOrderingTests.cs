@@ -1,9 +1,6 @@
 using Domain.Entities;
 using Domain.Enums;
 using Infrastructure.Persistence;
-using MediatR;
-using Microsoft.EntityFrameworkCore;
-using Moq;
 using NUnit.Framework;
 
 namespace Infrastructure.UnitTests.Persistence
@@ -20,15 +17,7 @@ namespace Infrastructure.UnitTests.Persistence
     [Explicit("Requires a real SQL Server instance; the in-memory provider ignores unique indexes.")]
     public class OtpReissueOrderingTests
     {
-        private const string ConnectionString =
-            "Server=localhost\\SQLEXPRESS;Database=LoanDB;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true;";
-
-        private static ApplicationDbContext CreateContext() =>
-            new(
-                new DbContextOptionsBuilder<ApplicationDbContext>()
-                    .UseSqlServer(ConnectionString)
-                    .Options,
-                new Mock<IMediator>().Object);
+        private static ApplicationDbContext CreateContext() => TestDb.SqlServer();
 
         [Test]
         public async Task ReissuingForTheSameRecipientAndPurpose_InvalidatesThenInsertsInOneSave()

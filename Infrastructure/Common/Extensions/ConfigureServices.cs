@@ -76,8 +76,9 @@ namespace Infrastructure.Common.Extensions
             services.AddSingleton<IOtpCodeHasher, HmacOtpCodeHasher>();
             services.AddTransient<ISmsSender, LoggingSmsSender>();
 
-            services.AddScoped<ICurrencyRepository, CurrencyRepository>();
-            services.AddScoped<ILoanTypeRepository, LoanTypeRepository>();
+            // One repository per aggregate root, injected straight into the handlers that use
+            // them. Reference data (Currency, LoanType) has no repository: it is read through the
+            // query handlers, which project from IApplicationDbContext.
             services.AddScoped<ILoanApplicationRepository, LoanApplicationRepository>();
             services.AddScoped<IOtpVerificationRepository, OtpVerificationRepository>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();

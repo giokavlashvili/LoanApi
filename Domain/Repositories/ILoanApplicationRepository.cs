@@ -1,10 +1,12 @@
-﻿using Domain.Entities;
+using Domain.Entities;
 
 namespace Domain.Repositories
 {
+    /// <summary>
+    /// The write side of the loan application aggregate. Listing and paging live in the query
+    /// handlers, which project from the context rather than materialising aggregates.
+    /// </summary>
     public interface ILoanApplicationRepository : IRepository<LoanApplication>
     {
-        Task<int> GetCountAsync(CancellationToken cancellationToken = default);
-        Task<IEnumerable<LoanApplication>> GetPaginatedListAsync(int pageIndex, int pageSize, CancellationToken cancellationToken = default);
     }
 }

@@ -14,28 +14,34 @@ Copy this checklist and complete in order. Mirror existing sample: `LoanApplicat
 
 ```
 Progress:
-- [ ] 1. Domain entity + events + enum (if needed)
-- [ ] 2. Repository interface + IUnitOfWork property
+- [ ] 1. Domain entity (marked IAggregateRoot) + events + enum (if needed)
+- [ ] 2. Repository interface
 - [ ] 3. Application Commands/Queries/Dtos/Validators/EventHandlers
-- [ ] 4. EF configuration + repository impl + UnitOfWork wiring + DI registration
+- [ ] 4. EF configuration + repository impl + DI registration
 - [ ] 5. Controller action(s)
 - [ ] 6. localization.json keys
-- [ ] 7. Unit tests (Domain + Application)
+- [ ] 7. Unit tests (Domain + Application, + Infrastructure for projections)
 - [ ] 8. EF migration (see ef-migration skill)
 ```
 
 ## 1. Domain
 
 - `Domain/Entities/<Name>.cs`: `private set`, `static Create(...)`, mutators, `DomainValidationException("Key")`, `AddDomainEvent`.
+- Is it an **aggregate root**? Mark it `IAggregateRoot` only if it is the entry point to a
+  consistency boundary — something with invariants worth protecting. Reference/lookup data is
+  **not** a root: it gets no marker, no repository, and is read through query handlers. See
+  `Currency` / `LoanType`.
 - Events in `Domain/Events/`. Enums in `Domain/Enums/`.
-- `Domain/Repositories/I<Name>Repository.cs` extending the generic pattern used by `ILoanApplicationRepository`.
+- `Domain/Repositories/I<Name>Repository.cs` extending `IRepository<TAggregate>`, following
+  `ILoanApplicationRepository`. The generic base already covers by-id, filtered/ordered/paged
+  reads, composable `Query()`, and add/update/remove. Add a **named** method when it reveals
+  intent the generic call would bury (see `IOtpVerificationRepository.GetLatestAsync`). Keep the
+  interface BCL-only — no EF types.
 
 ## 2. Unit of work
 
-- Add property to `IUnitOfWork` and `UnitOfWork`.
-- Add a **required** ctor parameter on `UnitOfWork` (no `= null` default, no `??` fallback) —
-  the container supplies it via the DI registration in step 4; tests pass a mock directly.
-- Update existing `Mock<UnitOfWork>(...)` call sites in unit tests.
+**Nothing to do.** `IUnitOfWork` is `SaveChangesAsync` and nothing else — do not add a repository
+property to it. Handlers inject the repositories they need; step 4 registers them.
 
 ## 3. Application slice
 
@@ -44,21 +50,30 @@ Application/<Feature>/
   Commands/   # record + handler same file
   Queries/
   Dtos/       # IMapFrom<T>
-  Validators/ # AbstractValidator<T>, IUnitOfWork + IStringLocalizer
+  Validators/ # AbstractValidator<T>, IApplicationDbContext + IStringLocalizer
   EventHandlers/
 ```
 
-- Handler: user/time → entity → `_unitOfWork.<Repo>` → `SaveAsync`.
-- **No manual DI registration.**
+- Command handler: inject `I<Name>Repository` **plus** `IUnitOfWork` (plus `ICurrentUserService` /
+  `IDateTime` if needed). user/time → entity factory or mutator → repository → `SaveChangesAsync`.
+  A loaded aggregate is tracked; do not look for an `Update` method.
+- Query handler: inject `IApplicationDbContext` + `IMapper`, then
+  `.AsNoTracking().ProjectTo<TDto>(_mapper.ConfigurationProvider)`. No repository.
+- DTOs need **public setters** for `ProjectTo` to work — a `private set` compiles and then fails at
+  runtime, because the projection is a member-init expression, not reflection.
+- Validators: inject `IApplicationDbContext` + `IStringLocalizer`; existence checks via `Must`/
+  `Custom` + `Any`. **Never `MustAsync`/`CustomAsync`** — MVC's automatic validation also runs the
+  validator and cannot invoke an async rule, so the endpoint 500s while every unit test still passes.
+- **No manual DI registration** for handlers, validators or DTO profiles.
 
 ## 4. Infrastructure
 
 - `Persistence/Configurations/<Name>Configuration.cs` (`IEntityTypeConfiguration<T>`).
-- `Persistence/Repositories/<Name>Repository.cs`.
-- Wire into `UnitOfWork`. Repositories are **not** assembly-scanned like handlers/validators —
-  add an explicit `services.AddScoped<I<Name>Repository, <Name>Repository>();` line in
-  `AddInfrastructureServices` (`Infrastructure/Common/Extensions/ConfigureServices.cs`), beside
-  the other three repository registrations.
+- `Persistence/Repositories/<Name>Repository.cs`, deriving `Repository<TAggregate>`.
+- Repositories are **not** assembly-scanned like handlers/validators — add an explicit
+  `services.AddScoped<I<Name>Repository, <Name>Repository>();` line in `AddInfrastructureServices`
+  (`Infrastructure/Common/Extensions/ConfigureServices.cs`), beside the existing ones. Nothing to
+  wire into `UnitOfWork`.
 
 ## 5. WebApi
 
@@ -72,7 +87,12 @@ Application/<Feature>/
 ## 7. Tests
 
 - Domain: create/update/invalid cases.
-- Application: Moq handler tests verifying repository + `SaveAsync`.
+- Application: Moq handler tests mocking `I<Name>Repository` + `IUnitOfWork` (the interfaces, not
+  `UnitOfWork`); verify the repository call + `SaveChangesAsync`. Never pass `It.IsAny<T>()` as a
+  constructor argument.
+- Infrastructure: if the slice added a query handler, its `ProjectTo` needs a **real** context —
+  a mocked `IApplicationDbContext` cannot execute a projection. See
+  `Infrastructure.UnitTests/Queries/ProjectionQueryTests.cs`.
 
 ## 8. Migration
 
@@ -83,8 +103,16 @@ Use the `ef-migration` skill. Do not hand-edit the model snapshot unless fixing 
 - Business rules in handlers or controllers
 - Manual MediatR/FluentValidation registration
 - Putting repository interfaces in Application
-- Forgetting the repository's DI registration in `AddInfrastructureServices` (there is no
-  optional-ctor-parameter fallback to mask it — it will fail to resolve)
+- Forgetting the repository's DI registration in `AddInfrastructureServices` — it will fail to resolve
+- Adding a repository property to `IUnitOfWork`, or injecting `IUnitOfWork` to reach a repository
+  through it: a handler's dependencies belong in its constructor
+- A repository for reference/lookup data (no aggregate root, no repository)
+- Passing includes as a string instead of a shaper (`include: q => q.Include(...)`)
+- Calling `repository.Update(entity)` on an aggregate loaded through the same context — it is a
+  no-op there by design; mutating the tracked aggregate is what persists
+- EF types (`DbSet`, `IIncludableQueryable`) leaking into a `Domain/Repositories` interface
+- `private set` on a DTO that gets projected
+- `MustAsync`/`CustomAsync` in a validator (500s under MVC's synchronous auto-validation)
 
 ## Additional resources
 

@@ -1,4 +1,3 @@
-﻿using Application.Common.Interfaces;
 using Domain.Events;
 using Domain.Repositories;
 using MediatR;
@@ -15,22 +14,24 @@ namespace Application.LoanApplications.Commands
 
     public class DeleteApplicationCommandHandler : IRequestHandler<DeleteApplicationCommand>
     {
+        private readonly ILoanApplicationRepository _applications;
         private readonly IUnitOfWork _unitOfWork;
 
-        public DeleteApplicationCommandHandler(IUnitOfWork uow)
+        public DeleteApplicationCommandHandler(ILoanApplicationRepository applications, IUnitOfWork unitOfWork)
         {
-            _unitOfWork = uow;
+            _applications = applications;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task Handle(DeleteApplicationCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _unitOfWork.LoanApplicationRepository.GetByIdAsync(request.Id, cancellationToken);
+            var entity = await _applications.GetByIdAsync(request.Id, cancellationToken);
 
-            _unitOfWork.LoanApplicationRepository.Remove(entity);
+            _applications.Remove(entity);
 
             entity.AddDomainEvent(new ApplicationDeletedEvent(entity));
 
-            await _unitOfWork.SaveAsync(cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
     }
 }

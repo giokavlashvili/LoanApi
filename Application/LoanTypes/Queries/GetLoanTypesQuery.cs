@@ -1,14 +1,9 @@
-﻿using Application.Currencies.Dtos;
-using Application.Currencies.Queries;
+using Application.Common.Interfaces;
 using Application.LoanTypes.Dtos;
 using AutoMapper;
-using Domain.Repositories;
+using AutoMapper.QueryableExtensions;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace Application.LoanTypes.Queries
 {
@@ -17,17 +12,18 @@ namespace Application.LoanTypes.Queries
     public class GetLoanTypesQueryHandler : IRequestHandler<GetLoanTypesQuery, List<LoanTypeDto>>
     {
         private readonly IMapper _mapper;
-        private readonly IUnitOfWork _unitOfWork;
-        public GetLoanTypesQueryHandler(IMapper mapper, IUnitOfWork uow)
+        private readonly IApplicationDbContext _context;
+
+        public GetLoanTypesQueryHandler(IMapper mapper, IApplicationDbContext context)
         {
             _mapper = mapper;
-            _unitOfWork = uow;
+            _context = context;
         }
 
         public async Task<List<LoanTypeDto>> Handle(GetLoanTypesQuery request, CancellationToken cancellationToken)
-        {
-            var resultList = await _unitOfWork.LoanTypeRepository.GetAllAsync(cancellationToken);
-            return _mapper.Map<List<LoanTypeDto>>(resultList);
-        }
+            => await _context.LoanTypes
+                .AsNoTracking()
+                .ProjectTo<LoanTypeDto>(_mapper.ConfigurationProvider)
+                .ToListAsync(cancellationToken);
     }
 }

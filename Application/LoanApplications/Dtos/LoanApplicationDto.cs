@@ -7,12 +7,15 @@ namespace Application.LoanApplications.Dtos
 {
     public class LoanApplicationDto : IMapFrom<LoanApplication>
     {
+        // Public setters throughout, deliberately. ProjectTo builds a member-init expression
+        // (new LoanApplicationDto { Amount = …, … }) which cannot assign an inaccessible setter;
+        // in-memory IMapper.Map got away with private setters because it assigns by reflection.
         public int Id { get; set; }
-        public decimal Amount { get; private set; }
-        public int PeriodPerMonth { get; private set; }
-        public LoanStatus Status { get; private set; }
-        public string? LoanType { get; private set; }
-        public string? Currency { get; private set; }
+        public decimal Amount { get; set; }
+        public int PeriodPerMonth { get; set; }
+        public LoanStatus Status { get; set; }
+        public string? LoanType { get; set; }
+        public string? Currency { get; set; }
         public DateTime Created { get; set; }
 
         public void Mapping(Profile Profile)

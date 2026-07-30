@@ -1,9 +1,7 @@
 using Domain.Entities;
 using Infrastructure.Persistence;
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Moq;
 using NUnit.Framework;
 
 namespace Infrastructure.UnitTests.Persistence
@@ -19,11 +17,7 @@ namespace Infrastructure.UnitTests.Persistence
     {
         private static IModel BuildModel()
         {
-            using var context = new ApplicationDbContext(
-                new DbContextOptionsBuilder<ApplicationDbContext>()
-                    .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                    .Options,
-                new Mock<IMediator>().Object);
+            using var context = TestDb.InMemory();
 
             return context.Model;
         }

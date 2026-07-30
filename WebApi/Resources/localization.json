@@ -7,6 +7,13 @@
     }
   },
   {
+    "Key": "UserNotFound",
+    "LocalizedValue": {
+      "ka-GE": "მომხმარებელი ვერ მოიძებნა",
+      "en-US": "User not found"
+    }
+  },
+  {
     "Key": "InvalidCurrency",
     "LocalizedValue": {
       "ka-GE": "ვერ მოიძებნა ვალუტა",

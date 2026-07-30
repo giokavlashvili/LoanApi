@@ -18,6 +18,7 @@ namespace Infrastructure.Services
     /// </summary>
     public class OtpService : IOtpService
     {
+        private readonly IOtpVerificationRepository _challenges;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IOtpCodeHasher _codeHasher;
         private readonly ISmsSender _smsSender;
@@ -26,6 +27,7 @@ namespace Infrastructure.Services
         private readonly ILogger<OtpService> _logger;
 
         public OtpService(
+            IOtpVerificationRepository challenges,
             IUnitOfWork unitOfWork,
             IOtpCodeHasher codeHasher,
             ISmsSender smsSender,
@@ -33,6 +35,7 @@ namespace Infrastructure.Services
             IOptionsMonitor<OtpOptions> optionsMonitor,
             ILogger<OtpService> logger)
         {
+            _challenges = challenges;
             _unitOfWork = unitOfWork;
             _codeHasher = codeHasher;
             _smsSender = smsSender;
@@ -51,7 +54,7 @@ namespace Infrastructure.Services
             var options = _optionsMonitor.CurrentValue;
             var now = _dateTime.UtcNow;
 
-            var previous = await _unitOfWork.OtpVerificationRepository.GetLatestAsync(recipient, purpose, cancellationToken);
+            var previous = await _challenges.GetLatestAsync(recipient, purpose, cancellationToken);
 
             EnsureCooldownElapsed(options, previous, now);
 
@@ -59,11 +62,8 @@ namespace Infrastructure.Services
 
             // Only one code may be live per recipient and purpose, otherwise an older message
             // arriving late still opens the operation the newer one was meant to gate.
-            if (previous is not null)
-            {
-                previous.Invalidate(now);
-                _unitOfWork.OtpVerificationRepository.Update(previous);
-            }
+            // Loaded tracked, so mutating it is what persists — no Update call needed.
+            previous?.Invalidate(now);
 
             // The id is part of the code hash, so it has to exist before the code is hashed.
             var challengeId = Guid.NewGuid();
@@ -80,11 +80,11 @@ namespace Infrastructure.Services
                 options.MaxAttempts,
                 now);
 
-            await _unitOfWork.OtpVerificationRepository.AddAsync(entity, cancellationToken);
+            await _challenges.AddAsync(entity, cancellationToken);
 
             try
             {
-                await _unitOfWork.SaveAsync(cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
             }
             catch (DbUpdateException) // lost the race to another concurrent issue
             {
@@ -101,7 +101,7 @@ namespace Infrastructure.Services
 
         public async Task<OtpChallengeDto> ResendAsync(Guid challengeId, CancellationToken cancellationToken = default)
         {
-            var existing = await _unitOfWork.OtpVerificationRepository.GetByChallengeIdAsync(challengeId, cancellationToken)
+            var existing = await _challenges.GetByChallengeIdAsync(challengeId, cancellationToken)
                 ?? throw new DomainValidationException("OtpChallengeNotFound");
 
             // Reissued against the original purpose, recipient and payload, so a resend cannot
@@ -121,7 +121,7 @@ namespace Infrastructure.Services
             string requestHash,
             CancellationToken cancellationToken = default)
         {
-            var entity = await _unitOfWork.OtpVerificationRepository.GetByChallengeIdAsync(challengeId, cancellationToken)
+            var entity = await _challenges.GetByChallengeIdAsync(challengeId, cancellationToken)
                 ?? throw new DomainValidationException("OtpChallengeNotFound");
 
             // Checked before the code: a challenge issued for registration must not be spendable
@@ -139,10 +139,9 @@ namespace Infrastructure.Services
                 // on a wrong code. Saving only on the happy path would roll that increment back
                 // every time, MaxAttempts would never be reached, and six digits would be
                 // brute-forceable at leisure. Same guarantee LoggingMiddleware uses to always
-                // write its row.
-                _unitOfWork.OtpVerificationRepository.Update(entity);
-
-                await _unitOfWork.SaveAsync(cancellationToken);
+                // write its row. The challenge is tracked, so the increment persists without an
+                // Update call.
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
             }
         }
 
@@ -167,7 +166,7 @@ namespace Infrastructure.Services
             if (options.MaxPerRecipientPerHour <= 0)
                 return;
 
-            var issuedInWindow = await _unitOfWork.OtpVerificationRepository.CountRecentAsync(
+            var issuedInWindow = await _challenges.CountRecentAsync(
                 recipient, purpose, now.AddHours(-1), cancellationToken);
 
             // Without this the endpoint is an open SMS relay: anyone can point it at any number

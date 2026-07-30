@@ -1,4 +1,4 @@
-﻿using Application.Common.Interfaces;
+using Application.Common.Interfaces;
 using Domain.Repositories;
 
 namespace Infrastructure.Persistence.Repositories
@@ -7,31 +7,12 @@ namespace Infrastructure.Persistence.Repositories
     {
         private readonly IApplicationDbContext _context;
 
-        public UnitOfWork(
-            IApplicationDbContext context,
-            ICurrencyRepository currencyRepository,
-            ILoanTypeRepository loanTypeRepository,
-            ILoanApplicationRepository loanApplicationRepository,
-            IOtpVerificationRepository otpVerificationRepository)
+        public UnitOfWork(IApplicationDbContext context)
         {
             _context = context;
-            CurrencyRepository = currencyRepository;
-            LoanTypeRepository = loanTypeRepository;
-            LoanApplicationRepository = loanApplicationRepository;
-            OtpVerificationRepository = otpVerificationRepository;
         }
 
-        public ICurrencyRepository CurrencyRepository { get; private set; }
-        public ILoanTypeRepository LoanTypeRepository { get; private set; }
-        public ILoanApplicationRepository LoanApplicationRepository { get; private set; }
-        public IOtpVerificationRepository OtpVerificationRepository { get; private set; }
-
-        public virtual int Save()
-        {
-            return _context.SaveChanges();
-        }
-
-        public virtual async Task<int> SaveAsync(CancellationToken cancellationToken = default)
+        public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
             return await _context.SaveChangesAsync(cancellationToken);
         }

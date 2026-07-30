@@ -1,13 +1,53 @@
 ---
-description: Localization keys for domain and validation messages
+description: Localization keys for domain and validation messages — never hardcode user-facing text
 globs: WebApi/Resources/localization.json
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Localization
 
-- `DomainValidationException` and FluentValidation messages use **keys**, not user-facing English (e.g. `"InvalidAmount"`).
-- Add every new key under **both** `ka-GE` and `en-US` in `WebApi/Resources/localization.json`.
-- Culture comes from `x-sys-language` (`SysLanguageMiddleware`); `JsonStringLocalizer` reads this file at construction.
-- Header is excluded from the generated TS client via `nswag.json` `excludedParameterNames`.
-- Missing keys surface as raw key strings to API clients — always update this file with new domain/validator messages.
+## The rule
+
+**No user-facing string is ever hardcoded in C#.** Every message a caller can end up reading comes
+from `WebApi/Resources/localization.json`, resolved for the request's culture. There are exactly two
+ways to produce one, depending on the layer:
+
+| Layer | How | Example |
+|---|---|---|
+| `Domain`, `Infrastructure` | Throw a **key** — `DomainValidationException("InvalidAmount")`. `ApiExceptionFilterAttribute` resolves it at the WebApi boundary. | `Domain/Entities/LoanApplication.cs`, `Infrastructure/Persistence/Repositories/Repository.cs` |
+| `Application`, `WebApi` | Inject `IStringLocalizer` and call `GetString("Key")`. | every `Application/**/Validators/*.cs`, `WebApi/Filters/ApiExceptionFilterAttribute.cs` |
+
+`Domain` deliberately has **no** `Microsoft.Extensions.Localization` reference, and neither `Domain`
+nor `Infrastructure` should inject `IStringLocalizer` — pushing presentation concerns down there is
+how the layering rots. The key-throwing route is not a workaround; it *is* the mechanism, and it
+keeps one translation table for the whole app.
+
+- Add every new key under **both** `ka-GE` and `en-US`. A missing key surfaces to API clients as the
+  raw key string — no exception, no log, just `InvalidAmount` in the response body.
+- **Reuse an existing key** before inventing one. `Repository.PageAsync` throws the same
+  `InvalidPageNumber` / `InvalidPageSize` that `GetApplicationsQueryValidator` uses, so a bad page
+  reads identically whether it was rejected at the edge or deeper in.
+- Keys are `PascalCase`, describe the *problem* (`InvalidCurrency`, `OtpThrottled`,
+  `ConcurrencyConflict`), and never embed the wording.
+
+## Not user-facing — leave these in English
+
+Localizing these would be actively harmful, so the rule stops here:
+
+- **Serilog messages and message templates.** Logs are read by operators and aggregated across
+  cultures; a translated template breaks searching and grouping, and the structured property names
+  come from the template holes.
+- **Exception messages for programmer error** that no client sees — `InvalidOperationException("The
+  JWT configuration section is missing.")` in DI wiring fails at boot, on a developer's screen.
+- **Configuration keys, DI names, `nameof(...)`, log property names, migration names, test
+  assertion messages.**
+
+If a string could reach an HTTP response body, it needs a key. If it can only reach a log file or a
+startup crash, it does not.
+
+## Mechanics
+
+- Culture comes from the `x-sys-language` header (`SysLanguageMiddleware`).
+- `JsonStringLocalizer` (singleton `IStringLocalizer`) reads the file from disk **at construction** —
+  editing `localization.json` needs a restart to take effect.
+- The header is excluded from the generated TS client via `nswag.json` `excludedParameterNames`.

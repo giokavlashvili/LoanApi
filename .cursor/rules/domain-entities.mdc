@@ -10,8 +10,12 @@ alwaysApply: false
 - Exception messages are **localization keys** (e.g. `"InvalidAmount"`), not user-facing text — add keys to `WebApi/Resources/localization.json`.
 - Inherit `BaseAuditableEntity` when audit fields apply. See `Domain/Entities/LoanApplication.cs`.
 - Domain events: `Domain/Events/` + queue on the entity; `ApplicationDbContext.SaveChangesAsync` dispatches via MediatR **before** persist.
-- Repositories: interface in `Domain/Repositories`; generic `Repository<T>` plus aggregate-specific methods (paging/includes). Expose on `IUnitOfWork` and `UnitOfWork`.
-- `UnitOfWork` ctor takes repositories as **optional** parameters so tests can inject mocks.
+- **Aggregate roots** are marked `IAggregateRoot` (`Domain/Common/IAggregateRoot.cs`) — the entry point to an aggregate and the only thing a repository may load or persist. Roots here: `LoanApplication`, `OtpVerification`. Deliberately **not** roots: `Currency` and `LoanType` (reference data — no behaviour, no invariants, seeded by `ApplicationDbContextInitialiser`) and `Log` (not a domain concept; the Serilog sink writes it and EF owns only the schema).
+- Repositories: interface in `Domain/Repositories`, extending `IRepository<TEntity>` — a general-purpose generic surface (composable queries, filtered/ordered/paged reads, add/update/remove with range variants), constrained to `BaseEntity` so any entity can have one. Add **named, intention-revealing** methods on top when the generic ones would obscure intent, as `IOtpVerificationRepository` does with `GetLatestAsync`/`CountRecentAsync`.
+- `IAggregateRoot` (`Domain/Common/`) marks entities that own a consistency boundary — `LoanApplication`, `OtpVerification`. It no longer constrains `IRepository`; it documents design intent, so keep applying it to real roots and leave it off reference data.
+- `IRepository` deliberately mentions only BCL types — `IQueryable`, `Expression`, `Task`. EF appears in the *implementation*, so `Domain` still has no persistence dependency. Keep it that way: no `DbSet`, no `IIncludableQueryable`, no EF attributes in the interface.
+- `Update` on the repository is for **detached** aggregates only; a tracked aggregate persists by being mutated. Do not add an `Update` call after a mutator.
+- `IUnitOfWork` is the save boundary only. Do **not** add repository properties to it; handlers inject the repositories they need.
 - Keep sample aggregates replaceable; put reusable types under `Domain/Common`.
 
 ```csharp

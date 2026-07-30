@@ -158,7 +158,7 @@ namespace Infrastructure.Identity
             var user = await _userManager.FindByNameAsync(usernName);
 
             if (user == null || !await _userManager.CheckPasswordAsync(user, password))
-                throw new NotFoundException("User not found");
+                throw new NotFoundException("UserNotFound");
 
             var userRoles = await _userManager.GetRolesAsync(user);
 

@@ -41,7 +41,7 @@ The loan domain is **demo content**. Keep the skeleton; replace the sample verti
 Progress:
 - [ ] 1. Rename .sln / folder; update connection string + JWT secret
 - [ ] 2. Remove sample controllers, Application slices, domain types, EF configs/repos
-- [ ] 3. Trim IUnitOfWork / UnitOfWork / DbContext sets / seed
+- [ ] 3. Trim DbContext sets / seed / repository DI registrations (`IUnitOfWork` is per-app, not per-aggregate — nothing to trim there)
 - [ ] 4. Clear Migrations; add new Initial (ef-migration skill + SkipNSwag env)
 - [ ] 5. Add first real vertical slice (add-vertical-slice skill)
 - [ ] 6. Fix unit tests; build/test with -p:SkipNSwag=True

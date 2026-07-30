@@ -1,4 +1,4 @@
-﻿using Application.Common.Interfaces;
+using Application.Common.Interfaces;
 using Domain.Repositories;
 using MediatR;
 
@@ -18,20 +18,26 @@ namespace Application.LoanApplications.Commands
 
     public class UpdateApplicationCommandHandler : IRequestHandler<UpdateApplicationCommand>
     {
+        private readonly ILoanApplicationRepository _applications;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUserService;
         private readonly IDateTime _dateTime;
-        private readonly IUnitOfWork _unitOfWork;
 
-        public UpdateApplicationCommandHandler(ICurrentUserService currentUserService, IDateTime dateTime, IUnitOfWork uow)
+        public UpdateApplicationCommandHandler(
+            ILoanApplicationRepository applications,
+            IUnitOfWork unitOfWork,
+            ICurrentUserService currentUserService,
+            IDateTime dateTime)
         {
+            _applications = applications;
+            _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
             _dateTime = dateTime;
-            _unitOfWork = uow;
         }
 
         public async Task Handle(UpdateApplicationCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _unitOfWork.LoanApplicationRepository.GetByIdAsync(request.Id, cancellationToken);
+            var entity = await _applications.GetByIdAsync(request.Id, cancellationToken);
 
             entity.Update(
                 request.LoanTypeId,
@@ -41,7 +47,7 @@ namespace Application.LoanApplications.Commands
                 _currentUserService.UserId,
                 _dateTime.UtcNow);
 
-            await _unitOfWork.SaveAsync(cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
     }
 }

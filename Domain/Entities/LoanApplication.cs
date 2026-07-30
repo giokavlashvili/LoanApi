@@ -8,7 +8,7 @@ using System.Xml.Linq;
 
 namespace Domain.Entities
 {
-    public class LoanApplication : BaseAuditableEntity
+    public class LoanApplication : BaseAuditableEntity, IAggregateRoot
     {
         public int LoanTypeId { get; private set; }
         public decimal Amount { get; private set; }

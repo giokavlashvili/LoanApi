@@ -8,8 +8,13 @@ alwaysApply: false
 
 - Vertical slice: `Application/<Feature>/{Commands,Queries,Dtos,Validators,EventHandlers}`.
 - Command/query **and** handler live in the **same file**. Types are `record`s: `IRequest` or `IRequest<T>`.
-- Handlers orchestrate only: current user / `IDateTime.UtcNow` → entity factory/mutator → `_unitOfWork` → `SaveAsync`.
-- FluentValidation for input/lookups (inject `IUnitOfWork`, `IStringLocalizer`). Domain rules stay on the entity.
+- **Commands go through repositories; queries project from the context.** That split is the layer's main shape:
+  - *Command handler*: inject the aggregate repositories it actually uses **plus** `IUnitOfWork`, never a registry to reach through. Orchestrate only — current user / `IDateTime.UtcNow` → entity factory/mutator → repository → `_unitOfWork.SaveChangesAsync`. A loaded aggregate is tracked, so mutating it is what persists; there is no `Update` call.
+  - *Query handler*: inject `IApplicationDbContext` + `IMapper` and `.AsNoTracking().ProjectTo<TDto>(_mapper.ConfigurationProvider)`. No repository, no entity materialised to throw away. Derive a count and its page from **one** `IQueryable` so they cannot drift.
+  - `IRepository.PageAsync` also exists and is correct, but it returns **entities**. Reaching for it from a query handler loads every column and discards most of them — project instead, and keep `PageAsync` for write-side paging over aggregates.
+- `ProjectTo` needs DTOs with **public setters** — it builds a member-init expression, unlike `IMapper.Map`, which assigns by reflection and tolerates `private set`. A `MapFrom` containing a method call will not translate; map it explicitly rather than falling back to materialisation.
+- FluentValidation for input/lookups (inject `IApplicationDbContext`, `IStringLocalizer`). Existence checks are reads, so they query the context (`Any`), not a repository. Domain rules stay on the entity.
+- **Validator rules must be synchronous.** `WebApi` registers `AddFluentValidationAutoValidation()`, so MVC's model-validation pipeline runs each validator *in addition to* `ValidationBehavior`, and that pipeline cannot invoke an async rule: one `MustAsync`/`CustomAsync` makes it throw `AsyncValidatorInvokedSynchronouslyException` and the endpoint 500s before the handler runs. Use `Must`/`Custom`; that is also why validator rules take no `CancellationToken`. Guarded by `ValidatorsAreSynchronousTests`.
 - DTOs: implement `IMapFrom<T>`; override `Mapping(Profile)` only for custom members.
 - Event handlers: `INotificationHandler<>` under `Application/<Feature>/EventHandlers`.
 - OTP opt-in: implement `IRequireOtpVerification` + `ChallengeId` + `[SensitiveData] OtpCode`. No per-feature OTP plumbing.
@@ -17,7 +22,15 @@ alwaysApply: false
 - Do **not** manually register handlers/validators in DI.
 
 ```csharp
-// ✅ same file: CreateApplicationCommand + CreateApplicationCommandhandler
+// ✅ same file: CreateApplicationCommand + CreateApplicationCommandHandler
 public record CreateApplicationCommand : IRequest<int> { ... }
-public class CreateApplicationCommandhandler : IRequestHandler<CreateApplicationCommand, int> { ... }
+public class CreateApplicationCommandHandler : IRequestHandler<CreateApplicationCommand, int>
+{
+    // the one repository it needs, not IUnitOfWork.LoanApplicationRepository
+    public CreateApplicationCommandHandler(
+        ILoanApplicationRepository applications,
+        IUnitOfWork unitOfWork,
+        ICurrentUserService currentUserService,
+        IDateTime dateTime) { ... }
+}
 ```

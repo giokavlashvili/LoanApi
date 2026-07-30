@@ -1,8 +1,10 @@
-﻿using Application.Common.Models;
+using Application.Common.Interfaces;
+using Application.Common.Models;
 using Application.LoanApplications.Dtos;
 using AutoMapper;
-using Domain.Repositories;
+using AutoMapper.QueryableExtensions;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace Application.LoanApplications.Queries
 {
@@ -15,22 +17,34 @@ namespace Application.LoanApplications.Queries
     public class GetApplicationsQueryHandler : IRequestHandler<GetApplicationsQuery, PaginatedList<LoanApplicationDto>>
     {
         private readonly IMapper _mapper;
-        private readonly IUnitOfWork _unitOfWork;
-        public GetApplicationsQueryHandler(IMapper mapper, IUnitOfWork uow)
+        private readonly IApplicationDbContext _context;
+
+        public GetApplicationsQueryHandler(IMapper mapper, IApplicationDbContext context)
         {
             _mapper = mapper;
-            _unitOfWork = uow;
+            _context = context;
         }
 
         public async Task<PaginatedList<LoanApplicationDto>> Handle(GetApplicationsQuery request, CancellationToken cancellationToken)
         {
-            var totalCount = await _unitOfWork.LoanApplicationRepository.GetCountAsync(cancellationToken);
+            // The count and the page derive from one query definition. Two repository methods
+            // could drift apart — different filters, different ordering — and nothing would say so.
+            var query = _context.LoanApplications
+                .AsNoTracking()
+                .OrderByDescending(a => a.Created)
+                .ThenByDescending(a => a.Id);
 
-            var entities =  await _unitOfWork.LoanApplicationRepository.GetPaginatedListAsync(request.PageNumber, request.PageSize, cancellationToken);
+            var totalCount = await query.CountAsync(cancellationToken);
 
-            var entityDtos = _mapper.Map<List<LoanApplicationDto>>(entities);
+            // ProjectTo replaces the Include(a => a.Currency).Include(a => a.LoanType) pair: the
+            // projection joins and selects exactly the columns the DTO needs.
+            var items = await query
+                .Skip((request.PageNumber - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .ProjectTo<LoanApplicationDto>(_mapper.ConfigurationProvider)
+                .ToListAsync(cancellationToken);
 
-            return new PaginatedList<LoanApplicationDto>(entityDtos, totalCount, request.PageNumber, request.PageSize);
+            return new PaginatedList<LoanApplicationDto>(items, totalCount, request.PageNumber, request.PageSize);
         }
     }
 }
