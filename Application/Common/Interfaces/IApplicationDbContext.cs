@@ -1,4 +1,4 @@
-﻿using Domain.Entities;
+using Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -13,6 +13,7 @@ namespace Application.Common.Interfaces
         public DbSet<LoanType> LoanTypes { get; set; }
         public DbSet<Currency> Currencies { get; set; }
         public DbSet<OtpVerification> OtpVerifications { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
 
         public DbSet<TEntity> Set<TEntity>() where TEntity : class;
 

@@ -1,4 +1,6 @@
-﻿namespace Application.Common.Interfaces
+using Application.Common.Models;
+
+namespace Application.Common.Interfaces
 {
     public interface IIdentityService : IUserService
     {
@@ -23,6 +25,18 @@
 
         Task<bool> DeleteUserAsync(string userId);
 
-        Task<(string token, DateTime validTo)> AuthenticateAsync(string usernName, string password);
+        /// <summary>
+        /// Verifies credentials, then issues an access token and opens a refresh token session.
+        /// Throws <see cref="Exceptions.InvalidCredentialsException"/> for both an unknown user name
+        /// and a wrong password.
+        /// </summary>
+        Task<AuthenticationResult> AuthenticateAsync(string usernName, string password, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Trades a refresh token for a new pair, rotating the refresh token in the process. The
+        /// access token is re-minted from the user's <em>current</em> roles, which is what makes a
+        /// role change take effect within one access token lifetime rather than at next login.
+        /// </summary>
+        Task<AuthenticationResult> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default);
     }
 }

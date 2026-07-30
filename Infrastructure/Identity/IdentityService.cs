@@ -1,4 +1,4 @@
-﻿using Application.Authenticate.Notifications;
+using Application.Authenticate.Notifications;
 using Application.Common.Exceptions;
 using Application.Common.Interfaces;
 using Application.Common.Models;
@@ -17,6 +17,7 @@ namespace Infrastructure.Identity
         private readonly IUserClaimsPrincipalFactory<ApplicationUser> _userClaimsPrincipalFactory;
         private readonly IAuthorizationService _authorizationService;
         private readonly IJwtTokenGenerator _tokenGenerator;
+        private readonly IRefreshTokenService _refreshTokenService;
         private readonly IMediator _mediator;
         private readonly ILogger<IdentityService> _logger;
 
@@ -26,6 +27,7 @@ namespace Infrastructure.Identity
             IUserClaimsPrincipalFactory<ApplicationUser> userClaimsPrincipalFactory,
             IAuthorizationService authorizationService,
             IJwtTokenGenerator tokenGenerator,
+            IRefreshTokenService refreshTokenService,
             IMediator mediator,
             ILogger<IdentityService> logger)
         {
@@ -34,6 +36,7 @@ namespace Infrastructure.Identity
             _userClaimsPrincipalFactory = userClaimsPrincipalFactory;
             _authorizationService = authorizationService;
             _tokenGenerator = tokenGenerator;
+            _refreshTokenService = refreshTokenService;
             _mediator = mediator;
             _logger = logger;
         }
@@ -148,7 +151,7 @@ namespace Infrastructure.Identity
             return result.Succeeded;
         }
 
-        public async Task<(string token, DateTime validTo)> AuthenticateAsync(string usernName, string password)
+        public async Task<AuthenticationResult> AuthenticateAsync(string usernName, string password, CancellationToken cancellationToken = default)
         {
             var user = await _userManager.FindByNameAsync(usernName);
 
@@ -157,9 +160,51 @@ namespace Infrastructure.Identity
             if (user == null || !await _userManager.CheckPasswordAsync(user, password))
                 throw new InvalidCredentialsException();
 
+            return await IssueAsync(user, cancellationToken);
+        }
+
+        public async Task<AuthenticationResult> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default)
+        {
+            // Rotation happens first and commits on its own, so a token presented twice is already
+            // spent by the time anything else runs. The cost is that a user deleted in the meantime
+            // leaves the caller holding a burned token — a re-login, which is the right outcome.
+            var rotated = await _refreshTokenService.RotateAsync(refreshToken, cancellationToken);
+
+            var user = await _userManager.FindByIdAsync(rotated.UserId);
+
+            // The session outlived the account. Same opaque failure as every other refresh
+            // rejection: the caller learns only that it has to log in again.
+            if (user is null)
+            {
+                _logger.LogWarning(
+                    "Refresh token rotated for user {RotatedUserId}, which no longer exists.",
+                    rotated.UserId);
+
+                throw new InvalidCredentialsException("InvalidRefreshToken");
+            }
+
+            // Re-read rather than carried in the refresh token: roles are claims, and a token minted
+            // from a stale copy would keep a revoked role alive for the life of the session.
             var userRoles = await _userManager.GetRolesAsync(user);
 
-            return _tokenGenerator.Generate(user.Id, usernName, userRoles);
+            var (token, validTo) = _tokenGenerator.Generate(user.Id, user.UserName!, userRoles);
+
+            return new AuthenticationResult(token, validTo, rotated.Token, rotated.ExpiresAt);
+        }
+
+        /// <summary>
+        /// Mints an access token and opens a refresh token session for a user whose credentials have
+        /// already been accepted.
+        /// </summary>
+        private async Task<AuthenticationResult> IssueAsync(ApplicationUser user, CancellationToken cancellationToken)
+        {
+            var userRoles = await _userManager.GetRolesAsync(user);
+
+            var (token, validTo) = _tokenGenerator.Generate(user.Id, user.UserName!, userRoles);
+
+            var refreshToken = await _refreshTokenService.IssueAsync(user.Id, cancellationToken);
+
+            return new AuthenticationResult(token, validTo, refreshToken.Token, refreshToken.ExpiresAt);
         }
 
         public async Task<User?> GetUserByIdAsync(string userId)

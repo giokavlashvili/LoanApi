@@ -1,4 +1,4 @@
-﻿using Application.Common.Interfaces;
+using Application.Common.Interfaces;
 using Domain.Entities;
 using Infrastructure.Common.Extensions;
 using Infrastructure.Identity;
@@ -22,6 +22,7 @@ namespace Infrastructure.Persistence
         public DbSet<LoanType> LoanTypes { get; set; }
         public DbSet<Currency> Currencies { get; set; }
         public DbSet<OtpVerification> OtpVerifications { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

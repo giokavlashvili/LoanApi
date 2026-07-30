@@ -1,4 +1,4 @@
-﻿[
+[
   {
     "Key": "ConcurrencyConflict",
     "LocalizedValue": {
@@ -18,6 +18,20 @@
     "LocalizedValue": {
       "ka-GE": "მომხმარებლის სახელი ან პაროლი არასწორია",
       "en-US": "The user name or password is incorrect"
+    }
+  },
+  {
+    "Key": "InvalidRefreshToken",
+    "LocalizedValue": {
+      "ka-GE": "სესია არასწორია ან ვადაგასულია, გაიარეთ ავტორიზაცია ხელახლა",
+      "en-US": "The session is invalid or has expired, please sign in again"
+    }
+  },
+  {
+    "Key": "InvalidRefreshTokenLifetime",
+    "LocalizedValue": {
+      "ka-GE": "სესიის მოქმედების ვადა არასწორია",
+      "en-US": "Invalid session lifetime"
     }
   },
   {

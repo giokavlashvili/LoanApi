@@ -1,4 +1,4 @@
-﻿using Application.Common.Interfaces;
+using Application.Common.Interfaces;
 using Application.Common.Models;
 using Domain.Repositories;
 using Infrastructure.Identity;
@@ -91,11 +91,18 @@ namespace Infrastructure.Common.Extensions
             services.AddSingleton<IOtpCodeHasher, HmacOtpCodeHasher>();
             services.AddTransient<ISmsSender, LoggingSmsSender>();
 
+            // Mechanism half of the refresh token flow, same split: IRefreshTokenService is policy
+            // and is registered in AddApplicationServices. Singleton for the same reason as
+            // JwtTokenGenerator — its only dependency is a singleton and it reads CurrentValue per
+            // call, so a rotated secret takes effect without a restart.
+            services.AddSingleton<IRefreshTokenHasher, HmacRefreshTokenHasher>();
+
             // One repository per aggregate root, injected straight into the handlers that use
             // them. Reference data (Currency, LoanType) has no repository: it is read through the
             // query handlers, which project from IApplicationDbContext.
             services.AddScoped<ILoanApplicationRepository, LoanApplicationRepository>();
             services.AddScoped<IOtpVerificationRepository, OtpVerificationRepository>();
+            services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             // Adding Authentication

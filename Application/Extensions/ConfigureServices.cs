@@ -1,4 +1,5 @@
-﻿using Application.Common.Behaviors;
+using Application.Authenticate.Services;
+using Application.Common.Behaviors;
 using Application.Common.Interfaces;
 using Application.Common.Models;
 using Application.Otp.Services;
@@ -32,6 +33,11 @@ namespace Application.Extensions
                     .Bind(configuration.GetSection(JwtOptions.SectionName))
                     .ValidateDataAnnotations()
                     .ValidateOnStart();
+
+                services.AddOptions<RefreshTokenOptions>()
+                    .Bind(configuration.GetSection(RefreshTokenOptions.SectionName))
+                    .ValidateDataAnnotations()
+                    .ValidateOnStart();
             }
 
             // Policy, so it lives here. Its two mechanism dependencies — IOtpCodeHasher and
@@ -39,6 +45,11 @@ namespace Application.Extensions
             // this line resolves at all: Application declares the contracts, Infrastructure
             // supplies the implementations.
             services.AddScoped<IOtpService, OtpService>();
+
+            // Policy for the same reason: it orchestrates a repository, a unit of work, a hasher
+            // and options, all through abstractions. IRefreshTokenHasher is the mechanism half and
+            // is registered in AddInfrastructureServices.
+            services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 
             services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
             services.AddMediatR(cfg =>

@@ -1,4 +1,4 @@
-﻿using Application.Authenticate.Dtos;
+using Application.Authenticate.Dtos;
 using Application.Common.Interfaces;
 using MediatR;
 
@@ -6,13 +6,13 @@ using MediatR;
 
 namespace Application.Authenticate.Commands
 {
-    public class LoginCommand : IRequest<LoginDto>
+    public class LoginCommand : IRequest<TokenPairDto>
     {
         public string? UserName { get; set; }
         public string? Password { get; set; }
     }
 
-    public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginDto>
+    public class LoginCommandHandler : IRequestHandler<LoginCommand, TokenPairDto>
     {
         private readonly IIdentityService _identityService;
 
@@ -21,17 +21,17 @@ namespace Application.Authenticate.Commands
             _identityService = identityService;
         }
 
-        public async Task<LoginDto> Handle(LoginCommand request, CancellationToken cancellationToken)
+        public async Task<TokenPairDto> Handle(LoginCommand request, CancellationToken cancellationToken)
         {
-            var result = await _identityService.AuthenticateAsync(request.UserName, request.Password);
+            var result = await _identityService.AuthenticateAsync(request.UserName, request.Password, cancellationToken);
 
-            var resultDto = new LoginDto()
+            return new TokenPairDto()
             {
-                AccessToken = result.token,
-                ValidTo = result.validTo
+                AccessToken = result.AccessToken,
+                ValidTo = result.ValidTo,
+                RefreshToken = result.RefreshToken,
+                RefreshTokenValidTo = result.RefreshTokenValidTo
             };
-
-            return resultDto;
         }
     }
 }
