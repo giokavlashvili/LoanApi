@@ -12,7 +12,6 @@
 
   <ItemGroup>
     <PackageReference Include="Azure.Identity" Version="1.21.0" />
-    <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1" />
     <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="10.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
@@ -48,7 +47,7 @@
 	<PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="10.0.0" />
 	<PackageReference Include="AutoMapper" Version="16.2.0" />
 	<PackageReference Include="System.Data.SqlClient" Version="4.9.1" />
-	<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.21.0" />
+	<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -58,6 +57,10 @@
   <ItemGroup>
     <Folder Include="ApiClient\" />
     <Folder Include="wwwroot\api\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />
   </ItemGroup>
 
     <PropertyGroup>

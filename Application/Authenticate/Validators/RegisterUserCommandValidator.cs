@@ -22,7 +22,7 @@ namespace Application.Authenticate.Validators
                 // after OtpVerificationBehavior. Left there, a bad user name costs the user an
                 // SMS and a consumed challenge before they are told about it.
                 .Must(UserNameCharactersAllowed).WithMessage("User name can only contain letters, digits and - . _ @ +")
-                .Must(UserExists).WithMessage("User already exists, choose different user name");
+                .MustAsync(UserDoesNotExistAsync).WithMessage("User already exists, choose different user name");
 
             RuleFor(v => v.FirstName)
                 .NotEmpty().NotNull().WithMessage("First name is required");
@@ -61,14 +61,10 @@ namespace Application.Authenticate.Validators
         {
             return command.Password == command.ConfirmPassword;
         }
-        public bool UserExists(string userName)
-        {
-            return !_identityService.UserExistsAsync(userName).GetAwaiter().GetResult();
-        }
+        private async Task<bool> UserDoesNotExistAsync(string userName, CancellationToken _) =>
+            !await _identityService.UserExistsAsync(userName);
 
-        public bool UserNameCharactersAllowed(string userName)
-        {
-            return _identityService.IsUserNameAllowed(userName);
-        }
+        private bool UserNameCharactersAllowed(string userName) =>
+            _identityService.IsUserNameAllowed(userName);
     }
 }

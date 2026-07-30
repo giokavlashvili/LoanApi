@@ -1,6 +1,7 @@
 using Application.Common.Interfaces;
 using Application.LoanApplications.Commands;
 using FluentValidation;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 
 namespace Application.LoanApplications.Validators
@@ -15,14 +16,11 @@ namespace Application.LoanApplications.Validators
             _context = context;
             _stringLocalizer = stringLocalizer;
 
-            // Synchronous, deliberately — see CreateApplicationCommandValidator.
             RuleFor(a => a.Id).NotEmpty()
-                .Must(LoanApplicationExists).WithMessage(_stringLocalizer.GetString("InvalidApplication"));
+                .MustAsync(LoanApplicationExistsAsync).WithMessage(_stringLocalizer.GetString("InvalidApplication"));
         }
 
-        public bool LoanApplicationExists(int loanId)
-        {
-            return _context.LoanApplications.Any(a => a.Id == loanId);
-        }
+        private Task<bool> LoanApplicationExistsAsync(int loanId, CancellationToken cancellationToken) =>
+            _context.LoanApplications.AnyAsync(a => a.Id == loanId, cancellationToken);
     }
 }

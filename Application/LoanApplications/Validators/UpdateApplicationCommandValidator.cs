@@ -16,16 +16,14 @@ namespace Application.LoanApplications.Validators
             _context = context;
             _stringLocalizer = stringLocalizer;
 
-            // Synchronous, deliberately — see CreateApplicationCommandValidator: MVC's automatic
-            // validation runs this validator too, and it cannot invoke an async rule.
             RuleFor(a => a.Id)
-                .Custom((id, validationContext) =>
+                .CustomAsync(async (id, validationContext, cancellationToken) =>
                 {
                     // Two booleans instead of the whole aggregate plus both navigations: the rule
                     // only needs to know whether the row and its reference data exist. Replaces a
                     // Get(filter, includeProperties: "Currency,LoanType") call whose include list
                     // was a magic string no rename would ever have followed.
-                    var found = _context.LoanApplications
+                    var found = await _context.LoanApplications
                         .AsNoTracking()
                         .Where(a => a.Id == id)
                         .Select(a => new
@@ -33,7 +31,7 @@ namespace Application.LoanApplications.Validators
                             HasLoanType = a.LoanType != null,
                             HasCurrency = a.Currency != null
                         })
-                        .FirstOrDefault();
+                        .FirstOrDefaultAsync(cancellationToken);
 
                     if (found == null)
                         validationContext.AddFailure(_stringLocalizer.GetString("InvalidApplication"));
@@ -41,7 +39,6 @@ namespace Application.LoanApplications.Validators
                         validationContext.AddFailure(_stringLocalizer.GetString("InvalidLoanType"));
                     else if (!found.HasCurrency)
                         validationContext.AddFailure(_stringLocalizer.GetString("InvalidCurrency"));
-
                 });
         }
     }

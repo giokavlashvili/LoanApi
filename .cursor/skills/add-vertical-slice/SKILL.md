@@ -61,9 +61,9 @@ Application/<Feature>/
   `.AsNoTracking().ProjectTo<TDto>(_mapper.ConfigurationProvider)`. No repository.
 - DTOs need **public setters** for `ProjectTo` to work — a `private set` compiles and then fails at
   runtime, because the projection is a member-init expression, not reflection.
-- Validators: inject `IApplicationDbContext` + `IStringLocalizer`; existence checks via `Must`/
-  `Custom` + `Any`. **Never `MustAsync`/`CustomAsync`** — MVC's automatic validation also runs the
-  validator and cannot invoke an async rule, so the endpoint 500s while every unit test still passes.
+- Validators: inject `IApplicationDbContext` + `IStringLocalizer`; existence checks via `MustAsync`/
+  `CustomAsync` + `AnyAsync`/`FirstOrDefaultAsync` (honour `CancellationToken`). Pure format rules
+  may stay synchronous.
 - **No manual DI registration** for handlers, validators or DTO profiles.
 
 ## 4. Infrastructure
@@ -112,7 +112,8 @@ Use the `ef-migration` skill. Do not hand-edit the model snapshot unless fixing 
   no-op there by design; mutating the tracked aggregate is what persists
 - EF types (`DbSet`, `IIncludableQueryable`) leaking into a `Domain/Repositories` interface
 - `private set` on a DTO that gets projected
-- `MustAsync`/`CustomAsync` in a validator (500s under MVC's synchronous auto-validation)
+- Sync-over-async in a validator (`GetAwaiter().GetResult()` / `.Result` on EF or Identity) — use
+  `MustAsync`/`CustomAsync` instead
 
 ## Additional resources
 

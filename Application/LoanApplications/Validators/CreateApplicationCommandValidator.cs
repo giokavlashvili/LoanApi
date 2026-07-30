@@ -1,6 +1,7 @@
 using Application.Common.Interfaces;
 using Application.LoanApplications.Commands;
 using FluentValidation;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 
 namespace Application.LoanApplications.Validators
@@ -13,29 +14,21 @@ namespace Application.LoanApplications.Validators
         // Existence checks are reads, not aggregate loads: Currency and LoanType are reference
         // data with no invariants, so they have no repository.
         //
-        // The rules are synchronous, and must stay that way. WebApi registers
-        // AddFluentValidationAutoValidation(), so MVC's model-validation pipeline runs every
-        // validator in *addition* to ValidationBehavior — and that pipeline is synchronous.
-        // A MustAsync/CustomAsync rule anywhere in here makes MVC throw
-        // AsyncValidatorInvokedSynchronouslyException and the endpoint 500s before the handler
-        // is ever reached. That is also why these take no CancellationToken.
+        // I/O rules use MustAsync so ValidationBehavior's ValidateAsync path can await EF
+        // without blocking. Pure format rules elsewhere may stay synchronous.
         public CreateApplicationCommandValidator(IApplicationDbContext context, IStringLocalizer stringLocalizer)
         {
             _context = context;
             _stringLocalizer = stringLocalizer;
-            RuleFor(a => a.CurrencyId).Must(CurrencyExists).WithMessage(_stringLocalizer.GetString("InvalidCurrency"));
+            RuleFor(a => a.CurrencyId).MustAsync(CurrencyExistsAsync).WithMessage(_stringLocalizer.GetString("InvalidCurrency"));
 
-            RuleFor(a => a.LoanTypeId).Must(LoanTypeExists).WithMessage(_stringLocalizer.GetString("InvalidLoanType"));
+            RuleFor(a => a.LoanTypeId).MustAsync(LoanTypeExistsAsync).WithMessage(_stringLocalizer.GetString("InvalidLoanType"));
         }
 
-        public bool CurrencyExists(int currencyId)
-        {
-            return _context.Currencies.Any(c => c.Id == currencyId);
-        }
+        private Task<bool> CurrencyExistsAsync(int currencyId, CancellationToken cancellationToken) =>
+            _context.Currencies.AnyAsync(c => c.Id == currencyId, cancellationToken);
 
-        public bool LoanTypeExists(int loanTypeId)
-        {
-            return _context.LoanTypes.Any(t => t.Id == loanTypeId);
-        }
+        private Task<bool> LoanTypeExistsAsync(int loanTypeId, CancellationToken cancellationToken) =>
+            _context.LoanTypes.AnyAsync(t => t.Id == loanTypeId, cancellationToken);
     }
 }
