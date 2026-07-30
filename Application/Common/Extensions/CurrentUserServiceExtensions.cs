@@ -20,6 +20,17 @@ namespace Application.Common.Extensions
         /// non-null <see cref="string"/> so callers that do need the id get one without a null
         /// check of their own.
         /// </para>
+        /// <para>
+        /// <b>Expected never to throw in production — do not delete it as dead code.</b> Every
+        /// command that calls it sits behind an <c>[Authorize]</c> controller, and
+        /// <c>JwtTokenGenerator</c> always emits <c>ClaimTypes.NameIdentifier</c>, so an
+        /// authenticated request always has an id. It earns its place as the last guard on a real
+        /// database constraint: <c>LoanApplicationConfiguration</c> marks <c>CreatedBy</c>
+        /// <c>IsRequired()</c>, so if the id were ever absent the insert would fail deep in
+        /// <c>SaveChanges</c> as a <c>NOT NULL</c> violation and surface as a 500. This turns that
+        /// into a localized 400 at the top of the handler. Anything that removes the
+        /// <c>[Authorize]</c> attribute, or issues a token without that claim, makes it live.
+        /// </para>
         /// </summary>
         public static string RequireUserId(this ICurrentUserService currentUserService)
         {

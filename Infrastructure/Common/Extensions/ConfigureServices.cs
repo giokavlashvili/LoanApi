@@ -22,9 +22,16 @@ namespace Infrastructure.Common.Extensions
     {
         public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
         {
-            // Stamps the audit columns at the save boundary. Scoped, because it reads the scoped
-            // ICurrentUserService — which is why the AddDbContext calls below use the two-argument
-            // overload: the single-argument one has no access to the provider.
+            // Stamps the audit columns at the save boundary. It has to be resolved from the
+            // container, which is why the AddDbContext calls below use the two-argument
+            // (provider, options) overload — the single-argument one cannot reach it.
+            //
+            // Scoped is a deliberate floor, not a requirement: both of its dependencies happen to
+            // be singletons today (ICurrentUserService in AddWebUIServices, IDateTime below), so a
+            // singleton would also work. Registering it scoped means it stays correct if
+            // ICurrentUserService ever becomes per-request, which is the direction that type is
+            // likely to move — a singleton interceptor holding a scoped dependency would be a
+            // captive-dependency bug, and this way that never arises.
             services.AddScoped<AuditableEntityInterceptor>();
 
             // For Entity Framework

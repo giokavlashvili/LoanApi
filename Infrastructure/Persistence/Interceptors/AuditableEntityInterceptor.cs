@@ -24,6 +24,17 @@ namespace Infrastructure.Persistence.Interceptors
     /// stamped yet. No handler reads them today; one that needs <c>Created</c> or
     /// <c>LastModifiedBy</c> must take it from the command rather than the entity.
     /// </para>
+    /// <para>
+    /// <b>A no-op update no longer bumps <c>LastModified</c>.</b> This is a deliberate change in
+    /// behaviour, worth stating because it is invisible at the call site. <c>LoanApplication.Update</c>
+    /// used to assign <c>LastModified</c>/<c>LastModifiedBy</c> itself, so EF always saw a modified
+    /// property and always wrote the row. Now, a command carrying values identical to the stored
+    /// ones changes nothing, the entry stays <c>Unchanged</c>, and the branch below never runs — no
+    /// row is written and no <c>RowVersion</c> is churned. That is the better outcome, but note the
+    /// asymmetry: the aggregate still raises <c>ApplicationUpdatedEvent</c> unconditionally, so such
+    /// a request publishes an event with no corresponding audit bump. Make the event conditional on
+    /// an actual change if that ever matters.
+    /// </para>
     /// </remarks>
     public sealed class AuditableEntityInterceptor : SaveChangesInterceptor
     {
