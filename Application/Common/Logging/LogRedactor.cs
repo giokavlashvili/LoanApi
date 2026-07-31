@@ -41,7 +41,10 @@ namespace Application.Common.Logging
             "otpCode",
             "otp",
             "code",
-            "phoneNumber"
+            "phoneNumber",
+            // A parked operation's captured command. Listing or returning one would otherwise put
+            // a whole command body into the Logs table.
+            "payload"
         };
 
         private static readonly ConcurrentDictionary<Type, string[]> AttributeMarkedProperties = new();

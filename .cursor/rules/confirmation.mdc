@@ -1,0 +1,76 @@
+---
+description: Server-held initiate/confirm operations — parking a command until someone approves it
+globs: Application/**/Confirmation/**/*.cs,Application/Common/Confirmation/*.cs
+alwaysApply: false
+---
+
+# Operation confirmation (initiate/confirm)
+
+The server-held half of two-step verification. See `otp.mdc` for how to choose between this and
+the inline `IRequireOtpVerification` gate — the short version is that this one persists the
+command, so it can express an approval by a **different** user but must never carry a secret.
+
+## Opting a command in
+
+Two declarations, and **no members**:
+
+```csharp
+[ConfirmableOperation("loan.status.update.v1", Policy = ConfirmationPolicy.DifferentUser)]
+public record UpdateApplicationStatusCommand : IRequest, IRequireOperationConfirmation
+{
+    public int Id { get; set; }
+    public LoanStatus Status { get; set; }
+}
+```
+
+- **Never put a confirmation flag on the command.** `IRequireOperationConfirmation` is an empty
+  marker on purpose. Commands are model bound from the request body, so a `Guid? OperationId`
+  there would be caller controlled: anyone could post the ordinary endpoint with an arbitrary
+  value and the behaviour would wave the command through — no operation, no code, no confirmation.
+  The confirmed-execution signal lives in the scoped `IOperationExecutionContext`, set only by
+  `ConfirmOperationCommandHandler` around its re-dispatch.
+- **Discriminators are stable and versioned** (`loan.status.update.v1`), never a CLR type name —
+  they are persisted on every parked row and must survive a namespace rename. Bump the suffix on
+  an incompatible shape change; rows parked under the old one then fail closed at confirm.
+- **`SameUser` is the default and must stay the default.** During the replay,
+  `ICurrentUserService.UserId` is the **confirmer**. That is right for an approval, and wrong for
+  any command that records ownership from the ambient user — under `SameUser` the two are the same
+  principal, so the question does not arise.
+
+## The flow
+
+1. Caller posts the operation's own endpoint. `OperationConfirmationBehavior` checks the per-user
+   cap, serializes the command into `PendingOperation`, saves, and throws
+   `OperationConfirmationRequiredException` → **202** with `operationId`.
+2. A code is issued at initiate **only under `SameUser`** — that is the one case where the
+   confirmer's number is knowable. Otherwise the approver calls
+   `POST api/v1/Operations/{id}/challenge` to have one texted to themselves.
+3. `POST api/v1/Operations/{id}/confirm` with `challengeId` + `otpCode`.
+4. The handler resolves the discriminator, checks the policy, verifies the code, marks the
+   operation confirmed, **then** re-dispatches the captured command through MediatR.
+
+## Rules that are load-bearing
+
+- **Do not reorder `ConfirmOperationCommandHandler`.** Confirmation commits before execution so a
+  crash cannot leave the operation replayable. Consequently confirm and execute are two
+  transactions: a failed command leaves the operation spent. That is deliberate and recorded in
+  `docs/architecture.md`.
+- **`ChallengeId` is supplied by the caller, not stored on the operation.** `ResendAsync` mints a
+  new challenge id and retires the old, so a stored one would be stale after any resend. Safety
+  comes from the request hash — `Hash(operationId, discriminator)` — not from the id being secret.
+- **`purpose` is the discriminator alone.** It doubles as the throttle key for
+  `MaxPerRecipientPerHour`/`ResendCooldown`; folding the operation id in would give every operation
+  a fresh bucket and disable the SMS rate limit. Cost: one live code per operation type at a time.
+- **Nothing sensitive on a confirmable command.** `OperationTypeRegistry` throws at startup for a
+  `[SensitiveData]` property, a property named like one in `LogRedactor.DefaultSensitiveProperties`
+  (this is what catches `Password`), or either declaration half missing. Registered as a
+  constructed instance, not a factory, so the scan runs while the container is composed.
+- **Re-validation is the safety net.** The replay goes through the whole pipeline, so
+  `ValidationBehavior` and domain invariants run again against state that moved since parking —
+  e.g. `LoanApplication.UpdateStatus` throwing `ApplicationAlreadyProcessed`.
+- Controller `[Authorize]` does **not** re-run on the confirm path (`ISender.Send` re-enters
+  MediatR, not MVC). Harmless while every controller carries a bare `[Authorize]`; see
+  `docs/architecture.md` before adding roles.
+
+Also see: `Application/Common/Confirmation/`, `Application/Confirmation/`,
+`Domain/Entities/PendingOperation.cs`, `docs/plans/06-operation-confirmation.md`.

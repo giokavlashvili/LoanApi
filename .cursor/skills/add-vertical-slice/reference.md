@@ -50,9 +50,18 @@ Copy the `LoanApplication` sample. Replace names for the new aggregate.
 | Projection tests | `Infrastructure.UnitTests/Queries/ProjectionQueryTests.cs` (real context; a mocked one cannot run `ProjectTo`) |
 | SQL-translation tests | `Infrastructure.UnitTests/Persistence/ProjectionSqlTranslationTests.cs` (`[Explicit]`, real SQL Server) |
 
-## OTP opt-in samples
+## Two-step verification opt-in samples
+
+Pick the topology by **what is in the payload and who confirms**, not by how sensitive the
+operation feels. See `.cursor/rules/otp.mdc` for the comparison table.
 
 | Pattern | Sample |
 |---------|--------|
-| Account phone | `UpdateApplicationStatusCommand` |
-| Explicit recipient | `RegisterUserCommand` |
+| Inline gate, explicit recipient (no account yet) | `RegisterUserCommand` — `IRequireOtpVerification` + `OtpRecipient => PhoneNumber` |
+| Inline gate, account phone | leave `OtpRecipient` null |
+| Parked operation, four eyes | `UpdateApplicationStatusCommand` — `[ConfirmableOperation("…v1", Policy = ConfirmationPolicy.DifferentUser)]` + `IRequireOperationConfirmation`, **no members** |
+
+A confirmable command declares no confirmation members at all — a flag on the request body is
+caller controlled and would skip the gate entirely. `SameUser` is the default policy and the only
+safe one for a command that records ownership from the ambient user, because during the replay
+`ICurrentUserService.UserId` is the **confirmer**.

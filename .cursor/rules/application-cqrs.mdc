@@ -20,6 +20,7 @@ alwaysApply: false
 - Event handlers: `INotificationHandler<>` under `Application/<Feature>/EventHandlers`. Notifications that are **not** domain events — raised outside an aggregate, like `UserRegisteredNotification` — go under `Application/<Feature>/Notifications` with handlers in `NotificationHandlers`, and must say in their own doc comment why they do not travel the `BaseEntity.DomainEvents` path.
 - Services that are pure policy over abstractions belong here too, not in `Infrastructure` — `Application/Otp/Services/OtpService.cs` is the worked example, registered by hand in `AddApplicationServices` because it is not part of any assembly scan.
 - OTP opt-in: implement `IRequireOtpVerification` + `ChallengeId` + `[SensitiveData] OtpCode`. No per-feature OTP plumbing.
+- Or, when a **different** user must confirm: `[ConfirmableOperation("…v1")]` + `IRequireOperationConfirmation`, with **no** members on the command. Mutually exclusive with the above; the registry refuses a type declaring both. See `confirmation.mdc`.
 - Pipeline: `ValidationBehavior` → `PerformanceBehavior` → (`OtpVerificationBehavior` when opted in) → handler.
 - Do **not** manually register handlers/validators in DI.
 

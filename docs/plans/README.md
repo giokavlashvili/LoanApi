@@ -32,6 +32,7 @@ build commands and conventions the phase files assume.
 | 3 | [`03-dotnet-idiom.md`](03-dotnet-idiom.md) | Options pattern, cancellation, DI registration, secrets | 2 | no | M |
 | 4 | [`04-repository-uow-refactor.md`](04-repository-uow-refactor.md) | Aggregate-scoped repositories, slim unit of work, projection queries | 3 | no | L |
 | 5 | [`05-services-layering.md`](05-services-layering.md) | Service layer placement, `IdentityService` split, audit interceptor | 4 | no | L |
+| 6 | [`06-operation-confirmation.md`](06-operation-confirmation.md) | Initiate/confirm topology: server-held payload, four-eyes approval | 5 | **yes** | L |
 
 **Phases 1–3 are corrective** — they fix defects and inconsistencies, and are worth doing
 regardless of any architectural opinion.
@@ -40,6 +41,11 @@ regardless of any architectural opinion.
 They are optional and can be deferred, but if done they must be done in order: phase 4 changes
 handler constructors, phase 5 changes entity factory signatures, and doing 5 before 4 means
 touching every handler twice.
+
+**Phase 6 is additive** — it introduces a second confirmation topology beside the existing OTP
+gate rather than changing anything already there. It depends on phase 5 only because it assumes
+`OtpService` already sits in `Application`. It is the one phase that can be skipped outright
+without leaving the repo inconsistent.
 
 ## Rules that apply to every phase
 

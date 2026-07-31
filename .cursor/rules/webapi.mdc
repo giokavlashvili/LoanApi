@@ -12,5 +12,10 @@ alwaysApply: false
 - Domain exception keys → add to `WebApi/Resources/localization.json` (`ka-GE` / `en-US`).
 - Culture: `x-sys-language` header (`SysLanguageMiddleware`); stripped from generated TS client via `nswag.json` `excludedParameterNames`.
 - OTP challenges surface as **428** with `challengeId` / `expiresAt`.
+- Parked operations surface as **202** with `operationId` (plus challenge fields when a code was
+  issued). **Not 428** — that means "resend this same request", which is the client-replay
+  behaviour the parked topology exists to avoid, and would train callers to hold the payload.
+- `OperationsController` owns confirm / cancel / challenge / pending. There is no initiate action:
+  initiating is calling the operation's own endpoint and getting a 202 back.
 - `WebApi/ClientApp` is **not** a real frontend (build output only). Generated client: `WebApi/ApiClient/web-api-client.ts` via NSwag.
 - Do not "fix" folder `Middlwares` or namespaces `WebUI.*` — load-bearing for existing usings.

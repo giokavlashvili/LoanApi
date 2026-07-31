@@ -20,6 +20,8 @@ alwaysApply: false
 - `Update` on the repository is for **detached** aggregates only; a tracked aggregate persists by being mutated. Do not add an `Update` call after a mutator.
 - `IUnitOfWork` is the save boundary only. Do **not** add repository properties to it; handlers inject the repositories they need.
 - Keep sample aggregates replaceable; put reusable types under `Domain/Common`.
+- Aggregates with a public handle (`OtpVerification.ChallengeId`, `PendingOperation.OperationId`) expose the **Guid**, never `BaseEntity.Id` — a sequential int lets a caller walk other people's rows. Every lookup goes through the handle.
+- `PendingOperation.Confirm` is single-use: the status transition is the only thing stopping a captured command executing twice. Whether the confirmer was *allowed* is decided outside the domain, which cannot see the policy declared on the command type.
 
 ```csharp
 // ✅ rules in entity

@@ -12,5 +12,13 @@ alwaysApply: false
   1. `ValidationBehavior` — fail before SMS / work
   2. `PerformanceBehavior`
   3. `OtpVerificationBehavior` — innermost among these
+  4. `OperationConfirmationBehavior` — the other confirmation topology, same reasoning. The two are
+     mutually exclusive per command (the registry refuses a type that opts into both), so their
+     relative order never decides anything.
 - Folder is spelled `Behaviours`; namespace may use `Behaviors` — match existing files.
 - Do not call OTP/validation logic from handlers; behaviors own the cross-cutting gate.
+- **A behaviour must never take a "already handled" signal off the request.** Commands are model
+  bound from the request body, so such a flag is caller controlled and forging it skips the gate
+  entirely. `OperationConfirmationBehavior` reads the scoped `IOperationExecutionContext` instead,
+  which only `ConfirmOperationCommandHandler` can set. Guarded by
+  `OperationConfirmationBehaviorTests.Handle_WithAConfirmableCommand_ParkItAndNeverRunTheHandler`.

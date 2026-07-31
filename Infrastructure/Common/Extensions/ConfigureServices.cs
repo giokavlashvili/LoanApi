@@ -109,6 +109,7 @@ namespace Infrastructure.Common.Extensions
             // query handlers, which project from IApplicationDbContext.
             services.AddScoped<ILoanApplicationRepository, LoanApplicationRepository>();
             services.AddScoped<IOtpVerificationRepository, OtpVerificationRepository>();
+            services.AddScoped<IPendingOperationRepository, PendingOperationRepository>();
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 

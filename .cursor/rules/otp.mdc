@@ -6,6 +6,29 @@ alwaysApply: false
 
 # OTP verification
 
+## Two topologies — pick by what is in the payload and who confirms
+
+There are two ways to require a code. They share the OTP core (`IOtpService`, `OtpVerification`,
+throttling, hashing, lockout) and differ only in **who holds the payload between the two calls**.
+A command uses one or the other; the registry refuses a type that opts into both.
+
+| | `IRequireOtpVerification` (inline) | `IRequireOperationConfirmation` (parked) |
+|---|---|---|
+| Payload held by | client, replayed with the code | server, captured at initiate |
+| Server stores | a hash of the request | the serialized command |
+| Confirmer | only whoever composed the request | can be a different user / device / hour |
+| Response | **428**, resend the same request | **202**, follow up on a different call |
+| Sample | `RegisterUserCommand` | `UpdateApplicationStatusCommand` |
+
+- **Secrets in the command ⇒ inline gate.** A parked operation persists its payload, so a command
+  carrying a password cannot use it. This is why registration stays inline, and the registry
+  enforces it at startup rather than trusting anyone to remember.
+- **A different approver ⇒ parked.** Four eyes is not expressible inline: the confirmer never had
+  the payload to replay.
+- See `confirmation.mdc` for the parked topology's own rules.
+
+## Inline gate (`IRequireOtpVerification`)
+
 - Opt in: implement `IRequireOtpVerification` on the command; declare `ChallengeId` + `[SensitiveData] OtpCode`.
 - Missing code → challenge issued/SMS → **428** with `challengeId`/`expiresAt`. Caller resends same payload + code.
 - `OtpRecipient`: leave null to use authenticated user's phone (preferred). Override only when no user exists yet (e.g. `RegisterUserCommand` → `PhoneNumber`).

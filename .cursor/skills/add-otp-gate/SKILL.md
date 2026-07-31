@@ -29,8 +29,22 @@ Opting in is **one interface** — no per-feature OTP services or controller cha
 
 ## Reference implementations
 
-- `RegisterUserCommand` — explicit recipient
-- `UpdateApplicationStatusCommand` — account phone
+- `RegisterUserCommand` — explicit recipient (no account exists yet)
+- Any other opt-in leaves `OtpRecipient` null, so the code goes to the authenticated account's
+  number rather than one the request chose
+
+## First decide which topology you want
+
+This skill covers the **inline** gate, where the client keeps the payload and replays it with a
+code. Use `IRequireOperationConfirmation` instead (see `confirmation.mdc`) when:
+
+- somebody **other than the initiator** must confirm — four eyes. The inline gate cannot express
+  it: the confirmer never had the payload to replay.
+- confirmation may arrive on another device, or hours later.
+
+Stay on the inline gate when the command carries anything secret. A parked operation persists its
+payload, and `OperationTypeRegistry` will refuse such a command at startup — `RegisterUserCommand`
+is the example, because of `Password`.
 
 ## Do not
 

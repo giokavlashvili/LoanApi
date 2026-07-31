@@ -4,6 +4,7 @@ using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260731222658_AddPendingOperation")]
+    partial class AddPendingOperation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -37,7 +40,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Currencies", (string)null);
+                    b.ToTable("Currencies");
                 });
 
             modelBuilder.Entity("Domain.Entities.LoanApplication", b =>
@@ -88,7 +91,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("LoanTypeId");
 
-                    b.ToTable("LoanApplications", (string)null);
+                    b.ToTable("LoanApplications");
                 });
 
             modelBuilder.Entity("Domain.Entities.LoanType", b =>
@@ -106,7 +109,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("LoanTypes", (string)null);
+                    b.ToTable("LoanTypes");
                 });
 
             modelBuilder.Entity("Domain.Entities.Log", b =>
@@ -196,7 +199,7 @@ namespace Infrastructure.Migrations
                     b.HasIndex("Channel", "Level", "When")
                         .HasDatabaseName("IX_Logs_Channel_Level_When");
 
-                    b.ToTable("Logs", (string)null);
+                    b.ToTable("Logs");
                 });
 
             modelBuilder.Entity("Domain.Entities.OtpVerification", b =>
@@ -281,7 +284,7 @@ namespace Infrastructure.Migrations
                     b.HasIndex("Recipient", "Purpose", "Created")
                         .HasDatabaseName("IX_OtpVerifications_Recipient_Purpose_Created");
 
-                    b.ToTable("OtpVerifications", (string)null);
+                    b.ToTable("OtpVerifications");
                 });
 
             modelBuilder.Entity("Domain.Entities.PendingOperation", b =>
@@ -349,7 +352,7 @@ namespace Infrastructure.Migrations
                     b.HasIndex("InitiatedBy", "Status")
                         .HasDatabaseName("IX_PendingOperations_InitiatedBy_Status");
 
-                    b.ToTable("PendingOperations", (string)null);
+                    b.ToTable("PendingOperations");
                 });
 
             modelBuilder.Entity("Domain.Entities.RefreshToken", b =>
@@ -431,7 +434,7 @@ namespace Infrastructure.Migrations
                         .HasDatabaseName("UX_RefreshTokens_SessionId_Active")
                         .HasFilter("[Status] = 0");
 
-                    b.ToTable("RefreshTokens", (string)null);
+                    b.ToTable("RefreshTokens");
                 });
 
             modelBuilder.Entity("Infrastructure.Identity.ApplicationUser", b =>

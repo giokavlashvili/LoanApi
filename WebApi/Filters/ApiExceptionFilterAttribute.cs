@@ -27,6 +27,7 @@ namespace WebUI.Filters
                 { typeof(ForbiddenAccessException), HandleForbiddenAccessException },
                 { typeof(DomainValidationExceptionWrapper), HandleDomainValidationException },
                 { typeof(OtpRequiredException), HandleOtpRequiredException },
+                { typeof(OperationConfirmationRequiredException), HandleOperationConfirmationRequiredException },
                 { typeof(DbUpdateConcurrencyException), HandleDbUpdateConcurrencyException },
             };
         }
@@ -212,6 +213,45 @@ namespace WebUI.Filters
             context.Result = new ObjectResult(details)
             {
                 StatusCode = StatusCodes.Status428PreconditionRequired
+            };
+
+            context.ExceptionHandled = true;
+        }
+
+        /// <summary>
+        /// 202, not the 428 the inline OTP gate uses. 428 means "re-send this same request with
+        /// the missing precondition", which is exactly the client-replay behaviour this topology
+        /// exists to avoid — answering it here would train callers to hold the payload and send it
+        /// again. The request was accepted and parked; the follow-up is a different call.
+        /// </summary>
+        private void HandleOperationConfirmationRequiredException(ExceptionContext context)
+        {
+            var exception = (OperationConfirmationRequiredException)context.Exception;
+
+            var details = new ProblemDetails()
+            {
+                Status = StatusCodes.Status202Accepted,
+                Type = "https://tools.ietf.org/html/rfc7231#section-6.3.3",
+                Title = "Operation awaiting confirmation",
+                Detail = _stringLocalizer.GetString(exception.Message)
+            };
+
+            // On Extensions rather than in the body so the shape stays a plain ProblemDetails.
+            details.Extensions["operationId"] = exception.OperationId;
+
+            // Null whenever the confirmer is somebody other than the initiator: no code has been
+            // sent yet, and the approver asks for their own through RequestChallenge.
+            if (exception.Challenge is not null)
+            {
+                details.Extensions["challengeId"] = exception.Challenge.ChallengeId;
+                details.Extensions["expiresAt"] = exception.Challenge.ExpiresAt;
+                details.Extensions["recipient"] = exception.Challenge.Recipient;
+                details.Extensions["maxAttempts"] = exception.Challenge.MaxAttempts;
+            }
+
+            context.Result = new ObjectResult(details)
+            {
+                StatusCode = StatusCodes.Status202Accepted
             };
 
             context.ExceptionHandled = true;

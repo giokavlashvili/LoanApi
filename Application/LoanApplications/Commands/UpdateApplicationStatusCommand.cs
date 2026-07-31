@@ -1,7 +1,6 @@
+using Application.Common.Confirmation;
 using Application.Common.Extensions;
 using Application.Common.Interfaces;
-using Application.Common.Logging;
-using Application.Common.Otp;
 using Domain.Enums;
 using Domain.Repositories;
 using MediatR;
@@ -11,20 +10,31 @@ using MediatR;
 namespace Application.LoanApplications.Commands
 {
     /// <summary>
-    /// The second sample of two step verification, and the one that shows it is not an
-    /// authentication feature: an ordinary business command opts in the same way. Unlike
-    /// registration it leaves <c>OtpRecipient</c> null, so the code goes to the number on the
-    /// authenticated account rather than one the request chose.
+    /// The sample of the <b>server-held</b> confirmation topology, and the one that shows two step
+    /// verification is not an authentication feature: an ordinary business command opts in.
+    /// <para>
+    /// An approval is the case the inline <c>IRequireOtpVerification</c> gate cannot express. That
+    /// gate leaves the payload with the client and has it replayed with a code attached, so only
+    /// whoever composed the request can ever complete it. Here the server captures the command at
+    /// initiate, which is what allows <see cref="ConfirmationPolicy.DifferentUser"/> — a second
+    /// person approves, and they never handle the payload at all.
+    /// </para>
+    /// <para>
+    /// Registration goes the other way deliberately: its command carries a password, and a parked
+    /// operation persists its payload. Which topology to use is decided by what is in the payload
+    /// and who has to confirm it, not by how sensitive the operation feels.
+    /// </para>
+    /// <para>
+    /// Note there are no confirmation members on this command. The handle and the code go to
+    /// <c>ConfirmOperationCommand</c>, and the confirmed-execution signal is ambient — a flag here
+    /// would be caller controlled and would skip confirmation entirely.
+    /// </para>
     /// </summary>
-    public record UpdateApplicationStatusCommand : IRequest, IRequireOtpVerification
+    [ConfirmableOperation("loan.status.update.v1", Policy = ConfirmationPolicy.DifferentUser)]
+    public record UpdateApplicationStatusCommand : IRequest, IRequireOperationConfirmation
     {
         public int Id { get; set; }
         public LoanStatus Status { get; set; }
-
-        public Guid? ChallengeId { get; set; }
-
-        [SensitiveData]
-        public string? OtpCode { get; set; }
     }
 
     public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateApplicationStatusCommand>

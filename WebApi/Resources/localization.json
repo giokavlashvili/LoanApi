@@ -194,5 +194,89 @@
       "ka-GE": "ტელეფონის ნომერი არასწორია",
       "en-US": "Invalid phone number"
     }
+  },
+  {
+    "Key": "OperationConfirmationRequired",
+    "LocalizedValue": {
+      "ka-GE": "ოპერაცია შენახულია და ელოდება დადასტურებას",
+      "en-US": "The operation has been saved and is awaiting confirmation"
+    }
+  },
+  {
+    "Key": "PendingOperationNotFound",
+    "LocalizedValue": {
+      "ka-GE": "დასადასტურებელი ოპერაცია ვერ მოიძებნა",
+      "en-US": "No such pending operation"
+    }
+  },
+  {
+    "Key": "PendingOperationExpired",
+    "LocalizedValue": {
+      "ka-GE": "ოპერაციის დადასტურების ვადა ამოიწურა",
+      "en-US": "This operation is no longer confirmable"
+    }
+  },
+  {
+    "Key": "PendingOperationAlreadyResolved",
+    "LocalizedValue": {
+      "ka-GE": "ოპერაცია უკვე დადასტურდა ან გაუქმდა",
+      "en-US": "This operation has already been confirmed or cancelled"
+    }
+  },
+  {
+    "Key": "PendingOperationWrongConfirmer",
+    "LocalizedValue": {
+      "ka-GE": "ამ ოპერაციის დადასტურების უფლება არ გაქვთ",
+      "en-US": "You are not allowed to confirm this operation"
+    }
+  },
+  {
+    "Key": "PendingOperationSelfConfirm",
+    "LocalizedValue": {
+      "ka-GE": "ოპერაციას სხვა მომხმარებელი უნდა ადასტურებდეს",
+      "en-US": "This operation must be confirmed by someone other than the person who started it"
+    }
+  },
+  {
+    "Key": "PendingOperationTypeUnknown",
+    "LocalizedValue": {
+      "ka-GE": "ოპერაციის ტიპი აღარ არის მხარდაჭერილი",
+      "en-US": "This operation type is no longer supported"
+    }
+  },
+  {
+    "Key": "TooManyPendingOperations",
+    "LocalizedValue": {
+      "ka-GE": "დაუდასტურებელი ოპერაციების რაოდენობა ამოიწურა",
+      "en-US": "You have too many operations awaiting confirmation"
+    }
+  },
+  {
+    "Key": "InvalidOperationType",
+    "LocalizedValue": {
+      "ka-GE": "ოპერაციის ტიპი არასწორია",
+      "en-US": "Invalid operation type"
+    }
+  },
+  {
+    "Key": "InvalidOperationPayload",
+    "LocalizedValue": {
+      "ka-GE": "ოპერაციის მონაცემები არასწორია",
+      "en-US": "Invalid operation payload"
+    }
+  },
+  {
+    "Key": "InvalidOperationInitiator",
+    "LocalizedValue": {
+      "ka-GE": "ოპერაციის ინიციატორი არასწორია",
+      "en-US": "Invalid operation initiator"
+    }
+  },
+  {
+    "Key": "InvalidPendingOperationLifetime",
+    "LocalizedValue": {
+      "ka-GE": "ოპერაციის ვადა არასწორია",
+      "en-US": "Invalid operation lifetime"
+    }
   }
 ]
