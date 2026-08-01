@@ -49,15 +49,17 @@ namespace Infrastructure.Persistence
             return base.SaveChanges();
         }
 
-        public IDbContextTransaction? GetCurrentTransaction() => _currentTransaction;
-
         public bool HasActiveTransaction => _currentTransaction != null;
 
-        public async Task<IDbContextTransaction?> BeginTransactionAsync()
+        public async Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
         {
-            if (_currentTransaction != null) return null;
+            // Throw rather than return null. Callers guard on HasActiveTransaction, so reaching here
+            // twice is a bug in the caller, and a null return would only surface as an NRE further
+            // downstream where the cause is no longer visible.
+            if (_currentTransaction != null)
+                throw new InvalidOperationException("A transaction is already active on this context.");
 
-            _currentTransaction = await Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
+            _currentTransaction = await Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
 
             return _currentTransaction;
         }

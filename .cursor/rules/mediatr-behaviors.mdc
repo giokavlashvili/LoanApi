@@ -7,10 +7,15 @@ alwaysApply: false
 # MediatR behaviors
 
 - Constraint **must** be `where TRequest : notnull` — never `IRequest<TResponse>`. Void `IRequest` commands are not `IRequest<Unit>`; a tighter constraint silently skips DI registration (no validation/OTP on void commands).
-- Guarded by `OtpVerificationBehaviorTests.Handle_ForAVoidCommand_StillGate` (won't compile if constraint is tightened).
+- Guarded by `OtpVerificationBehaviorTests.Handle_ForAVoidCommand_StillGate` and `TransactionBehaviorTests.Registration_ForAVoidCommand_ResolvesTheBehavior` (neither compiles if the constraint is tightened).
 - Registration order in `AddApplicationServices` (outer → inner):
   1. `ValidationBehavior` — fail before SMS / work
   2. `PerformanceBehavior`
-  3. `OtpVerificationBehavior` — innermost among these
+  3. `OtpVerificationBehavior`
+  4. `TransactionBehavior` — **innermost**, wraps the handler only
+- **`TransactionBehavior` must stay inside `OtpVerificationBehavior`.** `OtpService.IssueAsync` saves the challenge then sends the SMS, relying on that save having committed; enclosed in a transaction the `OtpRequiredException` that follows rolls the challenge back after the message has gone out, leaving a code that can never be verified. It would also roll back the `AttemptCount` increment `VerifyAsync` persists in a `finally`, which is what keeps six digits from being brute-forceable.
+- Transactions are **opt-out**: `IQuery<T>` for reads, `ISkipTransaction` for commands that perform an external side effect *after* saving (`ResendOtpCommand` — it issues an OTP from inside its own handler, so the gate above cannot help it). Never opt out because a command is slow or "doesn't need" atomicity.
+- **Domain event / notification handlers run inside the transaction** — `DispatchDomainEvents` is called from `SaveChangesAsync`. Keep them logging-only; anything external belongs after the commit.
+- No `Database.CreateExecutionStrategy()` wrapper in `TransactionBehavior`, deliberately: it replays `next()` on retry, so a transient failure would run the handler twice. Without it, enabling `EnableRetryOnFailure` makes EF throw an explicit "does not support user-initiated transactions" error instead — the louder failure.
 - Folder is spelled `Behaviours`; namespace may use `Behaviors` — match existing files.
 - Do not call OTP/validation logic from handlers; behaviors own the cross-cutting gate.

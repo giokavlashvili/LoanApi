@@ -1,7 +1,6 @@
 using Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Diagnostics.CodeAnalysis;
@@ -25,14 +24,20 @@ namespace Application.Common.Interfaces
 
         public int SaveChanges();
 
-        public DatabaseFacade Database { get; }
+        /// <summary>
+        /// Throws if one is already open — callers check <see cref="HasActiveTransaction"/> first,
+        /// and a silent null return would only surface later as a NullReferenceException.
+        /// </summary>
+        public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default);
 
-        public IDbContextTransaction? GetCurrentTransaction();
-
-        public Task<IDbContextTransaction?> BeginTransactionAsync();
-
+        /// <summary>Saves anything still tracked, commits, and clears the current transaction.</summary>
         public Task CommitTransactionAsync(IDbContextTransaction transaction, CancellationToken cancellationToken = default);
 
+        /// <summary>
+        /// Rolls back and clears the current transaction. Disposing the transaction alone rolls the
+        /// database back but leaves <see cref="HasActiveTransaction"/> reporting true against a dead
+        /// object, so anything dispatched afterwards in the same scope would run untransacted.
+        /// </summary>
         public void RollbackTransaction();
 
         public bool HasActiveTransaction { get; }
