@@ -25,7 +25,7 @@ Opting in is **one interface** — no per-feature OTP services or controller cha
    - `LogRedactor.DefaultSensitiveProperties`
 6. Validator: allow null `OtpCode`/`ChallengeId` on first call; validate format when present.
 7. Manual/API test: first call → **428** + `challengeId`/`expiresAt`; second call with code → handler runs.
-8. Dev: read code from logs (`LoggingSmsSender`), not SMS.
+8. Dev: read code from logs (`LoggingSmsCodeSender`), not SMS.
 
 ## Reference implementations
 

@@ -11,7 +11,7 @@ Note `Infrastructure` references `Application` (not the reverse).
 | Assembly | Holds |
 |---|---|
 | `Domain` | Entities with private setters + static factories, domain events, `Domain/Repositories` (repo + unit-of-work abstractions), `Domain/Exceptions/DomainValidationException` |
-| `Application` | CQRS handlers (command + handler in one file), FluentValidation validators, MediatR pipeline behaviours, DTOs, AutoMapper profiles, `Application/Common/Interfaces` (app abstractions: `IApplicationDbContext`, `ICurrentUserService`, `IDateTime`, `IIdentityService`, `IOtpService`, `IOtpCodeHasher`, `ISmsSender`) |
+| `Application` | CQRS handlers (command + handler in one file), FluentValidation validators, MediatR pipeline behaviours, DTOs, AutoMapper profiles, `Application/Common/Interfaces` (app abstractions: `IApplicationDbContext`, `ICurrentUserService`, `IDateTime`, `IIdentityService`, `IOtpService`, `IOtpCodeHasher`, `IVerificationCodeSender`) |
 | `Infrastructure` | `ApplicationDbContext` (EF Core, SQL Server), `Persistence/Configurations` (`IEntityTypeConfiguration`), `Persistence/Repositories`, `Migrations`, ASP.NET Identity, `Services/*` |
 | `WebApi` | Controllers, middleware, Serilog composition, `CurrentUserService` |
 

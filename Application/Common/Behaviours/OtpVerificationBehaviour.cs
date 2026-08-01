@@ -1,6 +1,7 @@
 using Application.Common.Exceptions;
 using Application.Common.Interfaces;
 using Application.Common.Otp;
+using Domain.Enums;
 using Domain.Exceptions;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -59,7 +60,11 @@ namespace Application.Common.Behaviors
 
             if (otpRequest.ChallengeId is null || string.IsNullOrWhiteSpace(otpRequest.OtpCode))
             {
-                var challenge = await _otpService.IssueAsync(purpose, recipient, userId, requestHash, cancellationToken);
+                // SMS is the only channel the gate offers. A command that needs another would be
+                // choosing a delivery mechanism from inside its own contract, which is a decision
+                // for the generic endpoints in phase 6, not for a marker interface.
+                var challenge = await _otpService.IssueAsync(
+                    purpose, recipient, VerificationChannel.Sms, userId, requestHash, cancellationToken);
 
                 _logger.LogInformation(
                     "OTP challenge {ChallengeId} issued for {OtpPurpose}",

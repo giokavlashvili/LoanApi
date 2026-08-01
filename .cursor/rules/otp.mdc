@@ -17,9 +17,12 @@ alwaysApply: false
 - Codes: keyed HMAC (`OtpOptions.Secret`, bound + `ValidateOnStart()`-checked), never plaintext / unkeyed digest.
 - Hash comparisons in `OtpVerification.Verify` use `CryptographicOperations.FixedTimeEquals`, not `string.Equals` — a timing side-channel is exactly the kind of thing worth closing even when the practical risk is low. A malformed Base64 candidate is treated as a wrong code, not a thrown `FormatException`.
 - Sensitive property names must be in **both** `RequestLogging:SensitiveProperties` and `LogRedactor.DefaultSensitiveProperties` (config replaces defaults when present).
-- Dev SMS: `LoggingSmsSender` logs the code (warns every send). Replace before production.
+- Dev SMS: `LoggingSmsCodeSender` logs the code (warns every send). Replace before production.
+- **Channels.** `IVerificationCodeSender` carries a `Channel`; `OtpService` picks from the registered set by it. Registered as a set, not keyed — the channel is only known per call, so keying the constructor would drag `IServiceProvider` into an Application service. **Sms is the only registration**; resolving `Email` throws, deliberately (a channel that appears to work and delivers nothing is worse). Email is blocked on three things, not just a sender class: `Application.Common.Models.User` has no `Email`, `JwtTokenGenerator` emits no email claim so `ICurrentUserService.Email` is always null, and `RequireUniqueEmail` is off by design.
+- `OtpVerificationBehavior` always issues over Sms — a command choosing its own delivery mechanism would be picking infrastructure from inside its contract.
+- The pending-uniqueness index is `(Recipient, Purpose, Channel)` filtered on `Status = 0`, so one live challenge per channel is possible once Email exists.
 - **`OtpService` is Application, not Infrastructure** (`Application/Otp/Services/OtpService.cs`,
   registered in `AddApplicationServices`). It holds no infrastructure — it orchestrates a
   repository, options, a hasher and a sender, all through abstractions. `HmacOtpCodeHasher` and
-  `LoggingSmsSender` stay in Infrastructure: policy here, mechanism there.
+  `LoggingSmsCodeSender` stay in Infrastructure: policy here, mechanism there.
 - Also see: `Application/Otp/Services/OtpService.cs`, `Domain/Entities/OtpVerification.cs`, skill `add-otp-gate`.

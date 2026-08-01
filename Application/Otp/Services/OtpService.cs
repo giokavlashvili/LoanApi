@@ -2,6 +2,7 @@ using Application.Common.Interfaces;
 using Application.Common.Models;
 using Application.Otp.Dtos;
 using Domain.Entities;
+using Domain.Enums;
 using Domain.Exceptions;
 using Domain.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -28,7 +29,7 @@ namespace Application.Otp.Services
         private readonly IOtpVerificationRepository _challenges;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IOtpCodeHasher _codeHasher;
-        private readonly ISmsSender _smsSender;
+        private readonly IEnumerable<IVerificationCodeSender> _senders;
         private readonly IDateTime _dateTime;
         private readonly IOptionsMonitor<OtpOptions> _optionsMonitor;
         private readonly ILogger<OtpService> _logger;
@@ -37,7 +38,7 @@ namespace Application.Otp.Services
             IOtpVerificationRepository challenges,
             IUnitOfWork unitOfWork,
             IOtpCodeHasher codeHasher,
-            ISmsSender smsSender,
+            IEnumerable<IVerificationCodeSender> senders,
             IDateTime dateTime,
             IOptionsMonitor<OtpOptions> optionsMonitor,
             ILogger<OtpService> logger)
@@ -45,7 +46,7 @@ namespace Application.Otp.Services
             _challenges = challenges;
             _unitOfWork = unitOfWork;
             _codeHasher = codeHasher;
-            _smsSender = smsSender;
+            _senders = senders;
             _dateTime = dateTime;
             _optionsMonitor = optionsMonitor;
             _logger = logger;
@@ -54,12 +55,18 @@ namespace Application.Otp.Services
         public async Task<OtpChallengeDto> IssueAsync(
             string purpose,
             string recipient,
+            VerificationChannel channel,
             string? userId,
             string requestHash,
             CancellationToken cancellationToken = default)
         {
             var options = _optionsMonitor.CurrentValue;
             var now = _dateTime.UtcNow;
+
+            // Resolved before anything is written. An unregistered channel must fail before a
+            // challenge exists, not after — a stored challenge whose code was never delivered is
+            // indistinguishable to the user from one that was.
+            var sender = ResolveSender(channel);
 
             var previous = await _challenges.GetLatestAsync(recipient, purpose, cancellationToken);
 
@@ -80,6 +87,7 @@ namespace Application.Otp.Services
                 challengeId,
                 purpose,
                 recipient,
+                channel,
                 userId,
                 _codeHasher.Hash(challengeId, code),
                 requestHash,
@@ -101,7 +109,10 @@ namespace Application.Otp.Services
             // Sent only after the challenge is committed. Domain events dispatch before the save,
             // so texting from an event handler would hand out codes for challenges a failed save
             // never stored, and the user would have no way to tell.
-            await _smsSender.SendAsync(recipient, string.Format(options.MessageTemplate, code), cancellationToken);
+            //
+            // This relies on the save above having actually committed, which is why every command
+            // reaching here from its own handler carries ISkipTransaction — see ResendOtpCommand.
+            await sender.SendAsync(recipient, string.Format(options.MessageTemplate, code), cancellationToken);
 
             return ToDto(entity);
         }
@@ -111,11 +122,12 @@ namespace Application.Otp.Services
             var existing = await _challenges.GetByChallengeIdAsync(challengeId, cancellationToken)
                 ?? throw new DomainValidationException("OtpChallengeNotFound");
 
-            // Reissued against the original purpose, recipient and payload, so a resend cannot
-            // move a confirmation onto a different number or a different request.
+            // Reissued against the original purpose, recipient, channel and payload, so a resend
+            // cannot move a confirmation onto a different number or a different request.
             return await IssueAsync(
                 existing.Purpose!,
                 existing.Recipient!,
+                existing.Channel,
                 existing.UserId,
                 existing.RequestHash!,
                 cancellationToken);
@@ -150,6 +162,27 @@ namespace Application.Otp.Services
                 // Update call.
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
             }
+        }
+
+        /// <summary>
+        /// Picks the sender registered for a channel. Resolved from the set rather than by keyed
+        /// injection because the channel is only known per call — keying the constructor would mean
+        /// injecting <c>IServiceProvider</c> into an Application service to look it up anyway.
+        /// </summary>
+        private IVerificationCodeSender ResolveSender(VerificationChannel channel)
+        {
+            var sender = _senders.FirstOrDefault(s => s.Channel == channel);
+
+            if (sender is null)
+            {
+                // Not a DomainValidationException: an unregistered channel is a misconfiguration,
+                // not something the caller did wrong, and a localized 400 would hide it.
+                throw new InvalidOperationException(
+                    $"No {nameof(IVerificationCodeSender)} is registered for channel '{channel}'. " +
+                    "Only Sms ships with this template; see phase 6 task 1 for what Email needs.");
+            }
+
+            return sender;
         }
 
         /// <summary>Stops a caller hammering the send button into a stream of messages.</summary>

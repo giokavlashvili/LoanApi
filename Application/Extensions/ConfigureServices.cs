@@ -2,6 +2,7 @@ using Application.Authenticate.Services;
 using Application.Common.Behaviors;
 using Application.Common.Interfaces;
 using Application.Common.Models;
+using Application.Common.Operations;
 using Application.Otp.Services;
 using FluentValidation;
 using MediatR;
@@ -45,6 +46,12 @@ namespace Application.Extensions
             // this line resolves at all: Application declares the contracts, Infrastructure
             // supplies the implementations.
             services.AddScoped<IOtpService, OtpService>();
+
+            // Built once and validated at startup, so a misregistered operation fails at boot
+            // rather than on a live request. Everything it contains is remotely executable by
+            // name, which is why Build throws rather than skipping anything it cannot verify.
+            services.AddSingleton<IVerifiableOperationRegistry>(
+                _ => VerifiableOperationRegistry.Build(Assembly.GetExecutingAssembly()));
 
             // Policy for the same reason: it orchestrates a repository, a unit of work, a hasher
             // and options, all through abstractions. IRefreshTokenHasher is the mechanism half and

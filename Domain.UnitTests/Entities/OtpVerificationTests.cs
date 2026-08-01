@@ -15,11 +15,14 @@ namespace Domain.UnitTests.Entities
 
         private static readonly DateTime Now = new(2026, 7, 29, 12, 0, 0);
 
+        private const VerificationChannel Sms = VerificationChannel.Sms;
+
         private static OtpVerification CreateChallenge(int maxAttempts = 3) =>
             OtpVerification.Create(
                 Guid.NewGuid(),
                 "RegisterUserCommand",
                 "+995555123456",
+                Sms,
                 userId: null,
                 CodeHash,
                 RequestHash,
@@ -30,13 +33,19 @@ namespace Domain.UnitTests.Entities
         [Test]
         public void CreateOtpVerification_WithInvalidParameters_ThrowDomainException()
         {
-            Assert.That(() => OtpVerification.Create(Guid.Empty, "Purpose", "+995555123456", null, CodeHash, RequestHash, Now.AddMinutes(5), 3, Now), Throws.InstanceOf<DomainValidationException>());
-            Assert.That(() => OtpVerification.Create(Guid.NewGuid(), string.Empty, "+995555123456", null, CodeHash, RequestHash, Now.AddMinutes(5), 3, Now), Throws.InstanceOf<DomainValidationException>());
-            Assert.That(() => OtpVerification.Create(Guid.NewGuid(), "Purpose", string.Empty, null, CodeHash, RequestHash, Now.AddMinutes(5), 3, Now), Throws.InstanceOf<DomainValidationException>());
-            Assert.That(() => OtpVerification.Create(Guid.NewGuid(), "Purpose", "+995555123456", null, string.Empty, RequestHash, Now.AddMinutes(5), 3, Now), Throws.InstanceOf<DomainValidationException>());
+            Assert.That(() => OtpVerification.Create(Guid.Empty, "Purpose", "+995555123456", Sms, null, CodeHash, RequestHash, Now.AddMinutes(5), 3, Now), Throws.InstanceOf<DomainValidationException>());
+            Assert.That(() => OtpVerification.Create(Guid.NewGuid(), string.Empty, "+995555123456", Sms, null, CodeHash, RequestHash, Now.AddMinutes(5), 3, Now), Throws.InstanceOf<DomainValidationException>());
+            Assert.That(() => OtpVerification.Create(Guid.NewGuid(), "Purpose", string.Empty, Sms, null, CodeHash, RequestHash, Now.AddMinutes(5), 3, Now), Throws.InstanceOf<DomainValidationException>());
+            Assert.That(() => OtpVerification.Create(Guid.NewGuid(), "Purpose", "+995555123456", Sms, null, string.Empty, RequestHash, Now.AddMinutes(5), 3, Now), Throws.InstanceOf<DomainValidationException>());
             // Already expired when issued.
-            Assert.That(() => OtpVerification.Create(Guid.NewGuid(), "Purpose", "+995555123456", null, CodeHash, RequestHash, Now, 3, Now), Throws.InstanceOf<DomainValidationException>());
-            Assert.That(() => OtpVerification.Create(Guid.NewGuid(), "Purpose", "+995555123456", null, CodeHash, RequestHash, Now.AddMinutes(5), 0, Now), Throws.InstanceOf<DomainValidationException>());
+            Assert.That(() => OtpVerification.Create(Guid.NewGuid(), "Purpose", "+995555123456", Sms, null, CodeHash, RequestHash, Now, 3, Now), Throws.InstanceOf<DomainValidationException>());
+            Assert.That(() => OtpVerification.Create(Guid.NewGuid(), "Purpose", "+995555123456", Sms, null, CodeHash, RequestHash, Now.AddMinutes(5), 0, Now), Throws.InstanceOf<DomainValidationException>());
+        }
+
+        [Test]
+        public void CreateOtpVerification_RecordsTheChannel()
+        {
+            Assert.That(CreateChallenge().Channel, Is.EqualTo(VerificationChannel.Sms));
         }
 
         [Test]

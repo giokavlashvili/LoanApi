@@ -4,6 +4,7 @@ using Application.Common.Interfaces;
 using Application.Common.Models;
 using Application.Common.Otp;
 using Application.Otp.Dtos;
+using Domain.Enums;
 using Domain.Exceptions;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -65,7 +66,7 @@ namespace Application.UnitTests.Common.Behaviours
             _codeHasher.Setup(h => h.HashRequest(It.IsAny<object>())).Returns("request-hash");
 
             _otpService
-                .Setup(s => s.IssueAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Setup(s => s.IssueAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<VerificationChannel>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new OtpChallengeDto { ChallengeId = Guid.NewGuid(), ExpiresAt = new DateTime(2026, 7, 29, 12, 0, 0, DateTimeKind.Utc).AddMinutes(5) });
         }
 
@@ -97,7 +98,7 @@ namespace Application.UnitTests.Common.Behaviours
             // Assert
             Assert.That(handlerCalled, Is.True);
             Assert.That(result, Is.True);
-            _otpService.Verify(s => s.IssueAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never());
+            _otpService.Verify(s => s.IssueAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<VerificationChannel>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never());
         }
 
         [Test]
@@ -118,7 +119,7 @@ namespace Application.UnitTests.Common.Behaviours
 
             // The operation must not run just because a code was requested for it.
             Assert.That(handlerCalled, Is.False);
-            _otpService.Verify(s => s.IssueAsync("GatedCommand", "+995555123456", It.IsAny<string?>(), "request-hash", It.IsAny<CancellationToken>()), Times.Once());
+            _otpService.Verify(s => s.IssueAsync("GatedCommand", "+995555123456", VerificationChannel.Sms, It.IsAny<string?>(), "request-hash", It.IsAny<CancellationToken>()), Times.Once());
         }
 
         [Test]
@@ -157,7 +158,7 @@ namespace Application.UnitTests.Common.Behaviours
                 async () => await behavior.Handle(new GatedVoidCommand(), _ => Task.FromResult(Unit.Value), default),
                 Throws.InstanceOf<OtpRequiredException>());
 
-            _otpService.Verify(s => s.IssueAsync("GatedVoidCommand", "+995555123456", It.IsAny<string?>(), "request-hash", It.IsAny<CancellationToken>()), Times.Once());
+            _otpService.Verify(s => s.IssueAsync("GatedVoidCommand", "+995555123456", VerificationChannel.Sms, It.IsAny<string?>(), "request-hash", It.IsAny<CancellationToken>()), Times.Once());
         }
 
         [Test]
@@ -188,7 +189,7 @@ namespace Application.UnitTests.Common.Behaviours
 
             // The number comes from the account, never from the request — otherwise a caller
             // could have their own confirmation code sent to a phone they control.
-            _otpService.Verify(s => s.IssueAsync("GatedCommandWithoutRecipient", "+995555999888", "userId", "request-hash", It.IsAny<CancellationToken>()), Times.Once());
+            _otpService.Verify(s => s.IssueAsync("GatedCommandWithoutRecipient", "+995555999888", VerificationChannel.Sms, "userId", "request-hash", It.IsAny<CancellationToken>()), Times.Once());
         }
     }
 }

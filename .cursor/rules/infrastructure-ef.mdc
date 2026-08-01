@@ -23,4 +23,4 @@ alwaysApply: false
 - DI composition: `AddInfrastructureServices` in `Infrastructure/Common/Extensions/ConfigureServices.cs`. Both aggregate repositories (`ILoanApplicationRepository`, `IOtpVerificationRepository`) and `IUnitOfWork` are registered there as scoped services. Repositories are **not** assembly-scanned; one missing from that list fails to resolve at startup.
 - In-memory switch: `UseInMemoryDatabase` from config (honored in that extension).
 - New aggregate checklist: mark the root `IAggregateRoot` → domain repository interface → EF configuration → repository impl → DI registration in `AddInfrastructureServices` → inject it into the command handler → migration. Nothing to add to `IUnitOfWork`.
-- Replace `LoggingSmsSender` before production SMS; one class + one DI line.
+- Replace `LoggingSmsCodeSender` before production SMS; one class + one DI line.

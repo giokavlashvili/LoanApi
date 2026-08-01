@@ -29,7 +29,7 @@ namespace Infrastructure.UnitTests.Persistence
             await using var context = CreateContext();
 
             var original = OtpVerification.Create(
-                Guid.NewGuid(), purpose, recipient, userId: null,
+                Guid.NewGuid(), purpose, recipient, VerificationChannel.Sms, userId: null,
                 codeHash: "hash-1", requestHash: "request-hash",
                 expiresAt: now.AddMinutes(5), maxAttempts: 3, created: now);
 
@@ -43,7 +43,7 @@ namespace Infrastructure.UnitTests.Persistence
                 original.Invalidate(now);
 
                 var reissued = OtpVerification.Create(
-                    Guid.NewGuid(), purpose, recipient, userId: null,
+                    Guid.NewGuid(), purpose, recipient, VerificationChannel.Sms, userId: null,
                     codeHash: "hash-2", requestHash: "request-hash",
                     expiresAt: now.AddMinutes(5), maxAttempts: 3, created: now);
 

@@ -96,7 +96,15 @@ namespace Infrastructure.Common.Extensions
             // the ISmsSender line below — nothing else knows which vendor delivers the message.
             // IOtpService itself is policy and is registered in AddApplicationServices.
             services.AddSingleton<IOtpCodeHasher, HmacOtpCodeHasher>();
-            services.AddTransient<ISmsSender, LoggingSmsSender>();
+
+            // Registered as a set, not keyed: OtpService only learns the channel per call, so a
+            // keyed constructor would force IServiceProvider into an Application service to look
+            // the sender up anyway. It picks by IVerificationCodeSender.Channel.
+            //
+            // Sms only. There is deliberately no Email registration — resolving one throws, which
+            // beats a channel that appears to work and delivers nothing. See phase 6 task 1 for
+            // what Email needs first (a real Email on the account, and a User projection carrying it).
+            services.AddTransient<IVerificationCodeSender, LoggingSmsCodeSender>();
 
             // Mechanism half of the refresh token flow, same split: IRefreshTokenService is policy
             // and is registered in AddApplicationServices. Singleton for the same reason as
@@ -109,6 +117,7 @@ namespace Infrastructure.Common.Extensions
             // query handlers, which project from IApplicationDbContext.
             services.AddScoped<ILoanApplicationRepository, LoanApplicationRepository>();
             services.AddScoped<IOtpVerificationRepository, OtpVerificationRepository>();
+            services.AddScoped<IPendingOperationRepository, PendingOperationRepository>();
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 

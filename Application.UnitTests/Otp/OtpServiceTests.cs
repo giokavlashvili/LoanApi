@@ -1,6 +1,7 @@
 using Application.Common.Interfaces;
 using Application.Common.Models;
 using Domain.Entities;
+using Domain.Enums;
 using Domain.Exceptions;
 using Application.Otp.Services;
 using Domain.Repositories;
@@ -26,7 +27,7 @@ namespace Application.UnitTests.Otp
         private Mock<IOtpVerificationRepository> _otpRepository;
         private Mock<IUnitOfWork> _unitOfWork;
         private Mock<IOtpCodeHasher> _codeHasher;
-        private Mock<ISmsSender> _smsSender;
+        private Mock<IVerificationCodeSender> _smsSender;
         private Mock<IDateTime> _dateTime;
         private OtpOptions _options;
         private OtpService _service;
@@ -38,7 +39,8 @@ namespace Application.UnitTests.Otp
             _unitOfWork = new Mock<IUnitOfWork>();
 
             _codeHasher = new Mock<IOtpCodeHasher>();
-            _smsSender = new Mock<ISmsSender>();
+            _smsSender = new Mock<IVerificationCodeSender>();
+            _smsSender.SetupGet(s => s.Channel).Returns(VerificationChannel.Sms);
             _dateTime = new Mock<IDateTime>();
             _options = new OtpOptions { Secret = "test-secret", MaxAttempts = 3, ResendCooldown = TimeSpan.Zero };
 
@@ -52,7 +54,7 @@ namespace Application.UnitTests.Otp
                 _otpRepository.Object,
                 _unitOfWork.Object,
                 _codeHasher.Object,
-                _smsSender.Object,
+                new[] { _smsSender.Object },
                 _dateTime.Object,
                 optionsMonitor.Object,
                 new Mock<ILogger<OtpService>>().Object);
@@ -63,6 +65,7 @@ namespace Application.UnitTests.Otp
                 challengeId,
                 Purpose,
                 Recipient,
+                VerificationChannel.Sms,
                 userId: null,
                 "Y29ycmVjdC1oYXNo",
                 RequestHash,
@@ -77,7 +80,7 @@ namespace Application.UnitTests.Otp
             _codeHasher.Setup(h => h.Hash(It.IsAny<Guid>(), It.IsAny<string>())).Returns("hashed");
 
             // Act
-            var result = await _service.IssueAsync(Purpose, Recipient, null, RequestHash);
+            var result = await _service.IssueAsync(Purpose, Recipient, VerificationChannel.Sms, null, RequestHash);
 
             // Assert
             Assert.That(result.ChallengeId, Is.Not.EqualTo(Guid.Empty));
@@ -102,7 +105,7 @@ namespace Application.UnitTests.Otp
                 .Returns(Task.CompletedTask);
 
             // Act
-            var challenge = await _service.IssueAsync(Purpose, Recipient, null, RequestHash);
+            var challenge = await _service.IssueAsync(Purpose, Recipient, VerificationChannel.Sms, null, RequestHash);
 
             // Assert — the fixed code was what got texted...
             _smsSender.Verify(s => s.SendAsync(Recipient, It.Is<string>(m => m.Contains("123456")), It.IsAny<CancellationToken>()), Times.Once());
@@ -127,7 +130,7 @@ namespace Application.UnitTests.Otp
                 .ReturnsAsync(3);
 
             // Act / Assert
-            Assert.That(async () => await _service.IssueAsync(Purpose, Recipient, null, RequestHash), Throws.InstanceOf<DomainValidationException>());
+            Assert.That(async () => await _service.IssueAsync(Purpose, Recipient, VerificationChannel.Sms, null, RequestHash), Throws.InstanceOf<DomainValidationException>());
 
             // Nothing is sent once the cap is hit, which is the point — the cap exists to stop
             // the endpoint being used as a free SMS relay.
@@ -144,7 +147,7 @@ namespace Application.UnitTests.Otp
                 .ReturnsAsync(CreateChallenge(Guid.NewGuid()));
 
             // Act / Assert
-            Assert.That(async () => await _service.IssueAsync(Purpose, Recipient, null, RequestHash), Throws.InstanceOf<DomainValidationException>());
+            Assert.That(async () => await _service.IssueAsync(Purpose, Recipient, VerificationChannel.Sms, null, RequestHash), Throws.InstanceOf<DomainValidationException>());
         }
 
         [Test]

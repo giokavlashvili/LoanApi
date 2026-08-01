@@ -6,9 +6,9 @@ alwaysApply: false
 
 # OTP / SMS infrastructure
 
-- **Only the mechanisms live here.** `IOtpCodeHasher` (crypto) and `ISmsSender` (a vendor adapter)
+- **Only the mechanisms live here.** `IOtpCodeHasher` (crypto) and `IVerificationCodeSender` (a vendor adapter)
   are Infrastructure; the policy that orchestrates them, `OtpService`, lives in
   `Application/Otp/Services` and is registered in `AddApplicationServices`. See `otp.mdc`.
 - Codes: keyed HMAC via `HmacOtpCodeHasher` + `Otp:Secret` — never plaintext.
-- `LoggingSmsSender` is dev-only (logs codes). Replace with a real `ISmsSender` before production (one class + one DI line in `AddInfrastructureServices`).
+- `LoggingSmsCodeSender` is dev-only (logs codes). Replace with a real `IVerificationCodeSender` before production (one class + one DI line in `AddInfrastructureServices`).
 - Domain rules for attempts/expiry live on `OtpVerification` entity.

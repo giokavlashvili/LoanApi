@@ -121,6 +121,7 @@ namespace Infrastructure.UnitTests.Persistence
                     Guid.NewGuid(),
                     "Purpose",
                     "+995555123456",
+                    VerificationChannel.Sms,
                     "otp-user-id",
                     "code-hash",
                     "request-hash",

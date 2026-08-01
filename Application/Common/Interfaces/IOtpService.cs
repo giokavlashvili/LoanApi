@@ -15,6 +15,7 @@ namespace Application.Common.Interfaces
         Task<OtpChallengeDto> IssueAsync(
             string purpose,
             string recipient,
+            Domain.Enums.VerificationChannel channel,
             string? userId,
             string requestHash,
             CancellationToken cancellationToken = default);

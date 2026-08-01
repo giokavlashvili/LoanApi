@@ -15,9 +15,15 @@ namespace Infrastructure.Persistence.Configurations
                 .IsRequired()
                 .HasMaxLength(128);
 
+            // 256, not 32: an email address does not fit in 32, and widening later would mean
+            // rebuilding both indexes below. At this width the widest key is ~776 bytes, well
+            // inside SQL Server's 1700 byte nonclustered limit.
             builder.Property(o => o.Recipient)
                 .IsRequired()
-                .HasMaxLength(32);
+                .HasMaxLength(256);
+
+            builder.Property(o => o.Channel)
+                .IsRequired();
 
             builder.Property(o => o.UserId)
                 .HasMaxLength(128);
@@ -58,14 +64,17 @@ namespace Infrastructure.Persistence.Configurations
             builder.HasIndex(o => new { o.Recipient, o.Purpose, o.Created })
                 .HasDatabaseName("IX_OtpVerifications_Recipient_Purpose_Created");
 
-            // At most one live challenge per recipient and purpose. The application also checks this
-            // before inserting, but that read-then-write races: two concurrent issues both see no
-            // predecessor and both insert. This is the only place the rule can actually be enforced.
-            // 0 is OtpVerificationStatus.Pending.
-            builder.HasIndex(o => new { o.Recipient, o.Purpose })
+            // At most one live challenge per recipient, purpose and channel. The application also
+            // checks this before inserting, but that read-then-write races: two concurrent issues
+            // both see no predecessor and both insert. This is the only place the rule can actually
+            // be enforced. 0 is OtpVerificationStatus.Pending.
+            //
+            // Channel is part of the key so a user whose phone and email are both on file can hold
+            // one live challenge per channel for the same operation.
+            builder.HasIndex(o => new { o.Recipient, o.Purpose, o.Channel })
                 .IsUnique()
                 .HasFilter("[Status] = 0")
-                .HasDatabaseName("UX_OtpVerifications_Recipient_Purpose_Pending");
+                .HasDatabaseName("UX_OtpVerifications_Recipient_Purpose_Channel_Pending");
         }
     }
 }

@@ -25,8 +25,14 @@ namespace Domain.Entities
         /// </summary>
         public string? Purpose { get; private set; }
 
-        /// <summary>Phone number the code was sent to.</summary>
+        /// <summary>Phone number or address the code was sent to.</summary>
         public string? Recipient { get; private set; }
+
+        /// <summary>
+        /// How the code was delivered. Stored rather than derived so a resend redelivers the same
+        /// way, and so <see cref="Recipient"/> can be read correctly without guessing its form.
+        /// </summary>
+        public VerificationChannel Channel { get; private set; }
 
         /// <summary>Null while the challenge belongs to a user that does not exist yet.</summary>
         public string? UserId { get; private set; }
@@ -59,6 +65,7 @@ namespace Domain.Entities
             Guid challengeId,
             string purpose,
             string recipient,
+            VerificationChannel channel,
             string? userId,
             string codeHash,
             string requestHash,
@@ -90,6 +97,7 @@ namespace Domain.Entities
                 ChallengeId = challengeId,
                 Purpose = purpose,
                 Recipient = recipient,
+                Channel = channel,
                 UserId = userId,
                 CodeHash = codeHash,
                 RequestHash = requestHash,
