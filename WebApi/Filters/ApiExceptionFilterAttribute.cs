@@ -1,4 +1,5 @@
 ﻿using Application.Common.Exceptions;
+using Domain.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
@@ -25,7 +26,12 @@ namespace WebUI.Filters
                 { typeof(UnauthorizedAccessException), HandleUnauthorizedAccessException },
                 { typeof(InvalidCredentialsException), HandleInvalidCredentialsException },
                 { typeof(ForbiddenAccessException), HandleForbiddenAccessException },
-                { typeof(DomainValidationExceptionWrapper), HandleDomainValidationException },
+                // The base type, deliberately. HandleException below looks up by *exact* runtime
+                // type, so registering a derived marker instead would only map the paths that
+                // produce that marker — which used to be the MediatR pipeline and nothing else.
+                // A DomainValidationException raised anywhere outside it (an MVC filter, a
+                // hosted service reaching Application code) then fell through to a raw 500.
+                { typeof(DomainValidationException), HandleDomainValidationException },
                 { typeof(OtpRequiredException), HandleOtpRequiredException },
                 { typeof(DbUpdateConcurrencyException), HandleDbUpdateConcurrencyException },
             };
@@ -235,15 +241,17 @@ namespace WebUI.Filters
             context.ExceptionHandled = true;
         }
 
+        /// <summary>
+        /// The message is a localization key rather than user text, which is why it goes through
+        /// the localizer rather than into <c>Detail</c> directly.
+        /// </summary>
         private void HandleDomainValidationException(ExceptionContext context)
         {
-            var exception = (DomainValidationExceptionWrapper)context.Exception;
-
             var details = new ValidationProblemDetails()
             {
                 Type = "https://tools.ietf.org/html/rfc7231#section-6.5.1",
                 Title = "Domain validation error ocured",
-                Detail = _stringLocalizer.GetString(exception.Message)
+                Detail = _stringLocalizer.GetString(context.Exception.Message)
             };
 
             context.Result = new BadRequestObjectResult(details);

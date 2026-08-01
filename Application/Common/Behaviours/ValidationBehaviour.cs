@@ -1,6 +1,4 @@
-﻿using Application.Common.Exceptions;
-using Domain.Exceptions;
-using FluentValidation;
+﻿using FluentValidation;
 using MediatR;
 using ValidationException = Application.Common.Exceptions.ValidationException;
 
@@ -11,8 +9,8 @@ namespace Application.Common.Behaviors
     // unrelated interfaces, so a void command (: IRequest) is not an IRequest<Unit>. MediatR
     // still resolves IPipelineBehavior<TCommand, Unit> for it, the tighter constraint could not
     // be satisfied, and the DI container silently skipped the registration rather than failing —
-    // which left every void command with no validation at all, surfacing domain exceptions as
-    // raw 500s instead of the localized 400s the exception filter is built to produce.
+    // which left every void command with no validation at all, so invalid input reached the
+    // handler and was only caught by whatever the domain happened to assert.
     public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse> where TRequest : notnull
     {
         private readonly IEnumerable<IValidator<TRequest>> _validators;
@@ -42,14 +40,11 @@ namespace Application.Common.Behaviors
                     throw new ValidationException(failures);
             }
 
-            try
-            {
-                return await next();
-            }
-            catch (DomainValidationException ex)
-            {
-                throw new DomainValidationExceptionWrapper(ex.Message, ex);
-            }
+            // No try/catch around this. A DomainValidationException used to be rethrown here as a
+            // DomainValidationExceptionWrapper purely so the exception filter's exact-type lookup
+            // could find it; the filter now maps the base type, so the marker had nothing left to
+            // do and any path that skipped this behaviour no longer loses its 400.
+            return await next();
         }
     }
 }
