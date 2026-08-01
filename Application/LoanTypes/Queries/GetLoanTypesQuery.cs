@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Application.LoanTypes.Queries
 {
-    public record GetLoanTypesQuery : IRequest<List<LoanTypeDto>>;
+    public record GetLoanTypesQuery : IQuery<List<LoanTypeDto>>;
 
     public class GetLoanTypesQueryHandler : IRequestHandler<GetLoanTypesQuery, List<LoanTypeDto>>
     {

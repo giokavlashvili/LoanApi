@@ -57,9 +57,18 @@ namespace Application.Extensions
                 cfg.RegisterServicesFromAssemblies(Assembly.GetExecutingAssembly());
                 cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
                 cfg.AddOpenBehavior(typeof(PerformanceBehavior<,>));
-                // Innermost: a command that fails validation must never cost an SMS, and a slow
-                // provider should show up in the performance log like any other slow handler.
+                // After validation and performance: a command that fails validation must never
+                // cost an SMS, and a slow provider should show up in the performance log like any
+                // other slow handler.
                 cfg.AddOpenBehavior(typeof(OtpVerificationBehavior<,>));
+                // Innermost, so the transaction wraps the handler and nothing else — in
+                // particular, not the OTP gate above it. IssueAsync saves the challenge and then
+                // texts the code; enclosed in a transaction, the OtpRequiredException that follows
+                // would roll that challenge back after the message had gone out, leaving a code
+                // that can never be verified. It would also roll back the attempt counter that
+                // VerifyAsync persists in a finally, which is what keeps six digits from being
+                // brute-forceable.
+                cfg.AddOpenBehavior(typeof(TransactionBehavior<,>));
             });
 
             return services;

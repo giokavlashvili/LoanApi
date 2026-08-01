@@ -1,7 +1,9 @@
 using Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Storage;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Application.Common.Interfaces
@@ -22,5 +24,17 @@ namespace Application.Common.Interfaces
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 
         public int SaveChanges();
+
+        public DatabaseFacade Database { get; }
+
+        public IDbContextTransaction? GetCurrentTransaction();
+
+        public Task<IDbContextTransaction?> BeginTransactionAsync();
+
+        public Task CommitTransactionAsync(IDbContextTransaction transaction, CancellationToken cancellationToken = default);
+
+        public void RollbackTransaction();
+
+        public bool HasActiveTransaction { get; }
     }
 }

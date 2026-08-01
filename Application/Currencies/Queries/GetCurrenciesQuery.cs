@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Application.Currencies.Queries
 {
-    public record GetCurrenciesQuery : IRequest<List<CurrencyDto>>;
+    public record GetCurrenciesQuery : IQuery<List<CurrencyDto>>;
 
     public class GetCurrenciesQueryHandler : IRequestHandler<GetCurrenciesQuery, List<CurrencyDto>>
     {

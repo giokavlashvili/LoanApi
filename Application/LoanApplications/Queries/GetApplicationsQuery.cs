@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Application.LoanApplications.Queries
 {
-    public record GetApplicationsQuery : IRequest<PaginatedList<LoanApplicationDto>>
+    public record GetApplicationsQuery : IQuery<PaginatedList<LoanApplicationDto>>
     {
         public int PageNumber { get; init; } = 1;
         public int PageSize { get; init; } = 20;
