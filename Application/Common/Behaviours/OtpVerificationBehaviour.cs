@@ -27,20 +27,20 @@ namespace Application.Common.Behaviors
         private readonly IOtpService _otpService;
         private readonly IOtpCodeHasher _codeHasher;
         private readonly ICurrentUserService _currentUserService;
-        private readonly IUserService _userService;
+        private readonly IOtpRecipientResolver _recipientResolver;
         private readonly ILogger<OtpVerificationBehavior<TRequest, TResponse>> _logger;
 
         public OtpVerificationBehavior(
             IOtpService otpService,
             IOtpCodeHasher codeHasher,
             ICurrentUserService currentUserService,
-            IUserService userService,
+            IOtpRecipientResolver recipientResolver,
             ILogger<OtpVerificationBehavior<TRequest, TResponse>> logger)
         {
             _otpService = otpService;
             _codeHasher = codeHasher;
             _currentUserService = currentUserService;
-            _userService = userService;
+            _recipientResolver = recipientResolver;
             _logger = logger;
         }
 
@@ -51,7 +51,7 @@ namespace Application.Common.Behaviors
 
             var purpose = otpRequest.OtpPurpose;
             var userId = _currentUserService.UserId;
-            var recipient = await ResolveRecipientAsync(otpRequest, userId);
+            var recipient = await _recipientResolver.ResolveAsync(otpRequest.OtpRecipient, cancellationToken);
 
             // Computed from the request with the two OTP members removed, so the value is the
             // same on the call that asks for a code and the call that answers with one. Anything
@@ -79,25 +79,5 @@ namespace Application.Common.Behaviors
             return await next();
         }
 
-        private async Task<string> ResolveRecipientAsync(IRequireOtpVerification otpRequest, string? userId)
-        {
-            // A command only supplies a number when there is no user to look one up from —
-            // registration. Everywhere else the number comes from the account, which is what
-            // stops a caller redirecting their own confirmation code to a phone they control.
-            var recipient = otpRequest.OtpRecipient;
-
-            if (!string.IsNullOrWhiteSpace(recipient))
-                return recipient;
-
-            if (string.IsNullOrWhiteSpace(userId))
-                throw new DomainValidationException("OtpRecipientRequired");
-
-            var user = await _userService.GetUserByIdAsync(userId);
-
-            if (user is null || string.IsNullOrWhiteSpace(user.PhoneNumber))
-                throw new DomainValidationException("OtpRecipientRequired");
-
-            return user.PhoneNumber;
-        }
     }
 }

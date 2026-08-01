@@ -3,11 +3,14 @@ using Application.Common.Behaviors;
 using Application.Common.Interfaces;
 using Application.Common.Models;
 using Application.Common.Operations;
+using Application.Common.Otp;
+using Application.Operations.Services;
 using Application.Otp.Services;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System.Reflection;
 
 namespace Application.Extensions
@@ -50,8 +53,29 @@ namespace Application.Extensions
             // Built once and validated at startup, so a misregistered operation fails at boot
             // rather than on a live request. Everything it contains is remotely executable by
             // name, which is why Build throws rather than skipping anything it cannot verify.
-            services.AddSingleton<IVerifiableOperationRegistry>(
-                _ => VerifiableOperationRegistry.Build(Assembly.GetExecutingAssembly()));
+            services.AddSingleton<IVerifiableOperationRegistry>(provider =>
+            {
+                var registry = VerifiableOperationRegistry.Build(Assembly.GetExecutingAssembly());
+
+                // Logged so the allowlist is auditable from the boot log of any environment
+                // rather than only by grepping for the attribute. A stray [VerifiableOperation]
+                // on a copy-pasted class shows up here on the next deployment.
+                provider.GetRequiredService<ILogger<VerifiableOperationRegistry>>().LogInformation(
+                    "Registered {VerifiableOperationCount} verifiable operations: {VerifiableOperations}",
+                    registry.All.Count,
+                    string.Join(", ", registry.All.Select(o => o.Name).Order()));
+
+                return registry;
+            });
+
+            // Policy, same as IOtpService: it orchestrates a registry, a repository, the OTP core
+            // and a unit of work, all through abstractions.
+            services.AddScoped<IVerifiableOperationService, VerifiableOperationService>();
+
+            // One implementation of the recipient rule, shared by the gate and the generic
+            // endpoints. Two copies of "where does the code go" would eventually disagree, and
+            // this is the rule that stops a caller redirecting their own code.
+            services.AddScoped<IOtpRecipientResolver, OtpRecipientResolver>();
 
             // Policy for the same reason: it orchestrates a repository, a unit of work, a hasher
             // and options, all through abstractions. IRefreshTokenHasher is the mechanism half and

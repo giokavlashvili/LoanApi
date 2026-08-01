@@ -1,0 +1,64 @@
+---
+description: Generic initiate/confirm verified operations — registry, replay, and the ordering rules
+globs: Application/Operations/**/*.cs,Application/Common/Operations/**/*.cs
+alwaysApply: false
+---
+
+# Verified operations (generic initiate/confirm)
+
+The second way to two-factor an operation, alongside `IRequireOtpVerification`. Both share one
+core (`OtpService`, `OtpVerification`, throttling, attempt budgets, expiry).
+
+- **Opt in**: `[VerifiableOperation("Name")]` on the command. That is the whole registration —
+  `VerifiableOperationRegistry` scans for it and the generic endpoints work immediately.
+- **Flow**: `POST api/v1/Verification/Initiate` `{operationType, channel, payload}` → stores the
+  payload, sends a code, returns `operationId`. `POST .../Confirm` `{operationId, code}` → verifies
+  and **executes**, returning the handler's result. `.../Resend` re-issues.
+
+## Which mechanism
+
+| Situation | Use |
+|---|---|
+| Payload is sensitive | `IRequireOtpVerification` — it never persists a payload |
+| Client can re-send the payload with the code | `IRequireOtpVerification` |
+| Client should not have to re-send it | `[VerifiableOperation]` |
+| Operation is not reachable over HTTP | `IRequireOtpVerification` |
+
+**Never both on one command.** `VerifiableOperationRegistry.Build` throws at startup if a
+registered operation also implements `IRequireOtpVerification`: dispatching it at confirm
+re-enters `OtpVerificationBehavior`, issues a second challenge and throws 428 from inside confirm,
+so the caller can never get through and every attempt bills two messages.
+
+## Rules that are load-bearing
+
+- **Code verification happens *outside* the transaction.** `VerifyAsync` persists its
+  `AttemptCount` increment in a `finally` so a wrong code always counts; inside a transaction the
+  throw rolls it back, `MaxAttempts` is never reached, and six digits become brute-forceable.
+  `ConfirmOperationCommand` therefore carries `ISkipTransaction` and the service opens its own
+  narrower transaction around execution + the `Succeeded` write.
+- **`InitiateOperationCommand` and `ResendOperationCodeCommand` carry `ISkipTransaction` too** —
+  both reach `IssueAsync`, which saves the challenge then sends the message.
+- **Replay before the code.** `ConfirmAsync` dispatches on `Status` before touching the code, so a
+  retry after a lost response replays the stored result instead of `OtpAlreadyUsed` — and spends
+  no attempt.
+- **Bind to `descriptor.PayloadType`, never a type named in the request.** Deserializing a
+  caller-supplied type name is a remote code execution vector.
+- **Every rejection at initiate.** Unknown operation, authorization, channel, binding and
+  FluentValidation all run before a code is issued — the payload is frozen once stored, so a
+  failure at confirm costs a message *and* a code.
+- **Recipient comes from `IOtpRecipientResolver`**, shared with the gate. A caller-supplied
+  recipient is *rejected*, not ignored, unless the operation declares
+  `AllowsCallerSuppliedRecipient`.
+
+## Stated trade-offs (phase 6, deliberate)
+
+- Payloads are stored **unencrypted**. Mitigation is routing sensitive operations to
+  `IRequireOtpVerification`.
+- **Nothing deletes old rows** — see the DELETE script in `docs/plans/06-generic-verified-operations.md`.
+- A crash between verification and the commit leaves the operation `Pending` and rolls the work
+  back — for database-only handlers. One calling an external system needs its own idempotency.
+- `OperationResultDto.Result` is `any` in the generated TS client. Inherent to one endpoint
+  returning every operation's result.
+
+Also see: `Application/Operations/Services/VerifiableOperationService.cs`,
+`Domain/Entities/PendingOperation.cs`, `docs/plans/06-generic-verified-operations.md`.

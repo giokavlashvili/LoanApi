@@ -53,7 +53,7 @@ namespace Application.UnitTests.Common.Behaviours
         private Mock<IOtpService> _otpService;
         private Mock<IOtpCodeHasher> _codeHasher;
         private Mock<ICurrentUserService> _currentUserService;
-        private Mock<IUserService> _userService;
+        private Mock<IOtpRecipientResolver> _recipientResolver;
 
         [SetUp]
         public void SetUp()
@@ -61,7 +61,13 @@ namespace Application.UnitTests.Common.Behaviours
             _otpService = new Mock<IOtpService>();
             _codeHasher = new Mock<IOtpCodeHasher>();
             _currentUserService = new Mock<ICurrentUserService>();
-            _userService = new Mock<IUserService>();
+            _recipientResolver = new Mock<IOtpRecipientResolver>();
+
+            // Stands in for the real rule, which OtpRecipientResolverTests covers: honour a
+            // recipient the command supplied, otherwise fall back to the account's number.
+            _recipientResolver
+                .Setup(r => r.ResolveAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string? supplied, CancellationToken _) => supplied ?? "+995555999888");
 
             _codeHasher.Setup(h => h.HashRequest(It.IsAny<object>())).Returns("request-hash");
 
@@ -75,7 +81,7 @@ namespace Application.UnitTests.Common.Behaviours
                 _otpService.Object,
                 _codeHasher.Object,
                 _currentUserService.Object,
-                _userService.Object,
+                _recipientResolver.Object,
                 new Mock<ILogger<OtpVerificationBehavior<TRequest, TResponse>>>().Object);
 
         private OtpVerificationBehavior<TRequest, bool> CreateBehavior<TRequest>() where TRequest : notnull =>
@@ -162,33 +168,42 @@ namespace Application.UnitTests.Common.Behaviours
         }
 
         [Test]
-        public void Handle_WithoutRecipientAndWithoutUser_ThrowDomainException()
+        public void Handle_WhenTheRecipientCannotBeResolved_PropagateTheDomainException()
         {
-            // Arrange — no OtpRecipient on the command and nobody authenticated to fall back to.
+            // Arrange — the resolver refuses, e.g. nobody authenticated to fall back to.
             var behavior = CreateBehavior<GatedCommandWithoutRecipient>();
-            _currentUserService.Setup(u => u.UserId).Returns((string?)null);
+            _recipientResolver
+                .Setup(r => r.ResolveAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new DomainValidationException("OtpRecipientRequired"));
 
             // Act / Assert
             Assert.That(
                 async () => await behavior.Handle(new GatedCommandWithoutRecipient(), _ => Task.FromResult(true), default),
                 Throws.InstanceOf<DomainValidationException>());
+
+            _otpService.Verify(
+                s => s.IssueAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<VerificationChannel>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+                Times.Never());
         }
 
+        /// <summary>
+        /// The behavior hands the command's own recipient to the resolver and issues against
+        /// whatever comes back — it does not decide the number itself. The rule that a command
+        /// without one falls back to the account is <c>OtpRecipientResolverTests</c>.
+        /// </summary>
         [Test]
-        public void Handle_WithoutRecipient_ResolveNumberFromAuthenticatedUser()
+        public void Handle_WithoutRecipient_IssueAgainstTheResolvedNumber()
         {
             // Arrange
             var behavior = CreateBehavior<GatedCommandWithoutRecipient>();
             _currentUserService.Setup(u => u.UserId).Returns("userId");
-            _userService.Setup(u => u.GetUserByIdAsync("userId")).ReturnsAsync(new User { Id = "userId", PhoneNumber = "+995555999888" });
 
             // Act / Assert
             Assert.That(
                 async () => await behavior.Handle(new GatedCommandWithoutRecipient(), _ => Task.FromResult(true), default),
                 Throws.InstanceOf<OtpRequiredException>());
 
-            // The number comes from the account, never from the request — otherwise a caller
-            // could have their own confirmation code sent to a phone they control.
+            _recipientResolver.Verify(r => r.ResolveAsync(null, It.IsAny<CancellationToken>()), Times.Once());
             _otpService.Verify(s => s.IssueAsync("GatedCommandWithoutRecipient", "+995555999888", VerificationChannel.Sms, "userId", "request-hash", It.IsAny<CancellationToken>()), Times.Once());
         }
     }

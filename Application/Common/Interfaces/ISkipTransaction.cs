@@ -3,12 +3,24 @@ namespace Application.Common.Interfaces;
 /// <summary>
 /// Excludes a command from <see cref="Behaviors.TransactionBehavior{TRequest, TResponse}"/>.
 /// <para>
-/// The only valid reason to use it: the command performs an <strong>external side effect after
-/// saving</strong> — texting a code, sending mail, calling a payment provider — and so needs its
-/// save committed before that effect happens. <c>ResendOtpCommand</c> is the live example. It
-/// persists a challenge and then sends the SMS; inside a transaction that save has not committed
-/// yet, so a commit failure afterwards rolls the challenge back while the message is already gone
-/// and the code the user received can never be verified.
+/// There are exactly two valid reasons, and both are about the <em>boundary</em> being wrong —
+/// never about atomicity being unwanted.
+/// </para>
+/// <para>
+/// <strong>1. An external side effect after saving</strong> — texting a code, sending mail,
+/// calling a payment provider — where the save must be committed before the effect happens.
+/// <c>ResendOtpCommand</c> and <c>InitiateOperationCommand</c> are the live examples: both persist
+/// a challenge and then send the SMS, and inside a transaction that save has not committed yet, so
+/// a commit failure afterwards rolls the challenge back while the message is already gone and the
+/// code the user received can never be verified.
+/// </para>
+/// <para>
+/// <strong>2. The command manages a narrower boundary itself.</strong>
+/// <c>ConfirmOperationCommand</c> is the live example: the automatic transaction would start
+/// before code verification, and <c>OtpService.VerifyAsync</c> persists its <c>AttemptCount</c>
+/// increment in a <c>finally</c> precisely so a wrong code always counts. Rolled back, the attempt
+/// limit is never reached and six digits become brute-forceable. It verifies first, then opens its
+/// own transaction around execution and the result write.
 /// </para>
 /// <para>
 /// <strong>Not</strong> for commands that are merely slow, or that "do not need" atomicity. A

@@ -175,6 +175,48 @@
     }
   },
   {
+    "Key": "OtpRecipientNotAllowed",
+    "LocalizedValue": {
+      "ka-GE": "ამ ოპერაციისთვის ნომრის მითითება დაუშვებელია",
+      "en-US": "This operation does not accept a recipient"
+    }
+  },
+  {
+    "Key": "UnknownVerifiableOperation",
+    "LocalizedValue": {
+      "ka-GE": "მოთხოვნილი ოპერაცია არ არსებობს",
+      "en-US": "Unknown operation"
+    }
+  },
+  {
+    "Key": "VerificationChannelNotAllowed",
+    "LocalizedValue": {
+      "ka-GE": "დადასტურების ეს არხი მიუწვდომელია",
+      "en-US": "This verification channel is not available"
+    }
+  },
+  {
+    "Key": "PendingOperationNotFound",
+    "LocalizedValue": {
+      "ka-GE": "ოპერაცია ვერ მოიძებნა",
+      "en-US": "The operation was not found"
+    }
+  },
+  {
+    "Key": "PendingOperationAlreadyCompleted",
+    "LocalizedValue": {
+      "ka-GE": "ოპერაცია უკვე დასრულებულია, დაიწყეთ თავიდან",
+      "en-US": "This operation has already completed, start again"
+    }
+  },
+  {
+    "Key": "PendingOperationUnavailable",
+    "LocalizedValue": {
+      "ka-GE": "ოპერაციის მონაცემები აღარ არის ვალიდური, დაიწყეთ თავიდან",
+      "en-US": "The stored request is no longer valid, start again"
+    }
+  },
+  {
     "Key": "InvalidOtpLifetime",
     "LocalizedValue": {
       "ka-GE": "კოდის მოქმედების ვადა არასწორია",
