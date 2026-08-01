@@ -37,12 +37,12 @@ namespace WebApi.Controllers
             return Ok();
         }
 
-        [HttpDelete]
-        [Route(nameof(DeleteApplication))]
-        public async Task<ActionResult> DeleteApplication(DeleteApplicationCommand command)
-        {
-            await Mediator.Send(command);
-            return Ok();
-        }
+        // DeleteApplication has no direct route on purpose. It carries
+        // [VerifiableOperation("DeleteLoanApplication")], so it is reached through
+        // Verification/Initiate then Verification/Confirm.
+        //
+        // Registering an operation does not gate its existing endpoint. Leaving a direct
+        // DELETE here would have left the confirmation entirely optional — a caller who
+        // skipped it would delete just the same, and the gate would be decoration.
     }
 }

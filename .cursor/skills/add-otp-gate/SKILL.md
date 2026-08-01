@@ -10,6 +10,15 @@ description: >-
 
 Opting in is **one interface** — no per-feature OTP services or controller changes.
 
+## Choose the mechanism first
+
+There are two, sharing one core. **Never put both on one command** — startup throws.
+
+- **This one** when the payload is sensitive (it is never persisted), when the client can re-send
+  the body with the code, or when the command is ever dispatched outside HTTP.
+- **`[VerifiableOperation]`** (skill `add-verified-operation`) when the client should not have to
+  re-send the body. It stores the payload, unencrypted, between the two calls.
+
 ## Steps
 
 1. On the command record, implement `Application.Common.Otp.IRequireOtpVerification`.
@@ -31,6 +40,7 @@ Opting in is **one interface** — no per-feature OTP services or controller cha
 
 - `RegisterUserCommand` — explicit recipient
 - `UpdateApplicationStatusCommand` — account phone
+- `DeleteApplicationCommand` — the *other* mechanism, for contrast
 
 ## Do not
 
