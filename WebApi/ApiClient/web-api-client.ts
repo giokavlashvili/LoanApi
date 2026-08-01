@@ -15,8 +15,10 @@ import { HttpClient, HttpHeaders, HttpResponse, HttpResponseBase } from '@angula
 export const API_BASE_URL = new InjectionToken<string>('API_BASE_URL');
 
 export interface IAuthenticateClient {
-    login(command: LoginCommand): Observable<LoginDto>;
+    login(command: LoginCommand): Observable<TokenPairDto>;
     registerUser(command: RegisterUserCommand): Observable<boolean>;
+    refresh(command: RefreshTokenCommand): Observable<TokenPairDto>;
+    logout(command: LogoutCommand): Observable<FileResponse | null>;
     resendOtp(command: ResendOtpCommand): Observable<OtpChallengeDto>;
 }
 
@@ -33,7 +35,7 @@ export class AuthenticateClient implements IAuthenticateClient {
         this.baseUrl = baseUrl ?? "";
     }
 
-    login(command: LoginCommand): Observable<LoginDto> {
+    login(command: LoginCommand): Observable<TokenPairDto> {
         let url_ = this.baseUrl + "/api/v1/Authenticate/Login";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -56,14 +58,14 @@ export class AuthenticateClient implements IAuthenticateClient {
                 try {
                     return this.processLogin(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<LoginDto>;
+                    return _observableThrow(e) as any as Observable<TokenPairDto>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<LoginDto>;
+                return _observableThrow(response_) as any as Observable<TokenPairDto>;
         }));
     }
 
-    protected processLogin(response: HttpResponseBase): Observable<LoginDto> {
+    protected processLogin(response: HttpResponseBase): Observable<TokenPairDto> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -74,7 +76,7 @@ export class AuthenticateClient implements IAuthenticateClient {
             return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            result200 = LoginDto.fromJS(resultData200);
+            result200 = TokenPairDto.fromJS(resultData200);
             return _observableOf(result200);
             }));
         } else if (status !== 200 && status !== 204) {
@@ -82,7 +84,7 @@ export class AuthenticateClient implements IAuthenticateClient {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             }));
         }
-        return _observableOf<LoginDto>(null as any);
+        return _observableOf<TokenPairDto>(null as any);
     }
 
     registerUser(command: RegisterUserCommand): Observable<boolean> {
@@ -136,6 +138,114 @@ export class AuthenticateClient implements IAuthenticateClient {
             }));
         }
         return _observableOf<boolean>(null as any);
+    }
+
+    refresh(command: RefreshTokenCommand): Observable<TokenPairDto> {
+        let url_ = this.baseUrl + "/api/v1/Authenticate/Refresh";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_ : any = {
+            body: content_,
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("post", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processRefresh(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processRefresh(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<TokenPairDto>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<TokenPairDto>;
+        }));
+    }
+
+    protected processRefresh(response: HttpResponseBase): Observable<TokenPairDto> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = TokenPairDto.fromJS(resultData200);
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf<TokenPairDto>(null as any);
+    }
+
+    logout(command: LogoutCommand): Observable<FileResponse | null> {
+        let url_ = this.baseUrl + "/api/v1/Authenticate/Logout";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_ : any = {
+            body: content_,
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Content-Type": "application/json",
+                "Accept": "application/octet-stream"
+            })
+        };
+
+        return this.http.request("post", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processLogout(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processLogout(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<FileResponse | null>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<FileResponse | null>;
+        }));
+    }
+
+    protected processLogout(response: HttpResponseBase): Observable<FileResponse | null> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200 || status === 206) {
+            const contentDisposition = response.headers ? response.headers.get("content-disposition") : undefined;
+            let fileNameMatch = contentDisposition ? /filename\*=(?:(\\?['"])(.*?)\1|(?:[^\s]+'.*?')?([^;\n]*))/g.exec(contentDisposition) : undefined;
+            let fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[3] || fileNameMatch[2] : undefined;
+            if (fileName) {
+                fileName = decodeURIComponent(fileName);
+            } else {
+                fileNameMatch = contentDisposition ? /filename="?([^"]*?)"?(;|$)/g.exec(contentDisposition) : undefined;
+                fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[1] : undefined;
+            }
+            return _observableOf({ fileName: fileName, data: responseBlob as any, status: status, headers: _headers });
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf<FileResponse | null>(null as any);
     }
 
     resendOtp(command: ResendOtpCommand): Observable<OtpChallengeDto> {
@@ -269,7 +379,6 @@ export interface ILoanApplicationClient {
     createApplication(command: CreateApplicationCommand): Observable<number>;
     updateApplication(command: UpdateApplicationCommand): Observable<FileResponse | null>;
     updateApplicationStatus(command: UpdateApplicationStatusCommand): Observable<FileResponse | null>;
-    deleteApplication(command: DeleteApplicationCommand): Observable<FileResponse | null>;
 }
 
 @Injectable({
@@ -505,62 +614,6 @@ export class LoanApplicationClient implements ILoanApplicationClient {
         }
         return _observableOf<FileResponse | null>(null as any);
     }
-
-    deleteApplication(command: DeleteApplicationCommand): Observable<FileResponse | null> {
-        let url_ = this.baseUrl + "/api/v1/LoanApplication/DeleteApplication";
-        url_ = url_.replace(/[?&]$/, "");
-
-        const content_ = JSON.stringify(command);
-
-        let options_ : any = {
-            body: content_,
-            observe: "response",
-            responseType: "blob",
-            headers: new HttpHeaders({
-                "Content-Type": "application/json",
-                "Accept": "application/octet-stream"
-            })
-        };
-
-        return this.http.request("delete", url_, options_).pipe(_observableMergeMap((response_ : any) => {
-            return this.processDeleteApplication(response_);
-        })).pipe(_observableCatch((response_: any) => {
-            if (response_ instanceof HttpResponseBase) {
-                try {
-                    return this.processDeleteApplication(response_ as any);
-                } catch (e) {
-                    return _observableThrow(e) as any as Observable<FileResponse | null>;
-                }
-            } else
-                return _observableThrow(response_) as any as Observable<FileResponse | null>;
-        }));
-    }
-
-    protected processDeleteApplication(response: HttpResponseBase): Observable<FileResponse | null> {
-        const status = response.status;
-        const responseBlob =
-            response instanceof HttpResponse ? response.body :
-            (response as any).error instanceof Blob ? (response as any).error : undefined;
-
-        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
-        if (status === 200 || status === 206) {
-            const contentDisposition = response.headers ? response.headers.get("content-disposition") : undefined;
-            let fileNameMatch = contentDisposition ? /filename\*=(?:(\\?['"])(.*?)\1|(?:[^\s]+'.*?')?([^;\n]*))/g.exec(contentDisposition) : undefined;
-            let fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[3] || fileNameMatch[2] : undefined;
-            if (fileName) {
-                fileName = decodeURIComponent(fileName);
-            } else {
-                fileNameMatch = contentDisposition ? /filename="?([^"]*?)"?(;|$)/g.exec(contentDisposition) : undefined;
-                fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[1] : undefined;
-            }
-            return _observableOf({ fileName: fileName, data: responseBlob as any, status: status, headers: _headers });
-        } else if (status !== 200 && status !== 204) {
-            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            }));
-        }
-        return _observableOf<FileResponse | null>(null as any);
-    }
 }
 
 export interface ILoanTypeClient {
@@ -636,11 +689,189 @@ export class LoanTypeClient implements ILoanTypeClient {
     }
 }
 
-export class LoginDto implements ILoginDto {
+export interface IVerificationClient {
+    initiate(command: InitiateOperationCommand): Observable<PendingOperationDto>;
+    confirm(command: ConfirmOperationCommand): Observable<OperationResultDto>;
+    resend(command: ResendOperationCodeCommand): Observable<PendingOperationDto>;
+}
+
+@Injectable({
+    providedIn: 'root'
+})
+export class VerificationClient implements IVerificationClient {
+    private http: HttpClient;
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(@Inject(HttpClient) http: HttpClient, @Optional() @Inject(API_BASE_URL) baseUrl?: string) {
+        this.http = http;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    initiate(command: InitiateOperationCommand): Observable<PendingOperationDto> {
+        let url_ = this.baseUrl + "/api/v1/Verification/Initiate";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_ : any = {
+            body: content_,
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("post", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processInitiate(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processInitiate(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<PendingOperationDto>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<PendingOperationDto>;
+        }));
+    }
+
+    protected processInitiate(response: HttpResponseBase): Observable<PendingOperationDto> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = PendingOperationDto.fromJS(resultData200);
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf<PendingOperationDto>(null as any);
+    }
+
+    confirm(command: ConfirmOperationCommand): Observable<OperationResultDto> {
+        let url_ = this.baseUrl + "/api/v1/Verification/Confirm";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_ : any = {
+            body: content_,
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("post", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processConfirm(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processConfirm(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<OperationResultDto>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<OperationResultDto>;
+        }));
+    }
+
+    protected processConfirm(response: HttpResponseBase): Observable<OperationResultDto> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = OperationResultDto.fromJS(resultData200);
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf<OperationResultDto>(null as any);
+    }
+
+    resend(command: ResendOperationCodeCommand): Observable<PendingOperationDto> {
+        let url_ = this.baseUrl + "/api/v1/Verification/Resend";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_ : any = {
+            body: content_,
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("post", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processResend(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processResend(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<PendingOperationDto>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<PendingOperationDto>;
+        }));
+    }
+
+    protected processResend(response: HttpResponseBase): Observable<PendingOperationDto> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = PendingOperationDto.fromJS(resultData200);
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap(_responseText => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf<PendingOperationDto>(null as any);
+    }
+}
+
+export class TokenPairDto implements ITokenPairDto {
     accessToken?: string | undefined;
     validTo!: Date;
+    refreshToken?: string | undefined;
+    refreshTokenValidTo!: Date;
 
-    constructor(data?: ILoginDto) {
+    constructor(data?: ITokenPairDto) {
         if (data) {
             for (var property in data) {
                 if (data.hasOwnProperty(property))
@@ -653,12 +884,14 @@ export class LoginDto implements ILoginDto {
         if (_data) {
             this.accessToken = _data["accessToken"];
             this.validTo = _data["validTo"] ? new Date(_data["validTo"].toString()) : undefined as any;
+            this.refreshToken = _data["refreshToken"];
+            this.refreshTokenValidTo = _data["refreshTokenValidTo"] ? new Date(_data["refreshTokenValidTo"].toString()) : undefined as any;
         }
     }
 
-    static fromJS(data: any): LoginDto {
+    static fromJS(data: any): TokenPairDto {
         data = typeof data === 'object' ? data : {};
-        let result = new LoginDto();
+        let result = new TokenPairDto();
         result.init(data);
         return result;
     }
@@ -667,13 +900,17 @@ export class LoginDto implements ILoginDto {
         data = typeof data === 'object' ? data : {};
         data["accessToken"] = this.accessToken;
         data["validTo"] = this.validTo ? this.validTo.toISOString() : undefined as any;
+        data["refreshToken"] = this.refreshToken;
+        data["refreshTokenValidTo"] = this.refreshTokenValidTo ? this.refreshTokenValidTo.toISOString() : undefined as any;
         return data;
     }
 }
 
-export interface ILoginDto {
+export interface ITokenPairDto {
     accessToken?: string | undefined;
     validTo: Date;
+    refreshToken?: string | undefined;
+    refreshTokenValidTo: Date;
 }
 
 export class LoginCommand implements ILoginCommand {
@@ -786,6 +1023,78 @@ export interface IRegisterUserCommand {
     birthDate?: Date | undefined;
     challengeId?: string | undefined;
     otpCode?: string | undefined;
+}
+
+export class RefreshTokenCommand implements IRefreshTokenCommand {
+    refreshToken?: string | undefined;
+
+    constructor(data?: IRefreshTokenCommand) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.refreshToken = _data["refreshToken"];
+        }
+    }
+
+    static fromJS(data: any): RefreshTokenCommand {
+        data = typeof data === 'object' ? data : {};
+        let result = new RefreshTokenCommand();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["refreshToken"] = this.refreshToken;
+        return data;
+    }
+}
+
+export interface IRefreshTokenCommand {
+    refreshToken?: string | undefined;
+}
+
+export class LogoutCommand implements ILogoutCommand {
+    refreshToken?: string | undefined;
+
+    constructor(data?: ILogoutCommand) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.refreshToken = _data["refreshToken"];
+        }
+    }
+
+    static fromJS(data: any): LogoutCommand {
+        data = typeof data === 'object' ? data : {};
+        let result = new LogoutCommand();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["refreshToken"] = this.refreshToken;
+        return data;
+    }
+}
+
+export interface ILogoutCommand {
+    refreshToken?: string | undefined;
 }
 
 export class OtpChallengeDto implements IOtpChallengeDto {
@@ -1194,42 +1503,6 @@ export interface IUpdateApplicationStatusCommand {
     otpCode?: string | undefined;
 }
 
-export class DeleteApplicationCommand implements IDeleteApplicationCommand {
-    id!: number;
-
-    constructor(data?: IDeleteApplicationCommand) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (this as any)[property] = (data as any)[property];
-            }
-        }
-    }
-
-    init(_data?: any) {
-        if (_data) {
-            this.id = _data["id"];
-        }
-    }
-
-    static fromJS(data: any): DeleteApplicationCommand {
-        data = typeof data === 'object' ? data : {};
-        let result = new DeleteApplicationCommand();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        data["id"] = this.id;
-        return data;
-    }
-}
-
-export interface IDeleteApplicationCommand {
-    id: number;
-}
-
 export class LoanTypeDto implements ILoanTypeDto {
     id!: number;
     name?: string | undefined;
@@ -1268,6 +1541,329 @@ export class LoanTypeDto implements ILoanTypeDto {
 export interface ILoanTypeDto {
     id: number;
     name?: string | undefined;
+}
+
+export class PendingOperationDto implements IPendingOperationDto {
+    operationId!: string;
+    challengeId!: string;
+    expiresAt!: Date;
+    recipient?: string | undefined;
+    maxAttempts!: number;
+
+    constructor(data?: IPendingOperationDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.operationId = _data["operationId"];
+            this.challengeId = _data["challengeId"];
+            this.expiresAt = _data["expiresAt"] ? new Date(_data["expiresAt"].toString()) : undefined as any;
+            this.recipient = _data["recipient"];
+            this.maxAttempts = _data["maxAttempts"];
+        }
+    }
+
+    static fromJS(data: any): PendingOperationDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new PendingOperationDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["operationId"] = this.operationId;
+        data["challengeId"] = this.challengeId;
+        data["expiresAt"] = this.expiresAt ? this.expiresAt.toISOString() : undefined as any;
+        data["recipient"] = this.recipient;
+        data["maxAttempts"] = this.maxAttempts;
+        return data;
+    }
+}
+
+export interface IPendingOperationDto {
+    operationId: string;
+    challengeId: string;
+    expiresAt: Date;
+    recipient?: string | undefined;
+    maxAttempts: number;
+}
+
+export class InitiateOperationCommand implements IInitiateOperationCommand {
+    operationType?: string | undefined;
+    channel!: VerificationChannel;
+    payload!: Payload;
+    recipient?: string | undefined;
+
+    constructor(data?: IInitiateOperationCommand) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.operationType = _data["operationType"];
+            this.channel = _data["channel"];
+            this.payload = _data["payload"];
+            this.recipient = _data["recipient"];
+        }
+    }
+
+    static fromJS(data: any): InitiateOperationCommand {
+        data = typeof data === 'object' ? data : {};
+        let result = new InitiateOperationCommand();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["operationType"] = this.operationType;
+        data["channel"] = this.channel;
+        data["payload"] = this.payload;
+        data["recipient"] = this.recipient;
+        return data;
+    }
+}
+
+export interface IInitiateOperationCommand {
+    operationType?: string | undefined;
+    channel: VerificationChannel;
+    payload: Payload;
+    recipient?: string | undefined;
+}
+
+export enum VerificationChannel {
+    Sms = "Sms",
+    Email = "Email",
+}
+
+export class OperationResultDto implements IOperationResultDto {
+    operationId!: string;
+    operationType?: string | undefined;
+    status!: PendingOperationStatus;
+    result?: Result | undefined;
+
+    constructor(data?: IOperationResultDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.operationId = _data["operationId"];
+            this.operationType = _data["operationType"];
+            this.status = _data["status"];
+            this.result = _data["result"];
+        }
+    }
+
+    static fromJS(data: any): OperationResultDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new OperationResultDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["operationId"] = this.operationId;
+        data["operationType"] = this.operationType;
+        data["status"] = this.status;
+        data["result"] = this.result;
+        return data;
+    }
+}
+
+export interface IOperationResultDto {
+    operationId: string;
+    operationType?: string | undefined;
+    status: PendingOperationStatus;
+    result?: Result | undefined;
+}
+
+export enum PendingOperationStatus {
+    Pending = "Pending",
+    Succeeded = "Succeeded",
+    Failed = "Failed",
+}
+
+export class ConfirmOperationCommand implements IConfirmOperationCommand {
+    operationId?: string | undefined;
+    code?: string | undefined;
+
+    constructor(data?: IConfirmOperationCommand) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.operationId = _data["operationId"];
+            this.code = _data["code"];
+        }
+    }
+
+    static fromJS(data: any): ConfirmOperationCommand {
+        data = typeof data === 'object' ? data : {};
+        let result = new ConfirmOperationCommand();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["operationId"] = this.operationId;
+        data["code"] = this.code;
+        return data;
+    }
+}
+
+export interface IConfirmOperationCommand {
+    operationId?: string | undefined;
+    code?: string | undefined;
+}
+
+export class ResendOperationCodeCommand implements IResendOperationCodeCommand {
+    operationId?: string | undefined;
+
+    constructor(data?: IResendOperationCodeCommand) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.operationId = _data["operationId"];
+        }
+    }
+
+    static fromJS(data: any): ResendOperationCodeCommand {
+        data = typeof data === 'object' ? data : {};
+        let result = new ResendOperationCodeCommand();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["operationId"] = this.operationId;
+        return data;
+    }
+}
+
+export interface IResendOperationCodeCommand {
+    operationId?: string | undefined;
+}
+
+export class Payload implements IPayload {
+
+    [key: string]: any;
+
+    constructor(data?: IPayload) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            for (var property in _data) {
+                if (_data.hasOwnProperty(property))
+                    this[property] = _data[property];
+            }
+        }
+    }
+
+    static fromJS(data: any): Payload {
+        data = typeof data === 'object' ? data : {};
+        let result = new Payload();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        for (var property in this) {
+            if (this.hasOwnProperty(property))
+                data[property] = this[property];
+        }
+        return data;
+    }
+}
+
+export interface IPayload {
+
+    [key: string]: any;
+}
+
+export class Result implements IResult {
+
+    [key: string]: any;
+
+    constructor(data?: IResult) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            for (var property in _data) {
+                if (_data.hasOwnProperty(property))
+                    this[property] = _data[property];
+            }
+        }
+    }
+
+    static fromJS(data: any): Result {
+        data = typeof data === 'object' ? data : {};
+        let result = new Result();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        for (var property in this) {
+            if (this.hasOwnProperty(property))
+                data[property] = this[property];
+        }
+        return data;
+    }
+}
+
+export interface IResult {
+
+    [key: string]: any;
 }
 
 export interface FileResponse {
