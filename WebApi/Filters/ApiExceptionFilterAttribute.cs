@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
+using WebApi.Models;
 
 namespace WebUI.Filters
 {
@@ -201,19 +202,21 @@ namespace WebUI.Filters
         {
             var exception = (OtpRequiredException)context.Exception;
 
-            var details = new ProblemDetails()
+            // Declared properties on a ProblemDetails subclass, not Extensions entries. Both
+            // serialize to the same JSON — Extensions is [JsonExtensionData], so its keys land flat
+            // next to the standard members — but only declared properties reach the OpenAPI
+            // document, and these four are precisely what the client needs to answer the challenge.
+            var details = new OtpChallengeProblemDetails()
             {
                 Status = StatusCodes.Status428PreconditionRequired,
                 Type = "https://tools.ietf.org/html/rfc6585#section-3",
                 Title = "Verification code required",
-                Detail = _stringLocalizer.GetString(exception.Message)
+                Detail = _stringLocalizer.GetString(exception.Message),
+                ChallengeId = exception.Challenge.ChallengeId,
+                ExpiresAt = exception.Challenge.ExpiresAt,
+                Recipient = exception.Challenge.Recipient,
+                MaxAttempts = exception.Challenge.MaxAttempts
             };
-
-            // On Extensions rather than in the body so the shape stays a plain ProblemDetails.
-            details.Extensions["challengeId"] = exception.Challenge.ChallengeId;
-            details.Extensions["expiresAt"] = exception.Challenge.ExpiresAt;
-            details.Extensions["recipient"] = exception.Challenge.Recipient;
-            details.Extensions["maxAttempts"] = exception.Challenge.MaxAttempts;
 
             context.Result = new ObjectResult(details)
             {

@@ -12,6 +12,8 @@ alwaysApply: false
 - That lookup is by **exact runtime type** — a subclass of a mapped exception is not matched. Register the base type you actually want mapped; do not introduce a derived "wrapper" marker, which only maps the one path that produces it.
 - Domain exception keys → add to `WebApi/Resources/localization.json` (`ka-GE` / `en-US`).
 - Culture: `x-sys-language` header (`SysLanguageMiddleware`); stripped from generated TS client via `nswag.json` `excludedParameterNames`.
-- OTP challenges surface as **428** with `challengeId` / `expiresAt`.
+- **Declare responses**: every action needs `[ProducesResponseType]` for its 200 and each error it can actually return. 400 → `ValidationProblemDetails`, everything else → `ProblemDetails`. The 500 is already on `ApiControllerBase` — do not repeat it. Codes shared by the whole controller (401 on `[Authorize]` ones) go at class level; the rest on the action. A **void** action needs `[ProducesResponseType(StatusCodes.Status200OK)]` or NSwag generates `Observable<FileResponse>` instead of `Observable<void>`.
+- Do not claim a code the action cannot return — a no-input action with no validator has no 400, and `Verification/Resend` has no 403 because it skips the policy re-check.
+- OTP challenges surface as **428** typed as `OtpChallengeProblemDetails` (`WebApi/Models`) — `challengeId` / `expiresAt` / `recipient` / `maxAttempts` as declared properties, not `ProblemDetails.Extensions`. Extensions serialize identically but are invisible to the OpenAPI generator, so they never reach the client.
 - `WebApi/ClientApp` is **not** a real frontend (build output only). Generated client: `WebApi/ApiClient/web-api-client.ts` via NSwag.
 - Do not "fix" folder `Middlwares` or namespaces `WebUI.*` — load-bearing for existing usings.

@@ -3,19 +3,37 @@ using Application.Authenticate.Dtos;
 using Application.Otp.Commands;
 using Application.Otp.Dtos;
 using Microsoft.AspNetCore.Mvc;
+using WebApi.Models;
 
 namespace WebApi.Controllers
 {
     [ApiController]
     [Route("api/v1/[controller]")]
+    // Every action here has a validator, so every one can 400. There is deliberately no
+    // controller-level 401: this controller is anonymous, and the 401s below are credential
+    // rejections on two specific actions rather than the missing-token 401 [Authorize] produces.
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     public class AuthenticateController : ApiControllerBase
     {
+        /// <summary>
+        /// 401 covers both an unknown user name and a wrong password — <c>InvalidCredentialsException</c>
+        /// does not distinguish them, so that the endpoint cannot be used to enumerate accounts.
+        /// </summary>
         [HttpPost]
         [Route(nameof(Login))]
+        [ProducesResponseType(typeof(TokenPairDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<TokenPairDto>> Login(LoginCommand command) => await Mediator.Send(command);
 
+        /// <summary>
+        /// Two calls. The first omits <c>challengeId</c>/<c>otpCode</c> and answers 428 with the
+        /// challenge; the second carries them and creates the account. Nothing is persisted until
+        /// the second, so an unconfirmed number never leaves a half-made user behind.
+        /// </summary>
         [HttpPost]
         [Route(nameof(RegisterUser))]
+        [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(OtpChallengeProblemDetails), StatusCodes.Status428PreconditionRequired)]
         public async Task<ActionResult<bool>> RegisterUser(RegisterUserCommand command) => await Mediator.Send(command);
 
         /// <summary>
@@ -23,8 +41,15 @@ namespace WebApi.Controllers
         /// the one supplied. Anonymous by design: the caller's access token has expired, which is
         /// the only reason to call this.
         /// </summary>
+        /// <remarks>
+        /// 401, not 400, for a token that is unknown, already spent, revoked or expired: all four
+        /// raise <c>InvalidCredentialsException</c> with one message, so a caller cannot learn which
+        /// it was. The 400 is only the shape check — missing, or longer than 512 characters.
+        /// </remarks>
         [HttpPost]
         [Route(nameof(Refresh))]
+        [ProducesResponseType(typeof(TokenPairDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<TokenPairDto>> Refresh(RefreshTokenCommand command) => await Mediator.Send(command);
 
         /// <summary>
@@ -34,6 +59,9 @@ namespace WebApi.Controllers
         /// </summary>
         [HttpPost]
         [Route(nameof(Logout))]
+        // Typeless 200: the action returns Ok() with no body. Without this NSwag falls back to
+        // FileResponse in the generated client -- see docs/architecture.md.
+        [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<ActionResult> Logout(LogoutCommand command)
         {
             await Mediator.Send(command);
@@ -45,8 +73,11 @@ namespace WebApi.Controllers
         /// Re-sends the code for a challenge already issued. Not restricted to registration —
         /// any operation gated by <c>IRequireOtpVerification</c> resends through here.
         /// </summary>
+        // 400 also covers an unknown challenge and a throttled resend (OtpChallengeNotFound,
+        // OtpThrottled) -- both are DomainValidationException, which the filter maps to 400.
         [HttpPost]
         [Route(nameof(ResendOtp))]
+        [ProducesResponseType(typeof(OtpChallengeDto), StatusCodes.Status200OK)]
         public async Task<ActionResult<OtpChallengeDto>> ResendOtp(ResendOtpCommand command) => await Mediator.Send(command);
     }
 }

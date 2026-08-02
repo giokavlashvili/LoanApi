@@ -19,6 +19,14 @@ namespace WebApi.Controllers
     [Authorize]
     [ApiController]
     [Route("api/v1/[controller]")]
+    // Controller-wide because all three actions share them. The 400 is broader here than
+    // elsewhere: besides the command validators it carries every DomainValidationException the
+    // flow raises -- PendingOperationNotFound, PendingOperationAlreadyCompleted,
+    // PendingOperationUnavailable, OtpRecipientNotAllowed, UnknownVerifiableOperation, and the
+    // whole Otp* set (InvalidOtpCode, OtpExpired, OtpLocked, OtpAlreadyUsed, OtpThrottled,
+    // OtpPurposeMismatch, OtpRequestMismatch).
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public class VerificationController : ApiControllerBase
     {
         /// <summary>
@@ -28,6 +36,9 @@ namespace WebApi.Controllers
         /// </summary>
         [HttpPost]
         [Route(nameof(Initiate))]
+        [ProducesResponseType(typeof(PendingOperationDto), StatusCodes.Status200OK)]
+        // The operation's own RequiredPolicies, checked before a code is sent.
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
         public async Task<ActionResult<PendingOperationDto>> Initiate(InitiateOperationCommand command) =>
             await Mediator.Send(command);
 
@@ -41,6 +52,14 @@ namespace WebApi.Controllers
         /// </summary>
         [HttpPost]
         [Route(nameof(Confirm))]
+        [ProducesResponseType(typeof(OperationResultDto), StatusCodes.Status200OK)]
+        // Re-checked here, not only at initiate: minutes pass in between, which is long enough for
+        // a role to be revoked.
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+        // Two concurrent confirms of the same operation. OtpVerification carries a RowVersion, so
+        // the loser's SaveChanges throws DbUpdateConcurrencyException rather than running twice --
+        // which is why there is no Executing status to manage.
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
         public async Task<ActionResult<OperationResultDto>> Confirm(ConfirmOperationCommand command) =>
             await Mediator.Send(command);
 
@@ -48,8 +67,11 @@ namespace WebApi.Controllers
         /// Re-sends a code for an operation still awaiting confirmation. Returns a new
         /// <c>challengeId</c>; the <c>operationId</c> is unchanged.
         /// </summary>
+        // No 403: unlike the two above, resending does not re-run the operation's policy checks --
+        // it only reissues a code for an operation the caller already owns.
         [HttpPost]
         [Route(nameof(Resend))]
+        [ProducesResponseType(typeof(PendingOperationDto), StatusCodes.Status200OK)]
         public async Task<ActionResult<PendingOperationDto>> Resend(ResendOperationCodeCommand command) =>
             await Mediator.Send(command);
     }
