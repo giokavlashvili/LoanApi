@@ -1,6 +1,7 @@
 using Application.LoanApplications.Commands;
 using Domain.Entities;
 using Domain.Events;
+using Domain.Exceptions;
 using Domain.Repositories;
 using Moq;
 using NUnit.Framework;
@@ -63,6 +64,33 @@ namespace Application.UnitTests.LoanApplications.Commands
             await handler.Handle(new DeleteApplicationCommand { Id = 1 }, default);
 
             Assert.That(_entity.DomainEvents.Any(e => e is ApplicationDeletedEvent), Is.True);
+        }
+
+        /// <summary>
+        /// The validator establishes the id exists, but it runs outside the transaction and before
+        /// the handler's load — so a delete landing in that window returns null here. This used to
+        /// dereference null and surface as a 500; it must be the validator's own key instead.
+        /// <para>
+        /// Do not "fix" this by restoring <c>#pragma warning disable CS8602</c> to the command file.
+        /// The warning is what caught this.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void DeleteApplicationCommand_WhenApplicationDisappearsAfterValidation_ThrowsAndPersistsNothing()
+        {
+            _applications
+                .Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((LoanApplication?)null);
+
+            var handler = new DeleteApplicationCommandHandler(_applications.Object, _unitOfWork.Object);
+
+            Assert.That(
+                async () => await handler.Handle(new DeleteApplicationCommand { Id = 1 }, default),
+                Throws.InstanceOf<DomainValidationException>()
+                      .With.Message.EqualTo("InvalidApplication"));
+
+            _applications.Verify(r => r.Remove(It.IsAny<LoanApplication>()), Times.Never());
+            _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never());
         }
     }
 }

@@ -89,5 +89,36 @@ namespace Application.UnitTests.LoanApplications.Commands
             Assert.That(_entity.Amount, Is.EqualTo(100));
             _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never());
         }
+
+        /// <summary>
+        /// The validator establishes the id exists, but it runs outside the transaction and before
+        /// the handler's load — so a delete landing in that window returns null here. This used to
+        /// dereference null and surface as a 500; it must be the validator's own key instead.
+        /// <para>
+        /// Do not "fix" this by restoring <c>#pragma warning disable CS8602</c> to the command file.
+        /// The warning is what caught this.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void UpdateApplicationCommand_WhenApplicationDisappearsAfterValidation_ThrowsAndPersistsNothing()
+        {
+            _applications
+                .Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((LoanApplication?)null);
+
+            var handler = new UpdateApplicationCommandHandler(
+                _applications.Object,
+                _unitOfWork.Object,
+                _currentUserService.Object);
+
+            var command = new UpdateApplicationCommand { Id = 1, Amount = 500, CurrencyId = 2, LoanTypeId = 3, PeriodPerMonth = 24 };
+
+            Assert.That(
+                async () => await handler.Handle(command, default),
+                Throws.InstanceOf<DomainValidationException>()
+                      .With.Message.EqualTo("InvalidApplication"));
+
+            _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never());
+        }
     }
 }

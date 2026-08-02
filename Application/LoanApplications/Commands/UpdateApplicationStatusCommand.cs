@@ -3,10 +3,9 @@ using Application.Common.Interfaces;
 using Application.Common.Logging;
 using Application.Common.Otp;
 using Domain.Enums;
+using Domain.Exceptions;
 using Domain.Repositories;
 using MediatR;
-
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
 
 namespace Application.LoanApplications.Commands
 {
@@ -47,7 +46,12 @@ namespace Application.LoanApplications.Commands
         {
             _currentUserService.RequireUserId();
 
-            var entity = await _applications.GetByIdAsync(request.Id, cancellationToken);
+            // See UpdateApplicationCommandHandler, including why this is DomainValidationException
+            // and not ValidationException: the validator's existence check runs outside the
+            // transaction and before this load, so a concurrent delete in that window would
+            // otherwise dereference null and surface as a 500.
+            var entity = await _applications.GetByIdAsync(request.Id, cancellationToken)
+                ?? throw new DomainValidationException("InvalidApplication");
 
             entity.UpdateStatus(request.Status);
 

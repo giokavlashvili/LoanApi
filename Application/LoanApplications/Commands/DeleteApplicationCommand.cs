@@ -1,8 +1,7 @@
 using Application.Common.Operations;
+using Domain.Exceptions;
 using Domain.Repositories;
 using MediatR;
-
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
 
 namespace Application.LoanApplications.Commands
 {
@@ -42,7 +41,13 @@ namespace Application.LoanApplications.Commands
 
         public async Task Handle(DeleteApplicationCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _applications.GetByIdAsync(request.Id, cancellationToken);
+            // See UpdateApplicationCommandHandler, including why this is DomainValidationException
+            // and not ValidationException. Reached through Verification/Confirm rather than a direct
+            // route, but the window is the same: DeleteApplicationCommandValidator re-runs on the
+            // nested Send, still outside the transaction and still before this load. Two confirmed
+            // deletes racing for one application is the realistic way in.
+            var entity = await _applications.GetByIdAsync(request.Id, cancellationToken)
+                ?? throw new DomainValidationException("InvalidApplication");
 
             // The aggregate raises its own deletion event, like every other event it has. The
             // handler used to construct ApplicationDeletedEvent itself.
