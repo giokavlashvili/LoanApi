@@ -23,7 +23,7 @@ namespace Application.LoanApplications.Commands
     /// <c>Verification/Initiate</c> + <c>Verification/Confirm</c>.
     /// </para>
     /// </summary>
-    [VerifiableOperation("DeleteLoanApplication")]
+    [VerifiableOperation(VerifiableOperationType.DeleteLoanApplication)]
     public record DeleteApplicationCommand : IRequest
     {
         public int Id { get; set; }

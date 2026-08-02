@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Operations;
 using Application.Operations.Dtos;
 using Domain.Enums;
 using MediatR;
@@ -23,8 +24,15 @@ namespace Application.Operations.Commands
     /// </summary>
     public class InitiateOperationCommand : IRequest<PendingOperationDto>, ISkipTransaction
     {
-        /// <summary>Registry key. Anything unregistered is refused before a message is sent.</summary>
-        public string? OperationType { get; set; }
+        /// <summary>
+        /// Registry key. Anything unregistered is refused before a message is sent.
+        /// <para>
+        /// Nullable, and <see cref="VerifiableOperationType"/> starts at 1, so an omitted field is a
+        /// validation failure rather than whichever operation happens to sit at 0 — the difference
+        /// between a 400 and silently running the wrong operation.
+        /// </para>
+        /// </summary>
+        public VerifiableOperationType? OperationType { get; set; }
 
         public VerificationChannel Channel { get; set; } = VerificationChannel.Sms;
 
@@ -51,6 +59,6 @@ namespace Application.Operations.Commands
 
         public async Task<PendingOperationDto> Handle(InitiateOperationCommand request, CancellationToken cancellationToken) =>
             await _operations.InitiateAsync(
-                request.OperationType!, request.Channel, request.Payload, request.Recipient, cancellationToken);
+                request.OperationType!.Value, request.Channel, request.Payload, request.Recipient, cancellationToken);
     }
 }

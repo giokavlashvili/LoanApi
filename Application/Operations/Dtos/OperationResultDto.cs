@@ -1,3 +1,4 @@
+using Application.Common.Operations;
 using Domain.Enums;
 using System.Text.Json;
 
@@ -16,7 +17,11 @@ namespace Application.Operations.Dtos
     {
         public Guid OperationId { get; set; }
 
-        public string? OperationType { get; set; }
+        /// <summary>
+        /// Echoed back as the same closed set the caller sent, not as free text. Null only if the
+        /// stored row names a member this build no longer defines.
+        /// </summary>
+        public VerifiableOperationType? OperationType { get; set; }
 
         public PendingOperationStatus Status { get; set; }
 

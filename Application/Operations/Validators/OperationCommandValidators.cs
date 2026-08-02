@@ -8,9 +8,12 @@ namespace Application.Operations.Validators
     {
         public InitiateOperationCommandValidator(IStringLocalizer stringLocalizer)
         {
+            // NotNull covers the omitted field; IsInEnum covers a number outside the set, which the
+            // JSON binder accepts where it would have rejected an unknown string. Both land on the
+            // same message, because the caller's mistake is the same one either way.
             RuleFor(c => c.OperationType)
-                .NotEmpty().WithMessage(stringLocalizer.GetString("UnknownVerifiableOperation"))
-                .MaximumLength(128).WithMessage(stringLocalizer.GetString("UnknownVerifiableOperation"));
+                .NotNull().WithMessage(stringLocalizer.GetString("UnknownVerifiableOperation"))
+                .IsInEnum().WithMessage(stringLocalizer.GetString("UnknownVerifiableOperation"));
 
             RuleFor(c => c.Channel)
                 .IsInEnum().WithMessage(stringLocalizer.GetString("VerificationChannelNotAllowed"));

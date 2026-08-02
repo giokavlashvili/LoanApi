@@ -20,13 +20,22 @@ namespace Application.Common.Operations
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
     public sealed class VerifiableOperationAttribute : Attribute
     {
-        public VerifiableOperationAttribute(string name) => Name = name;
+        public VerifiableOperationAttribute(VerifiableOperationType type) => Type = type;
 
         /// <summary>
-        /// The value clients send as <c>operationType</c>, and the OTP purpose the challenge is
-        /// scoped to — so a code issued for one operation can never be spent on another.
+        /// The value clients send as <c>operationType</c>. An enum rather than a string so the
+        /// closed set reaches the generated client — see <see cref="VerifiableOperationType"/>.
         /// </summary>
-        public string Name { get; }
+        public VerifiableOperationType Type { get; }
+
+        /// <summary>
+        /// The persisted and hashed form of <see cref="Type"/>: the OTP purpose the challenge is
+        /// scoped to, so a code issued for one operation can never be spent on another, and the
+        /// value written to <c>PendingOperations.OperationType</c>. Deliberately the member
+        /// <em>name</em> and not its numeric value — a number would make stored rows unreadable and
+        /// turn reordering the enum into silent data corruption.
+        /// </summary>
+        public string Name => Type.ToString();
 
         public bool RequiresAuthentication { get; init; } = true;
 

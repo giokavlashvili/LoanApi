@@ -1,6 +1,7 @@
 using Application.Extensions;
 using Infrastructure.Common.Extensions;
 using Infrastructure.Persistence;
+using Scalar.AspNetCore;
 using Serilog;
 using WebApi.Extensions;
 using WebApi.Middlwares.Extensions;
@@ -39,6 +40,31 @@ try
         }
 
         app.UseCors("AllowAllCorsPolicy");
+
+        // Dev-only: the OpenAPI document and both viewers describe every route, parameter and
+        // schema in the API, which is reconnaissance value in Production for no corresponding
+        // benefit there -- nothing in this template consumes the document at runtime.
+        //
+        // NSwag generates and serves the document at /swagger/v1/swagger.json; the UI below is
+        // Swashbuckle's, reading that same document. Two packages, one document -- worth knowing
+        // before changing either.
+        app.UseOpenApi();
+        app.UseSwaggerUI();
+
+        // Scalar, alongside Swagger UI rather than replacing it. Same document, two readers: Swagger
+        // UI is what everyone already has bookmarked, and Scalar renders the per-operation
+        // request-body examples on Verification/Initiate far more usably -- which is the endpoint an
+        // API consumer is most likely to get wrong.
+        //
+        // The route pattern is not optional. Scalar defaults to Microsoft.AspNetCore.OpenApi's
+        // /openapi/{documentName}.json, and nothing serves that here.
+        app.MapScalarApiReference(options =>
+        {
+            options
+                .WithTitle("Open Api")
+                .WithOpenApiRoutePattern("/swagger/{documentName}/swagger.json")
+                .AddDocument("v1");
+        });
     }
     else
     {
@@ -49,10 +75,6 @@ try
     app.UseHttpsRedirection();
 
     app.UseStaticFiles();
-
-    // Register the Swagger generator and the Swagger UI middleware
-    app.UseOpenApi();
-    app.UseSwaggerUI();
 
     // Order matters. Logging is outermost so it observes the final status code and response
     // body of everything below it — including the 500 the exception handler produces, which

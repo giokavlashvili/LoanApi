@@ -5,7 +5,14 @@ namespace Application.Common.Operations
     /// </summary>
     public sealed class VerifiableOperationDescriptor
     {
-        public required string Name { get; init; }
+        /// <summary>What the caller sends, and what the registry is keyed by.</summary>
+        public required VerifiableOperationType Type { get; init; }
+
+        /// <summary>
+        /// <see cref="Type"/>'s member name — the OTP purpose and the value stored on the pending
+        /// row. Everything that leaves this process as text uses this rather than the numeric value.
+        /// </summary>
+        public string Name => Type.ToString();
 
         /// <summary>
         /// The type an incoming payload binds to. Always taken from here, <strong>never</strong>

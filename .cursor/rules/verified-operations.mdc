@@ -9,8 +9,10 @@ alwaysApply: false
 The second way to two-factor an operation, alongside `IRequireOtpVerification`. Both share one
 core (`OtpService`, `OtpVerification`, throttling, attempt budgets, expiry).
 
-- **Opt in**: `[VerifiableOperation("Name")]` on the command. That is the whole registration —
-  `VerifiableOperationRegistry` scans for it and the generic endpoints work immediately.
+- **Opt in**: add a member to `VerifiableOperationType`, then `[VerifiableOperation(
+  VerifiableOperationType.Yours)]` on the command. `VerifiableOperationRegistry` scans for it and
+  the generic endpoints work immediately. A defined member is *not* a registered operation — the
+  attribute is what grants reachability.
 - **Flow**: `POST api/v1/Verification/Initiate` `{operationType, channel, payload}` → stores the
   payload, sends a code, returns `operationId`. `POST .../Confirm` `{operationId, code}` → verifies
   and **executes**, returning the handler's result. `.../Resend` re-issues.
@@ -49,6 +51,10 @@ so the caller can never get through and every attempt bills two messages.
 - **Recipient comes from `IOtpRecipientResolver`**, shared with the gate. A caller-supplied
   recipient is *rejected*, not ignored, unless the operation declares
   `AllowsCallerSuppliedRecipient`.
+- **Operation names persist as enum member *names*, never values.** They are written to
+  `PendingOperations.OperationType` and hashed as the OTP purpose. So renaming a member is a
+  breaking change, not a refactor; reordering values is free. `Registry.TryGet(string)` round-trips
+  the parse, because `Enum.TryParse` otherwise accepts `"1"` as an address into the allowlist.
 
 ## Stated trade-offs (phase 6, deliberate)
 
@@ -59,6 +65,11 @@ so the caller can never get through and every attempt bills two messages.
   back — for database-only handlers. One calling an external system needs its own idempotency.
 - `OperationResultDto.Result` is `any` in the generated TS client. Inherent to one endpoint
   returning every operation's result.
+- **`payload` cannot be discriminated in OpenAPI.** Its shape depends on a *sibling* property, and
+  `oneOf` + `discriminator` requires the discriminator inside the discriminated schema. The server
+  gets as close as the format allows — `VerifiableOperationPayloadsDocumentProcessor` publishes
+  every payload type as a named schema and narrows the enum to registered operations — and the last
+  step is `WebApi/ApiClient/verified-operations.ts`, which is hand-written for that reason.
 
 Also see: `Application/Operations/Services/VerifiableOperationService.cs`,
 `Domain/Entities/PendingOperation.cs`, `docs/plans/06-generic-verified-operations.md`.

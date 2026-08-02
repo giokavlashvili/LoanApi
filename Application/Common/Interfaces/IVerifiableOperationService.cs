@@ -1,3 +1,4 @@
+using Application.Common.Operations;
 using Application.Operations.Dtos;
 using Domain.Enums;
 using System.Text.Json;
@@ -17,7 +18,7 @@ namespace Application.Common.Interfaces
         /// failure later costs a message <em>and</em> a code and still needs a fresh challenge.
         /// </summary>
         Task<PendingOperationDto> InitiateAsync(
-            string operationType,
+            VerifiableOperationType operationType,
             VerificationChannel channel,
             JsonElement payload,
             string? recipient = null,

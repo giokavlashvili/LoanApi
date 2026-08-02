@@ -22,7 +22,8 @@ namespace Application.UnitTests.Operations
     [TestFixture]
     public class VerifiableOperationServiceTests
     {
-        private const string OperationName = "ApproveLoan";
+        private const VerifiableOperationType Operation = VerifiableOperationType.DeleteLoanApplication;
+        private const string OperationName = nameof(VerifiableOperationType.DeleteLoanApplication);
         private const string UserId = "user-id";
         private const string Recipient = "+995555123456";
 
@@ -85,6 +86,11 @@ namespace Application.UnitTests.Operations
                 .Setup(s => s.IssueAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<VerificationChannel>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new OtpChallengeDto { ChallengeId = Guid.NewGuid(), ExpiresAt = Now.AddMinutes(5), MaxAttempts = 5 });
 
+            // Both overloads: initiate addresses the registry by enum, confirm by the name it read
+            // back off the stored row.
+            _registry.Setup(r => r.Get(Operation)).Returns(() => Descriptor());
+            _registry.Setup(r => r.Get(It.Is<VerifiableOperationType>(t => t != Operation)))
+                .Throws(() => new DomainValidationException("UnknownVerifiableOperation"));
             _registry.Setup(r => r.Get(OperationName)).Returns(() => Descriptor());
             _registry.Setup(r => r.Get(It.Is<string>(n => n != OperationName)))
                 .Throws(() => new DomainValidationException("UnknownVerifiableOperation"));
@@ -92,7 +98,7 @@ namespace Application.UnitTests.Operations
 
         private VerifiableOperationDescriptor Descriptor() => new()
         {
-            Name = OperationName,
+            Type = Operation,
             PayloadType = typeof(ApproveLoanPayload),
             RequiresAuthentication = true,
             AllowsCallerSuppliedRecipient = _allowsCallerSuppliedRecipient,
@@ -138,7 +144,7 @@ namespace Application.UnitTests.Operations
         [Test]
         public async Task InitiateAsync_StoresTheOperationAndIssuesAChallenge()
         {
-            var result = await CreateService().InitiateAsync(OperationName, VerificationChannel.Sms, Payload());
+            var result = await CreateService().InitiateAsync(Operation, VerificationChannel.Sms, Payload());
 
             Assert.That(result.OperationId, Is.Not.EqualTo(Guid.Empty));
             _operations.Verify(o => o.AddAsync(It.IsAny<PendingOperation>(), It.IsAny<CancellationToken>()), Times.Once());
@@ -147,11 +153,17 @@ namespace Application.UnitTests.Operations
                 Times.Once());
         }
 
+        /// <summary>
+        /// An out-of-range value, which is what an enum lets a caller send instead of an unknown
+        /// name. The validator's <c>IsInEnum</c> would normally catch it first — the service must
+        /// refuse it anyway, since the validator is not the thing standing between a caller and an
+        /// SMS bill.
+        /// </summary>
         [Test]
         public void InitiateAsync_WithAnUnregisteredOperation_ThrowsBeforeSending()
         {
             Assert.That(
-                async () => await CreateService().InitiateAsync("NoSuchOperation", VerificationChannel.Sms, Payload()),
+                async () => await CreateService().InitiateAsync((VerifiableOperationType)999, VerificationChannel.Sms, Payload()),
                 Throws.InstanceOf<DomainValidationException>());
 
             VerifyNothingWasSent();
@@ -165,7 +177,7 @@ namespace Application.UnitTests.Operations
         public void InitiateAsync_WithARecipientTheOperationDoesNotAllow_ThrowsBeforeSending()
         {
             Assert.That(
-                async () => await CreateService().InitiateAsync(OperationName, VerificationChannel.Sms, Payload(), "+995555000000"),
+                async () => await CreateService().InitiateAsync(Operation, VerificationChannel.Sms, Payload(), "+995555000000"),
                 Throws.InstanceOf<DomainValidationException>());
 
             VerifyNothingWasSent();
@@ -176,7 +188,7 @@ namespace Application.UnitTests.Operations
         {
             _allowsCallerSuppliedRecipient = true;
 
-            await CreateService().InitiateAsync(OperationName, VerificationChannel.Sms, Payload(), "+995555000000");
+            await CreateService().InitiateAsync(Operation, VerificationChannel.Sms, Payload(), "+995555000000");
 
             _recipientResolver.Verify(r => r.ResolveAsync("+995555000000", It.IsAny<CancellationToken>()), Times.Once());
         }
@@ -191,7 +203,7 @@ namespace Application.UnitTests.Operations
             _serviceCollection.AddTransient<IValidator<ApproveLoanPayload>, AlwaysFailsValidator>();
 
             Assert.That(
-                async () => await CreateService().InitiateAsync(OperationName, VerificationChannel.Sms, Payload()),
+                async () => await CreateService().InitiateAsync(Operation, VerificationChannel.Sms, Payload()),
                 Throws.InstanceOf<Application.Common.Exceptions.ValidationException>());
 
             VerifyNothingWasSent();
@@ -204,7 +216,7 @@ namespace Application.UnitTests.Operations
             var wrongShape = JsonSerializer.SerializeToElement(new { loanId = "not-a-number" });
 
             Assert.That(
-                async () => await CreateService().InitiateAsync(OperationName, VerificationChannel.Sms, wrongShape),
+                async () => await CreateService().InitiateAsync(Operation, VerificationChannel.Sms, wrongShape),
                 Throws.InstanceOf<DomainValidationException>());
 
             VerifyNothingWasSent();

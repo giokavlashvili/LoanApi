@@ -42,6 +42,7 @@ namespace Application.UnitTests.Operations
     [TestFixture]
     public class VerifiedOperationFlowTests
     {
+        private const VerifiableOperationType Operation = VerifiableOperationType.DeleteLoanApplication;
         private const string StaticCode = "123456";
         private const string UserId = "user-id";
 
@@ -142,7 +143,7 @@ namespace Application.UnitTests.Operations
             var payload = JsonSerializer.SerializeToElement(new { id = application.Id });
 
             // Act -- initiate
-            var pending = await Operations.InitiateAsync("DeleteLoanApplication", VerificationChannel.Sms, payload);
+            var pending = await Operations.InitiateAsync(Operation, VerificationChannel.Sms, payload);
 
             // Assert -- a code went out and the application is untouched.
             Assert.That(_sender.Messages, Has.Count.EqualTo(1));
@@ -166,7 +167,7 @@ namespace Application.UnitTests.Operations
             var application = SeedApplication();
             var payload = JsonSerializer.SerializeToElement(new { id = application.Id });
 
-            var pending = await Operations.InitiateAsync("DeleteLoanApplication", VerificationChannel.Sms, payload);
+            var pending = await Operations.InitiateAsync(Operation, VerificationChannel.Sms, payload);
 
             Assert.That(async () => await Operations.ConfirmAsync(pending.OperationId, "000000"),
                 Throws.InstanceOf<DomainValidationException>());
@@ -189,7 +190,7 @@ namespace Application.UnitTests.Operations
             var application = SeedApplication();
             var payload = JsonSerializer.SerializeToElement(new { id = application.Id });
 
-            var pending = await Operations.InitiateAsync("DeleteLoanApplication", VerificationChannel.Sms, payload);
+            var pending = await Operations.InitiateAsync(Operation, VerificationChannel.Sms, payload);
 
             var first = await Operations.ConfirmAsync(pending.OperationId, StaticCode);
             var second = await Operations.ConfirmAsync(pending.OperationId, StaticCode);
@@ -209,7 +210,7 @@ namespace Application.UnitTests.Operations
             var application = SeedApplication();
             var payload = JsonSerializer.SerializeToElement(new { id = application.Id });
 
-            var pending = await Operations.InitiateAsync("DeleteLoanApplication", VerificationChannel.Sms, payload);
+            var pending = await Operations.InitiateAsync(Operation, VerificationChannel.Sms, payload);
             var resent = await Operations.ResendAsync(pending.OperationId);
 
             Assert.That(resent.ChallengeId, Is.Not.EqualTo(pending.ChallengeId));
@@ -226,7 +227,7 @@ namespace Application.UnitTests.Operations
         public void Initiate_WithAnUnregisteredOperation_SendsNothing()
         {
             Assert.That(
-                async () => await Operations.InitiateAsync("NoSuchOperation", VerificationChannel.Sms, JsonSerializer.SerializeToElement(new { id = 1 })),
+                async () => await Operations.InitiateAsync((VerifiableOperationType)999, VerificationChannel.Sms, JsonSerializer.SerializeToElement(new { id = 1 })),
                 Throws.InstanceOf<DomainValidationException>());
 
             Assert.That(_sender.Messages, Is.Empty);
@@ -242,7 +243,7 @@ namespace Application.UnitTests.Operations
         {
             var registry = _provider.GetRequiredService<IVerifiableOperationRegistry>();
 
-            Assert.That(registry.Get("DeleteLoanApplication").PayloadType, Is.EqualTo(typeof(DeleteApplicationCommand)));
+            Assert.That(registry.Get(Operation).PayloadType, Is.EqualTo(typeof(DeleteApplicationCommand)));
         }
 
         private sealed class RecordingCodeSender : IVerificationCodeSender

@@ -63,7 +63,7 @@ namespace Application.Operations.Services
         }
 
         public async Task<PendingOperationDto> InitiateAsync(
-            string operationType,
+            VerifiableOperationType operationType,
             VerificationChannel channel,
             JsonElement payload,
             string? recipient = null,
@@ -131,6 +131,11 @@ namespace Application.Operations.Services
                     throw new DomainValidationException("PendingOperationAlreadyCompleted");
             }
 
+            // The name overload: the row holds a member name, which a deploy that removed the member
+            // can invalidate. That fails closed as UnknownVerifiableOperation and leaves the
+            // operation Pending rather than Failed — deliberately, because no code has been spent
+            // yet and rolling the deploy back makes it confirmable again. Contrast BindStoredAsync,
+            // which marks Failed precisely because by then the code is gone.
             var descriptor = _registry.Get(operation.OperationType!);
 
             // Re-checked here, not only at initiate: minutes pass in between, which is long enough
@@ -298,7 +303,10 @@ namespace Application.Operations.Services
         private OperationResultDto ToResult(PendingOperation operation) => new()
         {
             OperationId = operation.OperationId,
-            OperationType = operation.OperationType,
+            // Parsed rather than passed through, so the caller gets the same closed set it sent.
+            // Null only for a row naming a member this build no longer has — the replay path returns
+            // before the registry is consulted, so this is the one place that can see such a row.
+            OperationType = Enum.TryParse<VerifiableOperationType>(operation.OperationType, out var type) ? type : null,
             Status = operation.Status,
             Result = operation.ResultPayload is null
                 ? null

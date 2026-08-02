@@ -1,4 +1,5 @@
 ﻿using Application.Common.Interfaces;
+using Application.Common.Operations;
 using Microsoft.Extensions.Localization;
 using NSwag;
 using NSwag.Generation.Processors.Security;
@@ -31,7 +32,15 @@ namespace WebApi.Extensions
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             services.AddEndpointsApiExplorer();
 
-            services.AddSwaggerDocument(configure =>
+            // AddOpenApiDocument, not AddSwaggerDocument: the two differ only in the document format
+            // they emit — OpenAPI 3.0 versus Swagger 2.0. OpenAPI 3 is what makes named request-body
+            // examples possible, which is the only way Verification/Initiate can offer a per-operation
+            // body picker in Swagger UI. Swagger 2.0 has no equivalent, and no `oneOf` either.
+            //
+            // The service-provider overload, because the payload processor needs the operation
+            // registry — the document must describe what is actually registered, not what the enum
+            // happens to define.
+            services.AddOpenApiDocument((configure, serviceProvider) =>
             {
                 configure.Title = "Open Api";
                 configure.AddSecurity("JWT", Enumerable.Empty<string>(), new OpenApiSecurityScheme
@@ -44,6 +53,16 @@ namespace WebApi.Extensions
 
                 configure.OperationProcessors.Add(new AspNetCoreOperationSecurityScopeProcessor("JWT"));
                 configure.OperationProcessors.Add(new SysLanguageHeaderOperationProcessor());
+
+                // Verified-operation payload types have no route of their own — registering an
+                // operation means removing its direct endpoint — so without this they never reach
+                // the document and the generated client types the payload as nothing at all.
+                configure.DocumentProcessors.Add(new VerifiableOperationPayloadsDocumentProcessor(
+                    serviceProvider.GetRequiredService<IVerifiableOperationRegistry>()));
+
+                // Last, so it also covers the payload schemas injected above. Undoes the one
+                // regression the OpenAPI 3 switch would otherwise carry API-wide -- see the class.
+                configure.DocumentProcessors.Add(new NonNullablePropertiesAreRequiredDocumentProcessor());
             });
 
             return services;

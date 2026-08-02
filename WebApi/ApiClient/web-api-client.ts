@@ -18,7 +18,7 @@ export interface IAuthenticateClient {
     login(command: LoginCommand): Observable<TokenPairDto>;
     registerUser(command: RegisterUserCommand): Observable<boolean>;
     refresh(command: RefreshTokenCommand): Observable<TokenPairDto>;
-    logout(command: LogoutCommand): Observable<FileResponse | null>;
+    logout(command: LogoutCommand): Observable<FileResponse>;
     resendOtp(command: ResendOtpCommand): Observable<OtpChallengeDto>;
 }
 
@@ -192,7 +192,7 @@ export class AuthenticateClient implements IAuthenticateClient {
         return _observableOf<TokenPairDto>(null as any);
     }
 
-    logout(command: LogoutCommand): Observable<FileResponse | null> {
+    logout(command: LogoutCommand): Observable<FileResponse> {
         let url_ = this.baseUrl + "/api/v1/Authenticate/Logout";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -215,14 +215,14 @@ export class AuthenticateClient implements IAuthenticateClient {
                 try {
                     return this.processLogout(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<FileResponse | null>;
+                    return _observableThrow(e) as any as Observable<FileResponse>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<FileResponse | null>;
+                return _observableThrow(response_) as any as Observable<FileResponse>;
         }));
     }
 
-    protected processLogout(response: HttpResponseBase): Observable<FileResponse | null> {
+    protected processLogout(response: HttpResponseBase): Observable<FileResponse> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -245,7 +245,7 @@ export class AuthenticateClient implements IAuthenticateClient {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             }));
         }
-        return _observableOf<FileResponse | null>(null as any);
+        return _observableOf<FileResponse>(null as any);
     }
 
     resendOtp(command: ResendOtpCommand): Observable<OtpChallengeDto> {
@@ -377,8 +377,8 @@ export class CurrencyClient implements ICurrencyClient {
 export interface ILoanApplicationClient {
     getApplications(pageNumber: number | undefined, pageSize: number | undefined): Observable<PaginatedListOfLoanApplicationDto>;
     createApplication(command: CreateApplicationCommand): Observable<number>;
-    updateApplication(command: UpdateApplicationCommand): Observable<FileResponse | null>;
-    updateApplicationStatus(command: UpdateApplicationStatusCommand): Observable<FileResponse | null>;
+    updateApplication(command: UpdateApplicationCommand): Observable<FileResponse>;
+    updateApplicationStatus(command: UpdateApplicationStatusCommand): Observable<FileResponse>;
 }
 
 @Injectable({
@@ -503,7 +503,7 @@ export class LoanApplicationClient implements ILoanApplicationClient {
         return _observableOf<number>(null as any);
     }
 
-    updateApplication(command: UpdateApplicationCommand): Observable<FileResponse | null> {
+    updateApplication(command: UpdateApplicationCommand): Observable<FileResponse> {
         let url_ = this.baseUrl + "/api/v1/LoanApplication/UpdateApplication";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -526,14 +526,14 @@ export class LoanApplicationClient implements ILoanApplicationClient {
                 try {
                     return this.processUpdateApplication(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<FileResponse | null>;
+                    return _observableThrow(e) as any as Observable<FileResponse>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<FileResponse | null>;
+                return _observableThrow(response_) as any as Observable<FileResponse>;
         }));
     }
 
-    protected processUpdateApplication(response: HttpResponseBase): Observable<FileResponse | null> {
+    protected processUpdateApplication(response: HttpResponseBase): Observable<FileResponse> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -556,10 +556,10 @@ export class LoanApplicationClient implements ILoanApplicationClient {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             }));
         }
-        return _observableOf<FileResponse | null>(null as any);
+        return _observableOf<FileResponse>(null as any);
     }
 
-    updateApplicationStatus(command: UpdateApplicationStatusCommand): Observable<FileResponse | null> {
+    updateApplicationStatus(command: UpdateApplicationStatusCommand): Observable<FileResponse> {
         let url_ = this.baseUrl + "/api/v1/LoanApplication/UpdateApplicationStatus";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -582,14 +582,14 @@ export class LoanApplicationClient implements ILoanApplicationClient {
                 try {
                     return this.processUpdateApplicationStatus(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<FileResponse | null>;
+                    return _observableThrow(e) as any as Observable<FileResponse>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<FileResponse | null>;
+                return _observableThrow(response_) as any as Observable<FileResponse>;
         }));
     }
 
-    protected processUpdateApplicationStatus(response: HttpResponseBase): Observable<FileResponse | null> {
+    protected processUpdateApplicationStatus(response: HttpResponseBase): Observable<FileResponse> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -612,7 +612,7 @@ export class LoanApplicationClient implements ILoanApplicationClient {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             }));
         }
-        return _observableOf<FileResponse | null>(null as any);
+        return _observableOf<FileResponse>(null as any);
     }
 }
 
@@ -1596,9 +1596,12 @@ export interface IPendingOperationDto {
 }
 
 export class InitiateOperationCommand implements IInitiateOperationCommand {
-    operationType?: string | undefined;
+    operationType?: VerifiableOperationType | undefined;
     channel!: VerificationChannel;
-    payload!: Payload;
+    /** Shape depends on `operationType`:
+
+- `DeleteLoanApplication` -> `DeleteApplicationCommand` */
+    payload!: any;
     recipient?: string | undefined;
 
     constructor(data?: IInitiateOperationCommand) {
@@ -1637,10 +1640,17 @@ export class InitiateOperationCommand implements IInitiateOperationCommand {
 }
 
 export interface IInitiateOperationCommand {
-    operationType?: string | undefined;
+    operationType?: VerifiableOperationType | undefined;
     channel: VerificationChannel;
-    payload: Payload;
+    /** Shape depends on `operationType`:
+
+- `DeleteLoanApplication` -> `DeleteApplicationCommand` */
+    payload: any;
     recipient?: string | undefined;
+}
+
+export enum VerifiableOperationType {
+    DeleteLoanApplication = "DeleteLoanApplication",
 }
 
 export enum VerificationChannel {
@@ -1650,9 +1660,9 @@ export enum VerificationChannel {
 
 export class OperationResultDto implements IOperationResultDto {
     operationId!: string;
-    operationType?: string | undefined;
+    operationType?: VerifiableOperationType | undefined;
     status!: PendingOperationStatus;
-    result?: Result | undefined;
+    result?: any | undefined;
 
     constructor(data?: IOperationResultDto) {
         if (data) {
@@ -1691,9 +1701,9 @@ export class OperationResultDto implements IOperationResultDto {
 
 export interface IOperationResultDto {
     operationId: string;
-    operationType?: string | undefined;
+    operationType?: VerifiableOperationType | undefined;
     status: PendingOperationStatus;
-    result?: Result | undefined;
+    result?: any | undefined;
 }
 
 export enum PendingOperationStatus {
@@ -1778,11 +1788,10 @@ export interface IResendOperationCodeCommand {
     operationId?: string | undefined;
 }
 
-export class Payload implements IPayload {
+export class DeleteApplicationCommand implements IDeleteApplicationCommand {
+    id!: number;
 
-    [key: string]: any;
-
-    constructor(data?: IPayload) {
+    constructor(data?: IDeleteApplicationCommand) {
         if (data) {
             for (var property in data) {
                 if (data.hasOwnProperty(property))
@@ -1793,77 +1802,26 @@ export class Payload implements IPayload {
 
     init(_data?: any) {
         if (_data) {
-            for (var property in _data) {
-                if (_data.hasOwnProperty(property))
-                    this[property] = _data[property];
-            }
+            this.id = _data["id"];
         }
     }
 
-    static fromJS(data: any): Payload {
+    static fromJS(data: any): DeleteApplicationCommand {
         data = typeof data === 'object' ? data : {};
-        let result = new Payload();
+        let result = new DeleteApplicationCommand();
         result.init(data);
         return result;
     }
 
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
-        for (var property in this) {
-            if (this.hasOwnProperty(property))
-                data[property] = this[property];
-        }
+        data["id"] = this.id;
         return data;
     }
 }
 
-export interface IPayload {
-
-    [key: string]: any;
-}
-
-export class Result implements IResult {
-
-    [key: string]: any;
-
-    constructor(data?: IResult) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (this as any)[property] = (data as any)[property];
-            }
-        }
-    }
-
-    init(_data?: any) {
-        if (_data) {
-            for (var property in _data) {
-                if (_data.hasOwnProperty(property))
-                    this[property] = _data[property];
-            }
-        }
-    }
-
-    static fromJS(data: any): Result {
-        data = typeof data === 'object' ? data : {};
-        let result = new Result();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        for (var property in this) {
-            if (this.hasOwnProperty(property))
-                data[property] = this[property];
-        }
-        return data;
-    }
-}
-
-export interface IResult {
-
-    [key: string]: any;
+export interface IDeleteApplicationCommand {
+    id: number;
 }
 
 export interface FileResponse {

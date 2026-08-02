@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "webapi-https",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "WebApi", "--launch-profile", "https"],
+      "port": 7233
+    }
+  ]
+}
