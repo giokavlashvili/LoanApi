@@ -2,25 +2,34 @@ using Application.Authenticate.Commands;
 using Application.Authenticate.Dtos;
 using Application.Otp.Commands;
 using Application.Otp.Dtos;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebApi.Models;
 
 namespace WebApi.Controllers
 {
+    // Resolves to api/v1/auth. Deliberately not a resource collection: nothing here is CRUD on a
+    // thing, so the actions keep explicit verb segments (login, refresh) rather than being bent
+    // into a "sessions" resource that no part of the system actually models.
+    //
+    // The verb comes from the [action] token, kebab-cased by the same transformer that handles
+    // [controller] -- so ResendOtp serves resend-otp, and casing is decided in exactly one place.
+    // The trade is that renaming a method here silently moves its public URL. That makes any
+    // rename in this class an API change; treat it as one.
+    [AllowAnonymous]
     [ApiController]
     [Route("api/v1/[controller]")]
     // Every action here has a validator, so every one can 400. There is deliberately no
     // controller-level 401: this controller is anonymous, and the 401s below are credential
     // rejections on two specific actions rather than the missing-token 401 [Authorize] produces.
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    public class AuthenticateController : ApiControllerBase
+    public class AuthController : ApiControllerBase
     {
         /// <summary>
         /// 401 covers both an unknown user name and a wrong password — <c>InvalidCredentialsException</c>
         /// does not distinguish them, so that the endpoint cannot be used to enumerate accounts.
         /// </summary>
-        [HttpPost]
-        [Route(nameof(Login))]
+        [HttpPost("[action]")]
         [ProducesResponseType(typeof(TokenPairDto), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<TokenPairDto>> Login(LoginCommand command) => await Mediator.Send(command);
@@ -30,11 +39,10 @@ namespace WebApi.Controllers
         /// challenge; the second carries them and creates the account. Nothing is persisted until
         /// the second, so an unconfirmed number never leaves a half-made user behind.
         /// </summary>
-        [HttpPost]
-        [Route(nameof(RegisterUser))]
+        [HttpPost("[action]")]
         [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(OtpChallengeProblemDetails), StatusCodes.Status428PreconditionRequired)]
-        public async Task<ActionResult<bool>> RegisterUser(RegisterUserCommand command) => await Mediator.Send(command);
+        public async Task<ActionResult<bool>> Register(RegisterUserCommand command) => await Mediator.Send(command);
 
         /// <summary>
         /// Exchanges a refresh token for a new access token and a new refresh token, invalidating
@@ -46,8 +54,7 @@ namespace WebApi.Controllers
         /// raise <c>InvalidCredentialsException</c> with one message, so a caller cannot learn which
         /// it was. The 400 is only the shape check — missing, or longer than 512 characters.
         /// </remarks>
-        [HttpPost]
-        [Route(nameof(Refresh))]
+        [HttpPost("[action]")]
         [ProducesResponseType(typeof(TokenPairDto), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<TokenPairDto>> Refresh(RefreshTokenCommand command) => await Mediator.Send(command);
@@ -57,8 +64,7 @@ namespace WebApi.Controllers
         /// was recognised, so the endpoint cannot be used to probe for valid tokens. Access tokens
         /// already issued stay valid until they expire.
         /// </summary>
-        [HttpPost]
-        [Route(nameof(Logout))]
+        [HttpPost("[action]")]
         // Typeless 200: the action returns Ok() with no body. Without this NSwag falls back to
         // FileResponse in the generated client -- see docs/architecture.md.
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -75,8 +81,7 @@ namespace WebApi.Controllers
         /// </summary>
         // 400 also covers an unknown challenge and a throttled resend (OtpChallengeNotFound,
         // OtpThrottled) -- both are DomainValidationException, which the filter maps to 400.
-        [HttpPost]
-        [Route(nameof(ResendOtp))]
+        [HttpPost("[action]")]
         [ProducesResponseType(typeof(OtpChallengeDto), StatusCodes.Status200OK)]
         public async Task<ActionResult<OtpChallengeDto>> ResendOtp(ResendOtpCommand command) => await Mediator.Send(command);
     }

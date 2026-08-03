@@ -13,9 +13,9 @@ core (`OtpService`, `OtpVerification`, throttling, attempt budgets, expiry).
   VerifiableOperationType.Yours)]` on the command. `VerifiableOperationRegistry` scans for it and
   the generic endpoints work immediately. A defined member is *not* a registered operation — the
   attribute is what grants reachability.
-- **Flow**: `POST api/v1/Verification/Initiate` `{operationType, channel, payload}` → stores the
-  payload, sends a code, returns `operationId`. `POST .../Confirm` `{operationId, code}` → verifies
-  and **executes**, returning the handler's result. `.../Resend` re-issues.
+- **Flow**: `POST api/v1/verification/initiate` `{operationType, channel, payload}` → stores the
+  payload, sends a code, returns `operationId`. `POST .../confirm` `{operationId, code}` → verifies
+  and **executes**, returning the handler's result. `.../resend` re-issues.
 
 ## Which mechanism
 

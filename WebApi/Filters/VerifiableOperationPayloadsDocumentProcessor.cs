@@ -184,7 +184,7 @@ namespace WebApi.Filters
                 "which OpenAPI cannot express - the discriminator would have to sit inside `payload` " +
                 "itself - so the combinations are listed here in full.\n\n" +
                 string.Join("\n\n", blocks) +
-                "\n\nThe response returns `operationId`; confirm with `POST /api/v1/Verification/Confirm` " +
+                "\n\nThe response returns `operationId`; confirm with `POST /api/v1/verification/confirm` " +
                 "`{ \"operationId\": \"...\", \"code\": \"123456\" }`. In Development the code is written to " +
                 "the log by `LoggingSmsCodeSender` rather than sent.";
 

@@ -14,9 +14,9 @@ import { HttpClient, HttpHeaders, HttpResponse, HttpResponseBase } from '@angula
 
 export const API_BASE_URL = new InjectionToken<string>('API_BASE_URL');
 
-export interface IAuthenticateClient {
+export interface IAuthClient {
     login(command: LoginCommand): Observable<TokenPairDto>;
-    registerUser(command: RegisterUserCommand): Observable<boolean>;
+    register(command: RegisterUserCommand): Observable<boolean>;
     refresh(command: RefreshTokenCommand): Observable<TokenPairDto>;
     logout(command: LogoutCommand): Observable<void>;
     resendOtp(command: ResendOtpCommand): Observable<OtpChallengeDto>;
@@ -25,7 +25,7 @@ export interface IAuthenticateClient {
 @Injectable({
     providedIn: 'root'
 })
-export class AuthenticateClient implements IAuthenticateClient {
+export class AuthClient implements IAuthClient {
     private http: HttpClient;
     private baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
@@ -36,7 +36,7 @@ export class AuthenticateClient implements IAuthenticateClient {
     }
 
     login(command: LoginCommand): Observable<TokenPairDto> {
-        let url_ = this.baseUrl + "/api/v1/Authenticate/Login";
+        let url_ = this.baseUrl + "/api/v1/auth/login";
         url_ = url_.replace(/[?&]$/, "");
 
         const content_ = JSON.stringify(command);
@@ -108,8 +108,8 @@ export class AuthenticateClient implements IAuthenticateClient {
         return _observableOf<TokenPairDto>(null as any);
     }
 
-    registerUser(command: RegisterUserCommand): Observable<boolean> {
-        let url_ = this.baseUrl + "/api/v1/Authenticate/RegisterUser";
+    register(command: RegisterUserCommand): Observable<boolean> {
+        let url_ = this.baseUrl + "/api/v1/auth/register";
         url_ = url_.replace(/[?&]$/, "");
 
         const content_ = JSON.stringify(command);
@@ -125,11 +125,11 @@ export class AuthenticateClient implements IAuthenticateClient {
         };
 
         return this.http.request("post", url_, options_).pipe(_observableMergeMap((response_ : any) => {
-            return this.processRegisterUser(response_);
+            return this.processRegister(response_);
         })).pipe(_observableCatch((response_: any) => {
             if (response_ instanceof HttpResponseBase) {
                 try {
-                    return this.processRegisterUser(response_ as any);
+                    return this.processRegister(response_ as any);
                 } catch (e) {
                     return _observableThrow(e) as any as Observable<boolean>;
                 }
@@ -138,7 +138,7 @@ export class AuthenticateClient implements IAuthenticateClient {
         }));
     }
 
-    protected processRegisterUser(response: HttpResponseBase): Observable<boolean> {
+    protected processRegister(response: HttpResponseBase): Observable<boolean> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -183,7 +183,7 @@ export class AuthenticateClient implements IAuthenticateClient {
     }
 
     refresh(command: RefreshTokenCommand): Observable<TokenPairDto> {
-        let url_ = this.baseUrl + "/api/v1/Authenticate/Refresh";
+        let url_ = this.baseUrl + "/api/v1/auth/refresh";
         url_ = url_.replace(/[?&]$/, "");
 
         const content_ = JSON.stringify(command);
@@ -256,7 +256,7 @@ export class AuthenticateClient implements IAuthenticateClient {
     }
 
     logout(command: LogoutCommand): Observable<void> {
-        let url_ = this.baseUrl + "/api/v1/Authenticate/Logout";
+        let url_ = this.baseUrl + "/api/v1/auth/logout";
         url_ = url_.replace(/[?&]$/, "");
 
         const content_ = JSON.stringify(command);
@@ -318,7 +318,7 @@ export class AuthenticateClient implements IAuthenticateClient {
     }
 
     resendOtp(command: ResendOtpCommand): Observable<OtpChallengeDto> {
-        let url_ = this.baseUrl + "/api/v1/Authenticate/ResendOtp";
+        let url_ = this.baseUrl + "/api/v1/auth/resend-otp";
         url_ = url_.replace(/[?&]$/, "");
 
         const content_ = JSON.stringify(command);
@@ -384,14 +384,14 @@ export class AuthenticateClient implements IAuthenticateClient {
     }
 }
 
-export interface ICurrencyClient {
-    getCurrencies(): Observable<CurrencyDto[]>;
+export interface ICurrenciesClient {
+    getAll(): Observable<CurrencyDto[]>;
 }
 
 @Injectable({
     providedIn: 'root'
 })
-export class CurrencyClient implements ICurrencyClient {
+export class CurrenciesClient implements ICurrenciesClient {
     private http: HttpClient;
     private baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
@@ -401,8 +401,8 @@ export class CurrencyClient implements ICurrencyClient {
         this.baseUrl = baseUrl ?? "";
     }
 
-    getCurrencies(): Observable<CurrencyDto[]> {
-        let url_ = this.baseUrl + "/api/v1/Currency/GetCurrencies";
+    getAll(): Observable<CurrencyDto[]> {
+        let url_ = this.baseUrl + "/api/v1/currencies";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_ : any = {
@@ -414,11 +414,11 @@ export class CurrencyClient implements ICurrencyClient {
         };
 
         return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
-            return this.processGetCurrencies(response_);
+            return this.processGetAll(response_);
         })).pipe(_observableCatch((response_: any) => {
             if (response_ instanceof HttpResponseBase) {
                 try {
-                    return this.processGetCurrencies(response_ as any);
+                    return this.processGetAll(response_ as any);
                 } catch (e) {
                     return _observableThrow(e) as any as Observable<CurrencyDto[]>;
                 }
@@ -427,7 +427,7 @@ export class CurrencyClient implements ICurrencyClient {
         }));
     }
 
-    protected processGetCurrencies(response: HttpResponseBase): Observable<CurrencyDto[]> {
+    protected processGetAll(response: HttpResponseBase): Observable<CurrencyDto[]> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -471,17 +471,17 @@ export class CurrencyClient implements ICurrencyClient {
     }
 }
 
-export interface ILoanApplicationClient {
-    getApplications(pageNumber: number | undefined, pageSize: number | undefined): Observable<PaginatedListOfLoanApplicationDto>;
-    createApplication(command: CreateApplicationCommand): Observable<number>;
-    updateApplication(command: UpdateApplicationCommand): Observable<void>;
-    updateApplicationStatus(command: UpdateApplicationStatusCommand): Observable<void>;
+export interface ILoanApplicationsClient {
+    getAll(pageNumber: number | undefined, pageSize: number | undefined): Observable<PaginatedListOfLoanApplicationDto>;
+    create(command: CreateApplicationCommand): Observable<number>;
+    update(id: number, command: UpdateApplicationCommand): Observable<void>;
+    updateStatus(id: number, command: UpdateApplicationStatusCommand): Observable<void>;
 }
 
 @Injectable({
     providedIn: 'root'
 })
-export class LoanApplicationClient implements ILoanApplicationClient {
+export class LoanApplicationsClient implements ILoanApplicationsClient {
     private http: HttpClient;
     private baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
@@ -491,8 +491,8 @@ export class LoanApplicationClient implements ILoanApplicationClient {
         this.baseUrl = baseUrl ?? "";
     }
 
-    getApplications(pageNumber: number | undefined, pageSize: number | undefined): Observable<PaginatedListOfLoanApplicationDto> {
-        let url_ = this.baseUrl + "/api/v1/LoanApplication/GetApplications?";
+    getAll(pageNumber: number | undefined, pageSize: number | undefined): Observable<PaginatedListOfLoanApplicationDto> {
+        let url_ = this.baseUrl + "/api/v1/loan-applications?";
         if (pageNumber === null)
             throw new globalThis.Error("The parameter 'pageNumber' cannot be null.");
         else if (pageNumber !== undefined)
@@ -512,11 +512,11 @@ export class LoanApplicationClient implements ILoanApplicationClient {
         };
 
         return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
-            return this.processGetApplications(response_);
+            return this.processGetAll(response_);
         })).pipe(_observableCatch((response_: any) => {
             if (response_ instanceof HttpResponseBase) {
                 try {
-                    return this.processGetApplications(response_ as any);
+                    return this.processGetAll(response_ as any);
                 } catch (e) {
                     return _observableThrow(e) as any as Observable<PaginatedListOfLoanApplicationDto>;
                 }
@@ -525,7 +525,7 @@ export class LoanApplicationClient implements ILoanApplicationClient {
         }));
     }
 
-    protected processGetApplications(response: HttpResponseBase): Observable<PaginatedListOfLoanApplicationDto> {
+    protected processGetAll(response: HttpResponseBase): Observable<PaginatedListOfLoanApplicationDto> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -568,8 +568,8 @@ export class LoanApplicationClient implements ILoanApplicationClient {
         return _observableOf<PaginatedListOfLoanApplicationDto>(null as any);
     }
 
-    createApplication(command: CreateApplicationCommand): Observable<number> {
-        let url_ = this.baseUrl + "/api/v1/LoanApplication/CreateApplication";
+    create(command: CreateApplicationCommand): Observable<number> {
+        let url_ = this.baseUrl + "/api/v1/loan-applications";
         url_ = url_.replace(/[?&]$/, "");
 
         const content_ = JSON.stringify(command);
@@ -585,11 +585,11 @@ export class LoanApplicationClient implements ILoanApplicationClient {
         };
 
         return this.http.request("post", url_, options_).pipe(_observableMergeMap((response_ : any) => {
-            return this.processCreateApplication(response_);
+            return this.processCreate(response_);
         })).pipe(_observableCatch((response_: any) => {
             if (response_ instanceof HttpResponseBase) {
                 try {
-                    return this.processCreateApplication(response_ as any);
+                    return this.processCreate(response_ as any);
                 } catch (e) {
                     return _observableThrow(e) as any as Observable<number>;
                 }
@@ -598,7 +598,7 @@ export class LoanApplicationClient implements ILoanApplicationClient {
         }));
     }
 
-    protected processCreateApplication(response: HttpResponseBase): Observable<number> {
+    protected processCreate(response: HttpResponseBase): Observable<number> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -642,8 +642,11 @@ export class LoanApplicationClient implements ILoanApplicationClient {
         return _observableOf<number>(null as any);
     }
 
-    updateApplication(command: UpdateApplicationCommand): Observable<void> {
-        let url_ = this.baseUrl + "/api/v1/LoanApplication/UpdateApplication";
+    update(id: number, command: UpdateApplicationCommand): Observable<void> {
+        let url_ = this.baseUrl + "/api/v1/loan-applications/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
         url_ = url_.replace(/[?&]$/, "");
 
         const content_ = JSON.stringify(command);
@@ -657,12 +660,12 @@ export class LoanApplicationClient implements ILoanApplicationClient {
             })
         };
 
-        return this.http.request("patch", url_, options_).pipe(_observableMergeMap((response_ : any) => {
-            return this.processUpdateApplication(response_);
+        return this.http.request("put", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processUpdate(response_);
         })).pipe(_observableCatch((response_: any) => {
             if (response_ instanceof HttpResponseBase) {
                 try {
-                    return this.processUpdateApplication(response_ as any);
+                    return this.processUpdate(response_ as any);
                 } catch (e) {
                     return _observableThrow(e) as any as Observable<void>;
                 }
@@ -671,7 +674,7 @@ export class LoanApplicationClient implements ILoanApplicationClient {
         }));
     }
 
-    protected processUpdateApplication(response: HttpResponseBase): Observable<void> {
+    protected processUpdate(response: HttpResponseBase): Observable<void> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -718,8 +721,11 @@ export class LoanApplicationClient implements ILoanApplicationClient {
         return _observableOf<void>(null as any);
     }
 
-    updateApplicationStatus(command: UpdateApplicationStatusCommand): Observable<void> {
-        let url_ = this.baseUrl + "/api/v1/LoanApplication/UpdateApplicationStatus";
+    updateStatus(id: number, command: UpdateApplicationStatusCommand): Observable<void> {
+        let url_ = this.baseUrl + "/api/v1/loan-applications/{id}/status";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
         url_ = url_.replace(/[?&]$/, "");
 
         const content_ = JSON.stringify(command);
@@ -734,11 +740,11 @@ export class LoanApplicationClient implements ILoanApplicationClient {
         };
 
         return this.http.request("patch", url_, options_).pipe(_observableMergeMap((response_ : any) => {
-            return this.processUpdateApplicationStatus(response_);
+            return this.processUpdateStatus(response_);
         })).pipe(_observableCatch((response_: any) => {
             if (response_ instanceof HttpResponseBase) {
                 try {
-                    return this.processUpdateApplicationStatus(response_ as any);
+                    return this.processUpdateStatus(response_ as any);
                 } catch (e) {
                     return _observableThrow(e) as any as Observable<void>;
                 }
@@ -747,7 +753,7 @@ export class LoanApplicationClient implements ILoanApplicationClient {
         }));
     }
 
-    protected processUpdateApplicationStatus(response: HttpResponseBase): Observable<void> {
+    protected processUpdateStatus(response: HttpResponseBase): Observable<void> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -802,14 +808,14 @@ export class LoanApplicationClient implements ILoanApplicationClient {
     }
 }
 
-export interface ILoanTypeClient {
-    getLoanTypes(): Observable<LoanTypeDto[]>;
+export interface ILoanTypesClient {
+    getAll(): Observable<LoanTypeDto[]>;
 }
 
 @Injectable({
     providedIn: 'root'
 })
-export class LoanTypeClient implements ILoanTypeClient {
+export class LoanTypesClient implements ILoanTypesClient {
     private http: HttpClient;
     private baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
@@ -819,8 +825,8 @@ export class LoanTypeClient implements ILoanTypeClient {
         this.baseUrl = baseUrl ?? "";
     }
 
-    getLoanTypes(): Observable<LoanTypeDto[]> {
-        let url_ = this.baseUrl + "/api/v1/LoanType/GetLoanTypes";
+    getAll(): Observable<LoanTypeDto[]> {
+        let url_ = this.baseUrl + "/api/v1/loan-types";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_ : any = {
@@ -832,11 +838,11 @@ export class LoanTypeClient implements ILoanTypeClient {
         };
 
         return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
-            return this.processGetLoanTypes(response_);
+            return this.processGetAll(response_);
         })).pipe(_observableCatch((response_: any) => {
             if (response_ instanceof HttpResponseBase) {
                 try {
-                    return this.processGetLoanTypes(response_ as any);
+                    return this.processGetAll(response_ as any);
                 } catch (e) {
                     return _observableThrow(e) as any as Observable<LoanTypeDto[]>;
                 }
@@ -845,7 +851,7 @@ export class LoanTypeClient implements ILoanTypeClient {
         }));
     }
 
-    protected processGetLoanTypes(response: HttpResponseBase): Observable<LoanTypeDto[]> {
+    protected processGetAll(response: HttpResponseBase): Observable<LoanTypeDto[]> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -909,7 +915,7 @@ export class VerificationClient implements IVerificationClient {
     }
 
     initiate(command: InitiateOperationCommand): Observable<PendingOperationDto> {
-        let url_ = this.baseUrl + "/api/v1/Verification/Initiate";
+        let url_ = this.baseUrl + "/api/v1/verification/initiate";
         url_ = url_.replace(/[?&]$/, "");
 
         const content_ = JSON.stringify(command);
@@ -989,7 +995,7 @@ export class VerificationClient implements IVerificationClient {
     }
 
     confirm(command: ConfirmOperationCommand): Observable<OperationResultDto> {
-        let url_ = this.baseUrl + "/api/v1/Verification/Confirm";
+        let url_ = this.baseUrl + "/api/v1/verification/confirm";
         url_ = url_.replace(/[?&]$/, "");
 
         const content_ = JSON.stringify(command);
@@ -1076,7 +1082,7 @@ export class VerificationClient implements IVerificationClient {
     }
 
     resend(command: ResendOperationCodeCommand): Observable<PendingOperationDto> {
-        let url_ = this.baseUrl + "/api/v1/Verification/Resend";
+        let url_ = this.baseUrl + "/api/v1/verification/resend";
         url_ = url_.replace(/[?&]$/, "");
 
         const content_ = JSON.stringify(command);

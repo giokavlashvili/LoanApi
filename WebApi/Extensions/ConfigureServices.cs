@@ -1,5 +1,6 @@
 ﻿using Application.Common.Interfaces;
 using Application.Common.Operations;
+using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.Extensions.Localization;
 using NSwag;
 using NSwag.Generation.Processors.Security;
@@ -7,6 +8,7 @@ using System.Text.Json.Serialization;
 using WebApi.Filters;
 using WebApi.Localization;
 using WebApi.Middlwares;
+using WebApi.Routing;
 using WebUI.Filters;
 using WebUI.Services;
 
@@ -22,7 +24,16 @@ namespace WebApi.Extensions
             services.AddSingleton<IStringLocalizer, JsonStringLocalizer>();
             services.AddHttpContextAccessor();
 
-            services.AddControllers(options => options.Filters.Add<ApiExceptionFilterAttribute>())
+            services.AddControllers(options =>
+                {
+                    options.Filters.Add<ApiExceptionFilterAttribute>();
+
+                    // Applies to the [controller] token in every route template, so resource
+                    // segments are lowercase kebab-case (loan-applications) without any controller
+                    // spelling its own path. See SlugifyParameterTransformer for what it does and
+                    // does not touch.
+                    options.Conventions.Add(new RouteTokenTransformerConvention(new SlugifyParameterTransformer()));
+                })
                 .AddJsonOptions(x =>
                 {
                     // serialize enums as strings in api responses

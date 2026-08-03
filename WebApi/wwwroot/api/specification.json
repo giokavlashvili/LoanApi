@@ -6,12 +6,12 @@
     "version": "1.0.0"
   },
   "paths": {
-    "/api/v1/Authenticate/Login": {
+    "/api/v1/auth/login": {
       "post": {
         "tags": [
-          "Authenticate"
+          "Auth"
         ],
-        "operationId": "Authenticate_Login",
+        "operationId": "Auth_Login",
         "parameters": [
           {
             "type": "string",
@@ -78,12 +78,12 @@
         }
       }
     },
-    "/api/v1/Authenticate/RegisterUser": {
+    "/api/v1/auth/register": {
       "post": {
         "tags": [
-          "Authenticate"
+          "Auth"
         ],
-        "operationId": "Authenticate_RegisterUser",
+        "operationId": "Auth_Register",
         "parameters": [
           {
             "type": "string",
@@ -150,12 +150,12 @@
         }
       }
     },
-    "/api/v1/Authenticate/Refresh": {
+    "/api/v1/auth/refresh": {
       "post": {
         "tags": [
-          "Authenticate"
+          "Auth"
         ],
-        "operationId": "Authenticate_Refresh",
+        "operationId": "Auth_Refresh",
         "parameters": [
           {
             "type": "string",
@@ -222,12 +222,12 @@
         }
       }
     },
-    "/api/v1/Authenticate/Logout": {
+    "/api/v1/auth/logout": {
       "post": {
         "tags": [
-          "Authenticate"
+          "Auth"
         ],
-        "operationId": "Authenticate_Logout",
+        "operationId": "Auth_Logout",
         "parameters": [
           {
             "type": "string",
@@ -277,12 +277,12 @@
         }
       }
     },
-    "/api/v1/Authenticate/ResendOtp": {
+    "/api/v1/auth/resend-otp": {
       "post": {
         "tags": [
-          "Authenticate"
+          "Auth"
         ],
-        "operationId": "Authenticate_ResendOtp",
+        "operationId": "Auth_ResendOtp",
         "parameters": [
           {
             "type": "string",
@@ -339,12 +339,12 @@
         }
       }
     },
-    "/api/v1/Currency/GetCurrencies": {
+    "/api/v1/currencies": {
       "get": {
         "tags": [
-          "Currency"
+          "Currencies"
         ],
-        "operationId": "Currency_GetCurrencies",
+        "operationId": "Currencies_GetAll",
         "parameters": [
           {
             "type": "string",
@@ -397,12 +397,12 @@
         ]
       }
     },
-    "/api/v1/LoanApplication/GetApplications": {
+    "/api/v1/loan-applications": {
       "get": {
         "tags": [
-          "LoanApplication"
+          "LoanApplications"
         ],
-        "operationId": "LoanApplication_GetApplications",
+        "operationId": "LoanApplications_GetAll",
         "parameters": [
           {
             "name": "PageNumber",
@@ -478,14 +478,12 @@
             "JWT": []
           }
         ]
-      }
-    },
-    "/api/v1/LoanApplication/CreateApplication": {
+      },
       "post": {
         "tags": [
-          "LoanApplication"
+          "LoanApplications"
         ],
-        "operationId": "LoanApplication_CreateApplication",
+        "operationId": "LoanApplications_Create",
         "parameters": [
           {
             "type": "string",
@@ -558,13 +556,23 @@
         ]
       }
     },
-    "/api/v1/LoanApplication/UpdateApplication": {
-      "patch": {
+    "/api/v1/loan-applications/{id}": {
+      "put": {
         "tags": [
-          "LoanApplication"
+          "LoanApplications"
         ],
-        "operationId": "LoanApplication_UpdateApplication",
+        "operationId": "LoanApplications_Update",
         "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 1
+          },
           {
             "type": "string",
             "name": "x-sys-language",
@@ -584,7 +592,7 @@
             }
           },
           "required": true,
-          "x-position": 1
+          "x-position": 2
         },
         "responses": {
           "400": {
@@ -638,13 +646,23 @@
         ]
       }
     },
-    "/api/v1/LoanApplication/UpdateApplicationStatus": {
+    "/api/v1/loan-applications/{id}/status": {
       "patch": {
         "tags": [
-          "LoanApplication"
+          "LoanApplications"
         ],
-        "operationId": "LoanApplication_UpdateApplicationStatus",
+        "operationId": "LoanApplications_UpdateStatus",
         "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 1
+          },
           {
             "type": "string",
             "name": "x-sys-language",
@@ -664,7 +682,7 @@
             }
           },
           "required": true,
-          "x-position": 1
+          "x-position": 2
         },
         "responses": {
           "400": {
@@ -728,12 +746,12 @@
         ]
       }
     },
-    "/api/v1/LoanType/GetLoanTypes": {
+    "/api/v1/loan-types": {
       "get": {
         "tags": [
-          "LoanType"
+          "LoanTypes"
         ],
-        "operationId": "LoanType_GetLoanTypes",
+        "operationId": "LoanTypes_GetAll",
         "parameters": [
           {
             "type": "string",
@@ -786,12 +804,12 @@
         ]
       }
     },
-    "/api/v1/Verification/Initiate": {
+    "/api/v1/verification/initiate": {
       "post": {
         "tags": [
           "Verification"
         ],
-        "description": "### Request body per operation\n\n`payload` carries the operation's own command. Its shape depends on `operationType`, which OpenAPI cannot express - the discriminator would have to sit inside `payload` itself - so the combinations are listed here in full.\n\n**`DeleteLoanApplication`** - payload is `DeleteApplicationCommand` (see Schemas below)\n\n```json\n{\r\n  \"operationType\": \"DeleteLoanApplication\",\r\n  \"channel\": \"Sms\",\r\n  \"payload\": {\r\n    \"id\": 0\r\n  }\r\n}\n```\n\n**`SubmitPayoutDetails`** - payload is `SubmitPayoutDetailsCommand` (see Schemas below)\n\n```json\n{\r\n  \"operationType\": \"SubmitPayoutDetails\",\r\n  \"channel\": \"Sms\",\r\n  \"payload\": {\r\n    \"applicationId\": 0,\r\n    \"cardNumber\": \"cardNumber\",\r\n    \"personalNumber\": \"personalNumber\",\r\n    \"bankName\": \"bankName\"\r\n  }\r\n}\n```\n\nThe response returns `operationId`; confirm with `POST /api/v1/Verification/Confirm` `{ \"operationId\": \"...\", \"code\": \"123456\" }`. In Development the code is written to the log by `LoggingSmsCodeSender` rather than sent.",
+        "description": "### Request body per operation\n\n`payload` carries the operation's own command. Its shape depends on `operationType`, which OpenAPI cannot express - the discriminator would have to sit inside `payload` itself - so the combinations are listed here in full.\n\n**`DeleteLoanApplication`** - payload is `DeleteApplicationCommand` (see Schemas below)\n\n```json\n{\r\n  \"operationType\": \"DeleteLoanApplication\",\r\n  \"channel\": \"Sms\",\r\n  \"payload\": {\r\n    \"id\": 0\r\n  }\r\n}\n```\n\n**`SubmitPayoutDetails`** - payload is `SubmitPayoutDetailsCommand` (see Schemas below)\n\n```json\n{\r\n  \"operationType\": \"SubmitPayoutDetails\",\r\n  \"channel\": \"Sms\",\r\n  \"payload\": {\r\n    \"applicationId\": 0,\r\n    \"cardNumber\": \"cardNumber\",\r\n    \"personalNumber\": \"personalNumber\",\r\n    \"bankName\": \"bankName\"\r\n  }\r\n}\n```\n\nThe response returns `operationId`; confirm with `POST /api/v1/verification/confirm` `{ \"operationId\": \"...\", \"code\": \"123456\" }`. In Development the code is written to the log by `LoggingSmsCodeSender` rather than sent.",
         "operationId": "Verification_Initiate",
         "parameters": [
           {
@@ -901,7 +919,7 @@
         ]
       }
     },
-    "/api/v1/Verification/Confirm": {
+    "/api/v1/verification/confirm": {
       "post": {
         "tags": [
           "Verification"
@@ -998,7 +1016,7 @@
         ]
       }
     },
-    "/api/v1/Verification/Resend": {
+    "/api/v1/verification/resend": {
       "post": {
         "tags": [
           "Verification"

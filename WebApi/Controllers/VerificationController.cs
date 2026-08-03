@@ -18,6 +18,10 @@ namespace WebApi.Controllers
     /// </summary>
     [Authorize]
     [ApiController]
+    // Resolves to api/v1/verification. Singular and not a resource collection on purpose: initiate
+    // and confirm are steps in a protocol, not CRUD, so the verb segments stay. They come from the
+    // [action] token, kebab-cased by the same transformer that handles [controller] -- so renaming
+    // one of these methods moves its public URL, and is an API change.
     [Route("api/v1/[controller]")]
     // Controller-wide because all three actions share them. The 400 is broader here than
     // elsewhere: besides the command validators it carries every DomainValidationException the
@@ -34,8 +38,7 @@ namespace WebApi.Controllers
         /// payload is frozen once stored, so a failure at confirm costs a message and a code and
         /// still needs a fresh challenge.
         /// </summary>
-        [HttpPost]
-        [Route(nameof(Initiate))]
+        [HttpPost("[action]")]
         [ProducesResponseType(typeof(PendingOperationDto), StatusCodes.Status200OK)]
         // The operation's own RequiredPolicies, checked before a code is sent.
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -50,8 +53,7 @@ namespace WebApi.Controllers
         /// result. A client wanting a typed result should ignore it and re-fetch the resource.
         /// </para>
         /// </summary>
-        [HttpPost]
-        [Route(nameof(Confirm))]
+        [HttpPost("[action]")]
         [ProducesResponseType(typeof(OperationResultDto), StatusCodes.Status200OK)]
         // Re-checked here, not only at initiate: minutes pass in between, which is long enough for
         // a role to be revoked.
@@ -69,8 +71,7 @@ namespace WebApi.Controllers
         /// </summary>
         // No 403: unlike the two above, resending does not re-run the operation's policy checks --
         // it only reissues a code for an operation the caller already owns.
-        [HttpPost]
-        [Route(nameof(Resend))]
+        [HttpPost("[action]")]
         [ProducesResponseType(typeof(PendingOperationDto), StatusCodes.Status200OK)]
         public async Task<ActionResult<PendingOperationDto>> Resend(ResendOperationCodeCommand command) =>
             await Mediator.Send(command);

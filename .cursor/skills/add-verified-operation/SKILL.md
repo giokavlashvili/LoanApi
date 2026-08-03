@@ -65,7 +65,7 @@ only in-flight operations are affected.
      from. Left false, a caller who sends `recipient` is **rejected**, not ignored.
 3. **Remove the command's direct endpoint.** Registering an operation does *not* gate an existing
    route — leaving one makes the confirmation optional and therefore decorative. See
-   `LoanApplicationController`, where `DeleteApplication` was removed for exactly this reason.
+   `LoanApplicationsController`, where `DeleteApplication` was removed for exactly this reason.
 4. Keep the command's FluentValidation validator. It runs at initiate, before a code is spent,
    and again at confirm through the pipeline.
 5. **Add the payload to the TypeScript map** in `WebApi/ApiClient/verified-operations.ts` — one line.
@@ -74,10 +74,10 @@ only in-flight operations are affected.
    than a runtime surprise. Then rebuild `Debug` **without** `SkipNSwag` so the payload schema
    reaches `web-api-client.ts`.
 6. Manual/API test:
-   - `POST api/v1/Verification/Initiate` `{ "operationType": "...", "channel": "Sms", "payload": { ... } }`
+   - `POST api/v1/verification/initiate` `{ "operationType": "...", "channel": "Sms", "payload": { ... } }`
      → `operationId`, `challengeId`, `expiresAt`
-   - `POST api/v1/Verification/Confirm` `{ "operationId": "...", "code": "123456" }` → runs it
-   - `POST api/v1/Verification/Resend` `{ "operationId": "..." }` if the message was lost
+   - `POST api/v1/verification/confirm` `{ "operationId": "...", "code": "123456" }` → runs it
+   - `POST api/v1/verification/resend` `{ "operationId": "..." }` if the message was lost
 7. Dev: read the code from the logs (`LoggingSmsCodeSender`), or set `Otp:StaticCode` in
    `appsettings.Development.json` and always answer with that.
 8. Check the boot log: `Registered N verifiable operations: ...` — that is the allowlist, and

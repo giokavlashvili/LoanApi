@@ -8,7 +8,7 @@ description: >-
 
 # Add vertical slice
 
-Copy this checklist and complete in order. Mirror existing sample: `LoanApplication` + `Application/LoanApplications` + `LoanApplicationController`.
+Copy this checklist and complete in order. Mirror existing sample: `LoanApplication` + `Application/LoanApplications` + `LoanApplicationsController`.
 
 ## Checklist
 
@@ -89,7 +89,7 @@ Application/<Feature>/
 
 ## 5. WebApi
 
-- Controller: `ApiControllerBase`, `api/v1/[controller]`, `[Route(nameof(Action))]`, `[Authorize]` when protected.
+- Controller: `ApiControllerBase`, plural collection name, `api/v1/[controller]` (kebab-cased for you), `[Authorize]` when protected. No verb in the path — `[HttpGet]` / `[HttpPost]` / `[HttpPut("{id:int}")]`; id in the route, re-anchored with `command with { Id = id }`.
 - One-liner actions: `Mediator.Send(...)`.
 
 ## 6. Localization

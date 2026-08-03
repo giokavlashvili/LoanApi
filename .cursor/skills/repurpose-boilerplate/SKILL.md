@@ -24,7 +24,7 @@ The loan domain is **demo content**. Keep the skeleton; replace the sample verti
 - `Domain/Entities` sample aggregates (`LoanApplication`, `LoanType`, `Currency`, …) and related `Events` / `Enums` / `Repositories`
 - `Application/LoanApplications`, `Application/Currencies`, `Application/LoanTypes`
 - `Infrastructure/Persistence/{Configurations,Repositories}` for those aggregates
-- `WebApi/Controllers/{LoanApplication,Currency,LoanType}Controller.cs`
+- `WebApi/Controllers/{LoanApplications,Currencies,LoanTypes}Controller.cs`
 - Seed data in `ApplicationDbContextInitialiser.TrySeedAsync`
 - Sample keys in `WebApi/Resources/localization.json`
 - Existing `Infrastructure/Migrations` — delete and create a fresh Initial migration for the new domain

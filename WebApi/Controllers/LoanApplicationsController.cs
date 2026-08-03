@@ -1,8 +1,7 @@
-﻿using Application.Common.Models;
+using Application.Common.Models;
 using Application.LoanApplications.Commands;
 using Application.LoanApplications.Dtos;
 using Application.LoanApplications.Queries;
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebApi.Models;
@@ -11,6 +10,9 @@ namespace WebApi.Controllers
 {
     [Authorize]
     [ApiController]
+    // Resolves to api/v1/loan-applications. The resource is the collection, so the actions carry
+    // no verb of their own -- the HTTP method already says what is happening, and repeating it in
+    // the path (the old CreateApplication, GetApplications) said it twice.
     [Route("api/v1/[controller]")]
     // Controller-wide: every action has a validator, and every action is gated by [Authorize].
     // The 400 covers both the validators (InvalidCurrency, InvalidLoanType, InvalidApplication,
@@ -18,31 +20,44 @@ namespace WebApi.Controllers
     // the same way (InvalidAmount, InvalidPeriod, ApplicationAlreadyProcessed).
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public class LoanApplicationController : ApiControllerBase
+    public class LoanApplicationsController : ApiControllerBase
     {
         [HttpGet]
-        [Route(nameof(GetApplications))]
         [ProducesResponseType(typeof(PaginatedList<LoanApplicationDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<PaginatedList<LoanApplicationDto>>> GetApplications([FromQuery]GetApplicationsQuery query) => await Mediator.Send(query);
+        public async Task<ActionResult<PaginatedList<LoanApplicationDto>>> GetAll([FromQuery] GetApplicationsQuery query) => await Mediator.Send(query);
 
         /// <summary>Returns the new application's id.</summary>
         // No 409: a concurrency conflict needs an existing row to contend for, and this inserts one.
+        //
+        // Still 200 rather than 201: a 201 is only worth the name with a Location header, and there
+        // is no GET api/v1/loan-applications/{id} for it to point at yet. A Location that 404s is
+        // worse than none. Adding that endpoint is the open item -- see docs/architecture.md.
         [HttpPost]
-        [Route(nameof(CreateApplication))]
         [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
-        public async Task<ActionResult<int>> CreateApplication(CreateApplicationCommand command) => await Mediator.Send(command);
+        public async Task<ActionResult<int>> Create(CreateApplicationCommand command) => await Mediator.Send(command);
 
-        [HttpPatch]
-        [Route(nameof(UpdateApplication))]
+        /// <summary>
+        /// Replaces the application's editable fields. PUT, not PATCH: every field on
+        /// <c>UpdateApplicationCommand</c> is required and the handler assigns all of them, so the
+        /// call has always been a full replace -- PATCH advertised a partial update the endpoint
+        /// does not implement.
+        /// </summary>
+        [HttpPut("{id:int}")]
         // Typeless 200: the action returns Ok() with no body. Without this NSwag falls back to
         // FileResponse in the generated client -- see docs/architecture.md.
         [ProducesResponseType(StatusCodes.Status200OK)]
         // LoanApplication carries a RowVersion, so a second concurrent writer to the same row gets
         // DbUpdateConcurrencyException rather than silently overwriting.
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-        public async Task<ActionResult> UpdateApplication(UpdateApplicationCommand command)
+        public async Task<ActionResult> Update(int id, UpdateApplicationCommand command)
         {
-            await Mediator.Send(command);
+            // The route wins over the body. Both carry an id now that the path addresses the
+            // resource, and the pair can disagree -- either by a client bug or deliberately, to
+            // aim an authorized-looking URL at a different row. Overwriting before the command
+            // reaches the pipeline means the validator and the handler only ever see the one the
+            // caller was routed to.
+            await Mediator.Send(command with { Id = id });
+
             return Ok();
         }
 
@@ -52,18 +67,23 @@ namespace WebApi.Controllers
         /// them and applies the change. The code goes to the number on the authenticated account —
         /// unlike registration, the request cannot name a recipient.
         /// </summary>
-        [HttpPatch]
-        [Route(nameof(UpdateApplicationStatus))]
+        // A sub-resource rather than a field on the PUT above: status is the one part of an
+        // application that moves on its own, and the only part behind the OTP gate.
+        [HttpPatch("{id:int}/status")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
         [ProducesResponseType(typeof(OtpChallengeProblemDetails), StatusCodes.Status428PreconditionRequired)]
-        public async Task<ActionResult> UpdateApplicationStatus(UpdateApplicationStatusCommand command)
+        public async Task<ActionResult> UpdateStatus(int id, UpdateApplicationStatusCommand command)
         {
-            await Mediator.Send(command);
+            // Same reasoning as Update. It matters more here: the OTP challenge hashes the request,
+            // so the id has to be settled before the gate sees it or the confirm would be checked
+            // against a payload the caller could still redirect.
+            await Mediator.Send(command with { Id = id });
+
             return Ok();
         }
 
-        // DeleteApplication has no direct route on purpose. It carries
+        // Delete has no route on purpose. DeleteApplicationCommand carries
         // [VerifiableOperation("DeleteLoanApplication")], so it is reached through
         // Verification/Initiate then Verification/Confirm.
         //

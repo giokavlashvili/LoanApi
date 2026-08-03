@@ -6,14 +6,18 @@ alwaysApply: false
 
 # WebApi
 
-- Controllers inherit `ApiControllerBase`, route `api/v1/[controller]`, `[Route(nameof(Action))]` per action. Protected APIs: `[Authorize]` at class level.
-- Actions stay thin: `Mediator.Send(...)` only. Void commands that return `Ok()` after send are fine (see `LoanApplicationController`).
+- Controllers inherit `ApiControllerBase`, route `api/v1/[controller]`. Protected APIs: `[Authorize]` at class level. `ApiControllerBase` carries **no** `[Route]` — MVC stops at the first type in the hierarchy that has one, so a template there would be dead.
+- **Name the controller for the collection, plural** (`LoanApplicationsController` → `api/v1/loan-applications`). `SlugifyParameterTransformer` kebab-cases the `[controller]` and `[action]` tokens, so never spell the casing yourself. It rewrites **tokens only** — a literal segment is verbatim, which is why non-CRUD actions use `[HttpPost("[action]")]`, not `[HttpPost("resend-otp")]`.
+- **No verb in the path for CRUD**: `[HttpGet]`, `[HttpPost]`, `[HttpPut("{id:int}")]`, `[HttpPatch("{id:int}/status")]` — the HTTP method already says it. Id goes in the route, not the body; re-anchor it with `Mediator.Send(command with { Id = id })` so a body id cannot disagree with the URL. `PUT` when every field is required (full replace), `PATCH` only for a real partial.
+- Action-style endpoints that are **not** CRUD keep explicit verb segments via `[HttpPost("[action]")]` — `AuthController` (`auth/login`), `VerificationController` (`verification/initiate`). Do not invent a resource for a protocol step.
+- Because those routes come from `[action]`, **renaming a method on `AuthController` or `VerificationController` moves its public URL** and nothing in the build catches it. Treat such a rename as an API change. CRUD actions carry no route segment, so they are unaffected.
+- Actions stay thin: `Mediator.Send(...)` only. Void commands that return `Ok()` after send are fine (see `LoanApplicationsController`).
 - Errors: `ApiExceptionFilterAttribute` maps `ValidationException` → 400, `NotFoundException` → 404, auth exceptions, `DomainValidationException` → 400 localized. Unmapped → `UnhandledExceptionHandlerMiddlware` → 500.
 - That lookup is by **exact runtime type** — a subclass of a mapped exception is not matched. Register the base type you actually want mapped; do not introduce a derived "wrapper" marker, which only maps the one path that produces it.
 - Domain exception keys → add to `WebApi/Resources/localization.json` (`ka-GE` / `en-US`).
 - Culture: `x-sys-language` header (`SysLanguageMiddleware`); stripped from generated TS client via `nswag.json` `excludedParameterNames`.
 - **Declare responses**: every action needs `[ProducesResponseType]` for its 200 and each error it can actually return. 400 → `ValidationProblemDetails`, everything else → `ProblemDetails`. The 500 is already on `ApiControllerBase` — do not repeat it. Codes shared by the whole controller (401 on `[Authorize]` ones) go at class level; the rest on the action. A **void** action needs `[ProducesResponseType(StatusCodes.Status200OK)]` or NSwag generates `Observable<FileResponse>` instead of `Observable<void>`.
-- Do not claim a code the action cannot return — a no-input action with no validator has no 400, and `Verification/Resend` has no 403 because it skips the policy re-check.
+- Do not claim a code the action cannot return — a no-input action with no validator has no 400, and `verification/resend` has no 403 because it skips the policy re-check.
 - OTP challenges surface as **428** typed as `OtpChallengeProblemDetails` (`WebApi/Models`) — `challengeId` / `expiresAt` / `recipient` / `maxAttempts` as declared properties, not `ProblemDetails.Extensions`. Extensions serialize identically but are invisible to the OpenAPI generator, so they never reach the client.
 - `WebApi/ClientApp` is **not** a real frontend (build output only). Generated client: `WebApi/ApiClient/web-api-client.ts` via NSwag.
 - Do not "fix" folder `Middlwares` or namespaces `WebUI.*` — load-bearing for existing usings.

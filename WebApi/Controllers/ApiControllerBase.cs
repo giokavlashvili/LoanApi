@@ -5,7 +5,12 @@ using Microsoft.AspNetCore.Mvc;
 namespace WebApi.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    // No [Route] here on purpose. MVC's CreateControllerModel walks up the hierarchy and stops at
+    // the first type carrying a route attribute, so a template declared here would be silently
+    // discarded by every derived controller that declares its own -- which all of them do. It used
+    // to say "api/[controller]", an unversioned template that never served a request and read as
+    // though it did. Each controller owns its route; there is exactly one to look at.
+    //
     // The one response every action in the API can produce: UnhandledExceptionHandlerMiddlware
     // turns anything the exception filter does not map into a ProblemDetails 500. Declared here
     // rather than repeated 15 times because it is genuinely universal — and nothing else is.

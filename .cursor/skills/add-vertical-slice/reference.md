@@ -43,7 +43,7 @@ Copy the `LoanApplication` sample. Replace names for the new aggregate.
 
 | Artifact | Sample path |
 |----------|-------------|
-| Controller | `WebApi/Controllers/LoanApplicationController.cs` |
+| Controller | `WebApi/Controllers/LoanApplicationsController.cs` |
 | Localization | `WebApi/Resources/localization.json` |
 | Domain tests | `Domain.UnitTests/Entities/LoanApplicationTests.cs` |
 | App tests | `Application.UnitTests/LoanApplications/Commands/CreateLoanApplicationTests.cs` |
