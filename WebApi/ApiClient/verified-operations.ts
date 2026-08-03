@@ -9,6 +9,7 @@ import {
     ConfirmOperationCommand,
     IDeleteApplicationCommand,
     InitiateOperationCommand,
+    ISubmitPayoutDetailsCommand,
     Payload,
     ResendOperationCodeCommand,
     VerifiableOperationType,
@@ -25,6 +26,7 @@ import {
  */
 export interface VerifiableOperationPayloads {
     [VerifiableOperationType.DeleteLoanApplication]: IDeleteApplicationCommand;
+    [VerifiableOperationType.SubmitPayoutDetails]: ISubmitPayoutDetailsCommand;
 }
 
 /**

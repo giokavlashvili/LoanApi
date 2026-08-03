@@ -38,6 +38,12 @@ namespace Application.Common.Operations
         /// <summary>
         /// The worked example. See <c>Application.LoanApplications.Commands.DeleteApplicationCommand</c>.
         /// </summary>
-        DeleteLoanApplication = 1
+        DeleteLoanApplication = 1,
+
+        /// <summary>
+        /// The worked example for <c>[SensitiveData]</c> payload encryption. See
+        /// <c>Application.LoanApplications.Commands.SubmitPayoutDetailsCommand</c>.
+        /// </summary>
+        SubmitPayoutDetails = 2
     }
 }

@@ -21,7 +21,7 @@ core (`OtpService`, `OtpVerification`, throttling, attempt budgets, expiry).
 
 | Situation | Use |
 |---|---|
-| Payload is sensitive | `IRequireOtpVerification` — it never persists a payload |
+| Payload is sensitive | Either — mark the properties `[SensitiveData]` here, or use `IRequireOtpVerification`, which persists nothing at all and is strictly stronger |
 | Client can re-send the payload with the code | `IRequireOtpVerification` |
 | Client should not have to re-send it | `[VerifiableOperation]` |
 | Operation is not reachable over HTTP | `IRequireOtpVerification` |
@@ -58,8 +58,18 @@ so the caller can never get through and every attempt bills two messages.
 
 ## Stated trade-offs (phase 6, deliberate)
 
-- Payloads are stored **unencrypted**. Mitigation is routing sensitive operations to
-  `IRequireOtpVerification`.
+- Payloads are stored **unencrypted except for `[SensitiveData]` properties** (phase 8). Marking one
+  requires two things or startup fails: `PayloadProtection:Secret` configured, and the property name
+  masked by the log redactor — otherwise it is encrypted at rest and written in the clear to `Logs`,
+  which is worse than not encrypting it because it looks handled.
+- **An edited row is caught by the request hash, not the cipher.** `VerifyAsync` runs before binding,
+  so a tampered payload never reaches decryption and the operation stays `Pending`. Do not weaken the
+  hash on the assumption that the authenticated cipher covers it.
+- **Only the request payload is encrypted, never `ResultPayload`.** Results go back to the caller
+  and into the response log, so encrypting the row protects nothing — and doing it returns ciphertext
+  to the client, because `ToResult` replays stored text verbatim. Do not return secrets instead.
+- **Rotating `PayloadProtection:Secret` is destructive** — no key history. Pending payloads live
+  minutes, so in practice only in-flight operations are affected.
 - **Nothing deletes old rows** — see the DELETE script in `docs/plans/06-generic-verified-operations.md`.
 - A crash between verification and the commit leaves the operation `Pending` and rolls the work
   back — for database-only handlers. One calling an external system needs its own idempotency.

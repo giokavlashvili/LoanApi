@@ -3,6 +3,7 @@ using Application.Common.Interfaces;
 using Application.Common.Models;
 using Application.Common.Operations;
 using Application.Common.Otp;
+using Application.Common.Serialization;
 using Application.LoanApplications.Commands;
 using Application.Operations.Services;
 using Application.Otp.Services;
@@ -81,9 +82,17 @@ namespace Application.UnitTests.Operations
             // StaticCode is the Development escape hatch: the rest of the flow -- hashing, expiry,
             // attempt limit, purpose binding -- runs exactly as with a random code.
             services.AddSingleton<IOptionsMonitor<OtpOptions>>(
-                new StubOptionsMonitor(new OtpOptions { Secret = "test-secret", StaticCode = StaticCode, ResendCooldown = TimeSpan.Zero }));
+                new StubOptionsMonitor<OtpOptions>(new OtpOptions { Secret = "test-secret", StaticCode = StaticCode, ResendCooldown = TimeSpan.Zero }));
 
             services.AddSingleton<IOtpCodeHasher, HmacOtpCodeHasher>();
+
+            // The real cipher, not a stub. The assertion that matters here is that plaintext is
+            // absent from the stored row, and a pass-through protector would let that pass while
+            // the feature did nothing.
+            services.AddSingleton<IOptionsMonitor<PayloadProtectionOptions>>(
+                new StubOptionsMonitor<PayloadProtectionOptions>(new PayloadProtectionOptions { Secret = "test-payload-secret" }));
+            services.AddSingleton<IPayloadProtector, AesGcmPayloadProtector>();
+            services.AddSingleton<IProtectedPayloadSerializer, ProtectedPayloadSerializer>();
             services.AddSingleton<IDateTime, StubClock>();
             _sender = new RecordingCodeSender();
             services.AddSingleton<IVerificationCodeSender>(_sender);
@@ -238,6 +247,46 @@ namespace Application.UnitTests.Operations
         /// sample operation is actually registered and that nothing in the assembly trips the
         /// startup validation.
         /// </summary>
+        /// <summary>
+        /// The encryption sample driven through the real registry and the real assembly scan, so
+        /// this also asserts that <c>SubmitPayoutDetailsCommand</c> passes every startup check —
+        /// including the redaction-coverage one, which is only satisfied because <c>cardNumber</c>
+        /// and <c>personalNumber</c> are both masked by the configured list.
+        /// </summary>
+        [Test]
+        public async Task SubmitPayoutDetails_EncryptsMarkedPropertiesAndReturnsAMaskedResult()
+        {
+            var application = SeedApplication();
+            var payload = JsonSerializer.SerializeToElement(new
+            {
+                applicationId = application.Id,
+                cardNumber = "4111111111111111",
+                personalNumber = "01001012345",
+                bankName = "Bank of Georgia"
+            });
+
+            var pending = await Operations.InitiateAsync(
+                VerifiableOperationType.SubmitPayoutDetails, VerificationChannel.Sms, payload);
+
+            var stored = _context.PendingOperations.AsNoTracking()
+                .Single(o => o.OperationId == pending.OperationId).Payload;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(stored, Does.Not.Contain("4111111111111111"), "the card number must not be readable in the row");
+                Assert.That(stored, Does.Not.Contain("01001012345"), "the personal number must not be readable in the row");
+                Assert.That(stored, Does.Contain("Bank of Georgia"), "an unmarked property stays readable");
+            });
+
+            var result = await Operations.ConfirmAsync(pending.OperationId, StaticCode);
+
+            // Masked, not encrypted: the handler received the real card number -- which is the proof
+            // the round trip decrypted -- and deliberately returns only its last four digits,
+            // because results are not protected and go straight into the response log.
+            Assert.That(result.Result!.Value.GetProperty("maskedCardNumber").GetString(),
+                Is.EqualTo("**** **** **** 1111"));
+        }
+
         [Test]
         public void Registry_ContainsTheSampleOperation()
         {
@@ -270,13 +319,13 @@ namespace Application.UnitTests.Operations
             public DateTime LocalNow => DateTime.Now;
         }
 
-        private sealed class StubOptionsMonitor : IOptionsMonitor<OtpOptions>
+        private sealed class StubOptionsMonitor<T> : IOptionsMonitor<T>
         {
-            public StubOptionsMonitor(OtpOptions value) => CurrentValue = value;
+            public StubOptionsMonitor(T value) => CurrentValue = value;
 
-            public OtpOptions CurrentValue { get; }
-            public OtpOptions Get(string? name) => CurrentValue;
-            public IDisposable? OnChange(Action<OtpOptions, string?> listener) => null;
+            public T CurrentValue { get; }
+            public T Get(string? name) => CurrentValue;
+            public IDisposable? OnChange(Action<T, string?> listener) => null;
         }
     }
 }

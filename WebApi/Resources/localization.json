@@ -236,5 +236,26 @@
       "ka-GE": "ტელეფონის ნომერი არასწორია",
       "en-US": "Invalid phone number"
     }
+  },
+  {
+    "Key": "InvalidCardNumber",
+    "LocalizedValue": {
+      "ka-GE": "ბარათის არასწორი ნომერი",
+      "en-US": "Invalid card number"
+    }
+  },
+  {
+    "Key": "InvalidPersonalNumber",
+    "LocalizedValue": {
+      "ka-GE": "არასწორი პირადი ნომერი",
+      "en-US": "Invalid personal number"
+    }
+  },
+  {
+    "Key": "InvalidBankName",
+    "LocalizedValue": {
+      "ka-GE": "ბანკის არასწორი დასახელება",
+      "en-US": "Invalid bank name"
+    }
   }
 ]

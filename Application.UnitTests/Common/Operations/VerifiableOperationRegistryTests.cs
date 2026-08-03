@@ -1,3 +1,4 @@
+using Application.Common.Logging;
 using Application.Common.Operations;
 using Application.Common.Otp;
 using Domain.Exceptions;
@@ -86,6 +87,116 @@ namespace Application.UnitTests.Common.Operations
             var registry = VerifiableOperationRegistry.Build([typeof(CloseLoanOperation)]);
 
             Assert.That(registry.Get(Registered).PayloadType, Is.EqualTo(typeof(CloseLoanOperation)));
+        }
+
+        /// <summary>Its sensitive property is named on <c>LogRedactor.DefaultSensitiveProperties</c>.</summary>
+        [VerifiableOperation(Registered)]
+        public record RedactedSecretOperation : IRequest<bool>
+        {
+            [SensitiveData]
+            public string? Password { get; init; }
+        }
+
+        /// <summary>
+        /// <c>birthDate</c> is deliberately <em>not</em> on the redaction list — marking it
+        /// encrypts it in the database while leaving it in the clear in the Logs table.
+        /// </summary>
+        [VerifiableOperation(Registered)]
+        public record UnredactedSecretOperation : IRequest<bool>
+        {
+            [SensitiveData]
+            public DateTime? BirthDate { get; init; }
+        }
+
+        public record NestedSecretHolder
+        {
+            [SensitiveData]
+            public DateTime? BirthDate { get; init; }
+        }
+
+        /// <summary>The sensitive property sits inside a collection element type.</summary>
+        [VerifiableOperation(Registered)]
+        public record CollectionOfSecretsOperation : IRequest<bool>
+        {
+            public List<NestedSecretHolder>? Holders { get; init; }
+        }
+
+        /// <summary>The same, one level down but not in a collection.</summary>
+        [VerifiableOperation(Registered)]
+        public record NestedSecretOperation : IRequest<bool>
+        {
+            public NestedSecretHolder? Holder { get; init; }
+        }
+
+        [Test]
+        public void Build_FindsASensitivePropertyOnANestedObject()
+        {
+            Assert.That(
+                () => VerifiableOperationRegistry.Build(
+                    [typeof(NestedSecretOperation)], true, LogRedactor.DefaultSensitiveProperties),
+                Throws.InstanceOf<InvalidOperationException>().With.Message.Contains("BirthDate"));
+        }
+
+        [Test]
+        public void Build_FindsASensitivePropertyInsideACollection()
+        {
+            Assert.That(
+                () => VerifiableOperationRegistry.Build(
+                    [typeof(CollectionOfSecretsOperation)], true, LogRedactor.DefaultSensitiveProperties),
+                Throws.InstanceOf<InvalidOperationException>().With.Message.Contains("BirthDate"));
+        }
+
+        [Test]
+        public void Build_WithASensitivePayloadAndNoConfiguredSecret_Throws()
+        {
+            Assert.That(
+                () => VerifiableOperationRegistry.Build([typeof(RedactedSecretOperation)], payloadProtectionConfigured: false),
+                Throws.InstanceOf<InvalidOperationException>()
+                      .With.Message.Contains("PayloadProtection:Secret"));
+        }
+
+        /// <summary>
+        /// The subtle failure this guards. Encryption at rest plus a plaintext log row is worse
+        /// than no encryption, because it looks handled.
+        /// </summary>
+        [Test]
+        public void Build_WithASensitivePropertyTheRedactorDoesNotMask_Throws()
+        {
+            Assert.That(
+                () => VerifiableOperationRegistry.Build(
+                    [typeof(UnredactedSecretOperation)],
+                    payloadProtectionConfigured: true,
+                    LogRedactor.DefaultSensitiveProperties),
+                Throws.InstanceOf<InvalidOperationException>()
+                      .With.Message.Contains(nameof(UnredactedSecretOperation.BirthDate)));
+        }
+
+        [Test]
+        public void Build_WithASensitivePropertyTheRedactorMasks_Succeeds()
+        {
+            var registry = VerifiableOperationRegistry.Build(
+                [typeof(RedactedSecretOperation)],
+                payloadProtectionConfigured: true,
+                LogRedactor.DefaultSensitiveProperties);
+
+            Assert.That(registry.Get(Registered).PayloadType, Is.EqualTo(typeof(RedactedSecretOperation)));
+        }
+
+        /// <summary>
+        /// The check mirrors <c>LogRedactor.BuildKeySet</c>: a configured list <em>replaces</em> the
+        /// defaults rather than extending them. Validating against the wrong set would pass while
+        /// live values still reached the log.
+        /// </summary>
+        [Test]
+        public void Build_HonoursAConfiguredRedactionListInPlaceOfTheDefaults()
+        {
+            Assert.That(
+                () => VerifiableOperationRegistry.Build(
+                    [typeof(RedactedSecretOperation)],
+                    payloadProtectionConfigured: true,
+                    new[] { "somethingElse" }),
+                Throws.InstanceOf<InvalidOperationException>().With.Message.Contains("Password"),
+                "a configured list that omits 'password' must not be rescued by the defaults");
         }
 
         [Test]

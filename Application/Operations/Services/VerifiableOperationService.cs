@@ -1,6 +1,7 @@
 using Application.Common.Interfaces;
 using Application.Common.Operations;
 using Application.Common.Otp;
+using Application.Common.Serialization;
 using Application.Operations.Dtos;
 using Domain.Entities;
 using Domain.Enums;
@@ -9,6 +10,7 @@ using Domain.Repositories;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace Application.Operations.Services
@@ -26,6 +28,7 @@ namespace Application.Operations.Services
         private readonly IOtpService _otpService;
         private readonly IOtpCodeHasher _codeHasher;
         private readonly IOtpRecipientResolver _recipientResolver;
+        private readonly IProtectedPayloadSerializer _payloadSerializer;
         private readonly ICurrentUserService _currentUserService;
         private readonly IIdentityService _identityService;
         private readonly IApplicationDbContext _dbContext;
@@ -40,6 +43,7 @@ namespace Application.Operations.Services
             IOtpService otpService,
             IOtpCodeHasher codeHasher,
             IOtpRecipientResolver recipientResolver,
+            IProtectedPayloadSerializer payloadSerializer,
             ICurrentUserService currentUserService,
             IIdentityService identityService,
             IApplicationDbContext dbContext,
@@ -53,6 +57,7 @@ namespace Application.Operations.Services
             _otpService = otpService;
             _codeHasher = codeHasher;
             _recipientResolver = recipientResolver;
+            _payloadSerializer = payloadSerializer;
             _currentUserService = currentUserService;
             _identityService = identityService;
             _dbContext = dbContext;
@@ -83,15 +88,25 @@ namespace Application.Operations.Services
             var command = Bind(payload, descriptor);
 
             // Before the code is issued, per the standing rule: a rejection left until confirm
-            // costs a message and a code, and the payload is frozen from here on.
+            // costs a message and a code, and the payload is frozen from here on. Note this runs on
+            // the *plaintext* command -- password rules have to see the password -- which is why it
+            // sits above the serialization below and must stay there.
             await ValidateAsync(command, descriptor, cancellationToken);
 
             var resolvedRecipient = await _recipientResolver.ResolveAsync(recipient, cancellationToken);
-            var storedPayload = payload.GetRawText();
+
+            // Re-serialized from the bound command rather than stored as the caller's raw text,
+            // because encrypting individual properties means writing through the serializer. Two
+            // consequences: unknown extra properties the caller sent are dropped (binding discards
+            // them at confirm anyway), and whatever lands in the row is known to bind back.
+            var storedPayload = _payloadSerializer.Serialize(command, descriptor.PayloadType);
 
             // Not the request-swap guard it is on the gated path -- confirm carries no payload, so
             // there is nothing to swap. It detects a payload row edited directly in the database,
-            // which is a real check precisely because the payload is not encrypted.
+            // and it is what catches that rather than the cipher: hashed over the stored text, it is
+            // checked in VerifyAsync *before* anything is decrypted. Encryption covers only the
+            // properties marked [SensitiveData]; everything else in the row is still plain JSON that
+            // this hash is the only thing standing over.
             var payloadHash = _codeHasher.HashRequest(storedPayload);
 
             var challenge = await _otpService.IssueAsync(
@@ -253,10 +268,14 @@ namespace Application.Operations.Services
         {
             try
             {
-                return JsonSerializer.Deserialize(operation.Payload!, descriptor.PayloadType, SerializerOptions)
+                return _payloadSerializer.Deserialize(operation.Payload!, descriptor.PayloadType)
                     ?? throw new JsonException("Payload deserialized to null.");
             }
-            catch (Exception ex) when (ex is JsonException or NotSupportedException)
+            // CryptographicException joins the list for the same reason the others are here: a
+            // sensitive property written under a key this build no longer has is as unexecutable as
+            // one that will not bind, and an authenticated cipher cannot distinguish a rotated key
+            // from a row someone edited. Both fail closed.
+            catch (Exception ex) when (ex is JsonException or NotSupportedException or CryptographicException)
             {
                 _logger.LogError(ex,
                     "Stored payload for operation {OperationId} could not be bound to {PayloadType}",
@@ -297,6 +316,24 @@ namespace Application.Operations.Services
 
         private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
+        /// <summary>
+        /// Deliberately <strong>not</strong> protected, unlike the request payload.
+        /// <para>
+        /// An earlier version of this ran results through the same encrypting serializer, on the
+        /// reasoning that <c>Succeed</c> nulls <c>Payload</c> but keeps <c>ResultPayload</c>
+        /// forever. That was wrong twice over. It broke the endpoint — <see cref="ToResult"/> hands
+        /// the stored text straight back, so callers received ciphertext instead of their result —
+        /// and the guarantee was never worth much anyway: a result is returned to the caller and
+        /// captured in the response log, so encrypting the row protects a value that has already
+        /// left the building.
+        /// </para>
+        /// <para>
+        /// The rule that replaces it: <strong>do not return secrets</strong>. A handler whose result
+        /// carries a credential has a design problem that encryption at rest would only disguise.
+        /// The request payload is different in kind — it never leaves the server, which is exactly
+        /// why protecting it is worthwhile.
+        /// </para>
+        /// </summary>
         private static string? Serialize(object? result) =>
             result is null ? null : JsonSerializer.Serialize(result, result.GetType(), SerializerOptions);
 

@@ -18,14 +18,33 @@ Two mechanisms exist. **Never put both on one command** — startup throws if yo
 
 | Situation | Use |
 |---|---|
-| Payload is sensitive (personal data, credentials) | `IRequireOtpVerification` → skill `add-otp-gate` |
+| Payload is sensitive (personal data, credentials) | Either — mark them `[SensitiveData]` (see below), or `IRequireOtpVerification` → skill `add-otp-gate`, which persists nothing at all |
 | Client can re-send the payload with the code | `IRequireOtpVerification` |
 | Client should not have to re-send it (2 calls, not 2 identical ones) | **this skill** |
 | Operation is dispatched outside HTTP (a job) | `IRequireOtpVerification` — the endpoints cannot reach it |
 
-The deciding difference: this mechanism **stores the request body in the database, unencrypted**,
-between the two calls. That is a recorded trade (see `docs/plans/06-generic-verified-operations.md`),
-and routing sensitive operations to the other mechanism is its mitigation.
+The deciding difference: this mechanism **stores the request body in the database** between the two
+calls, where the gate persists nothing. Properties marked `[SensitiveData]` are encrypted (phase 8),
+so sensitive data no longer rules this mechanism out — but "persists nothing" still beats "persists
+something encrypted", so prefer the gate when the client can just re-send the body.
+
+**Marking a property `[SensitiveData]` requires two things, and startup fails without either:**
+
+1. `PayloadProtection:Secret` configured — otherwise it would be stored in the clear. Development
+   already has one; every other environment needs it supplied out of band (user secrets, environment
+   variable, key vault), the same way `Otp:Secret` is. It is empty in `appsettings.json` on purpose.
+2. The property name masked by the log redactor — present in `RequestLogging:SensitiveProperties`
+   **or** `LogRedactor.DefaultSensitiveProperties`. Without it the value is encrypted at rest and
+   written verbatim to the `Logs` table on every initiate, which is worse than not encrypting it
+   because it looks handled. `password`, `token` and `personalNumber` are already on the default
+   list; `birthDate`, `firstName` and `userName` are not.
+
+Only the **request payload** is encrypted. `ResultPayload` is not, on purpose: results are returned
+to the caller and logged in the response, so encrypting the row protects a value that has already
+left. Do not return secrets from a verified operation.
+
+Rotating the secret is destructive — there is no key history — but pending payloads live minutes, so
+only in-flight operations are affected.
 
 ## Steps
 

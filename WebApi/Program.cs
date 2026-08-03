@@ -1,3 +1,4 @@
+using Application.Common.Operations;
 using Application.Extensions;
 using Infrastructure.Common.Extensions;
 using Infrastructure.Persistence;
@@ -26,6 +27,18 @@ try
     builder.AddApplicationLogging();
 
     var app = builder.Build();
+
+    // Resolved eagerly, and only for its side effect. The registry is a singleton built by a
+    // factory that validates every [VerifiableOperation] in the assembly -- duplicate names, a
+    // command gated by both mechanisms, a payload marked [SensitiveData] with no key to encrypt it
+    // or no redaction rule to mask it. All of those throw, which is the point: they are
+    // misconfigurations that are otherwise silent, or visible only in a breach.
+    //
+    // Without this line the factory does not run until something first asks for the registry --
+    // in practice the first request to VerificationController -- so a deployment with a broken
+    // allowlist would start clean and look healthy until a user tripped over it. Failing here
+    // means it never leaves the pipeline.
+    app.Services.GetRequiredService<IVerifiableOperationRegistry>();
 
     // Configure the HTTP request pipeline.
     if (app.Environment.IsDevelopment())

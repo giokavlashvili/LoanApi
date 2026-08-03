@@ -1,3 +1,4 @@
+using Application.Common.Logging;
 using Application.Common.Otp;
 using Domain.Exceptions;
 using MediatR;
@@ -78,11 +79,25 @@ namespace Application.Common.Operations
             Build(assemblies.SelectMany(a => a.GetTypes()));
 
         /// <summary>
+        /// Scan overload carrying the two checks that need to know about the wider application:
+        /// whether payload encryption is available, and which property names the log redactor
+        /// masks. See <see cref="ValidateSensitiveProperties"/>.
+        /// </summary>
+        public static VerifiableOperationRegistry Build(
+            Assembly assembly,
+            bool payloadProtectionConfigured,
+            IReadOnlyCollection<string> redactedPropertyNames) =>
+            Build(assembly.GetTypes(), payloadProtectionConfigured, redactedPropertyNames);
+
+        /// <summary>
         /// The assembly scan reduces to this. Separate so tests can hand it one deliberately
         /// broken type — scanning an assembly would mean a single bad fixture type throws for
         /// every other test in the file.
         /// </summary>
-        public static VerifiableOperationRegistry Build(IEnumerable<Type> types)
+        public static VerifiableOperationRegistry Build(
+            IEnumerable<Type> types,
+            bool payloadProtectionConfigured = true,
+            IReadOnlyCollection<string>? redactedPropertyNames = null)
         {
             var byType = new Dictionary<VerifiableOperationType, VerifiableOperationDescriptor>();
 
@@ -120,6 +135,8 @@ namespace Application.Common.Operations
                         $"'{type.FullName}' is registered as verifiable operation '{operationType}' but is not an IRequest or " +
                         "IRequest<T>. Dispatch is dynamic, so this would only fail on a live request.");
 
+                ValidateSensitiveProperties(type, operationType, payloadProtectionConfigured, redactedPropertyNames);
+
                 byType[operationType] = new VerifiableOperationDescriptor
                 {
                     Type = operationType,
@@ -133,6 +150,149 @@ namespace Application.Common.Operations
             }
 
             return new VerifiableOperationRegistry(byType);
+        }
+
+        /// <summary>
+        /// Two checks over a payload type's <see cref="SensitiveDataAttribute"/> properties, both
+        /// guarding a failure that is otherwise silent and only visible in a breach.
+        /// <list type="number">
+        /// <item>
+        /// <strong>Marked but unencryptable.</strong> No configured secret means the property is
+        /// stored in the clear, which is exactly what marking it was meant to prevent. Refusing to
+        /// start is the only signal that cannot be missed.
+        /// </item>
+        /// <item>
+        /// <strong>Encrypted at rest but logged in the clear.</strong> This is the subtle one.
+        /// <c>LogRedactor</c> masks nested JSON properly, but it derives its attribute-driven key
+        /// names from the <em>top-level</em> type it is handed — which for this flow is
+        /// <c>InitiateOperationCommand</c>, whose <c>Payload</c> is a shapeless <c>JsonElement</c>.
+        /// So a nested <c>[SensitiveData]</c> property contributes no name, and only the static
+        /// list stands between it and the <c>Logs</c> table. Encrypting a value in the database
+        /// while writing it verbatim to a log row is worse than not encrypting it, because it
+        /// looks handled.
+        /// </item>
+        /// </list>
+        /// <para>
+        /// The pairing is the same rule the <c>add-otp-gate</c> skill already states for OTP
+        /// members — "must appear in <strong>both</strong>" — enforced here rather than merely
+        /// documented. Auto-registering the names would be less friction but would hide the
+        /// coupling; a developer who marks a property should learn that redaction is a separate
+        /// list they now own.
+        /// </para>
+        /// </summary>
+        private static void ValidateSensitiveProperties(
+            Type type,
+            VerifiableOperationType operationType,
+            bool payloadProtectionConfigured,
+            IReadOnlyCollection<string>? redactedPropertyNames)
+        {
+            var sensitive = FindSensitiveProperties(type, []).ToList();
+
+            if (sensitive.Count == 0)
+                return;
+
+            if (!payloadProtectionConfigured)
+                throw new InvalidOperationException(
+                    $"Verifiable operation '{operationType}' ('{type.FullName}') has [SensitiveData] properties " +
+                    $"({string.Join(", ", sensitive)}) but PayloadProtection:Secret is not configured. Its payload would " +
+                    "be stored unencrypted, which is what marking those properties was meant to prevent. Configure the " +
+                    "secret, or use IRequireOtpVerification instead -- it persists no payload at all.");
+
+            if (redactedPropertyNames is null)
+                return;
+
+            var redacted = new HashSet<string>(redactedPropertyNames, StringComparer.OrdinalIgnoreCase);
+            var unredacted = sensitive.Where(name => !redacted.Contains(name)).ToList();
+
+            if (unredacted.Count > 0)
+                throw new InvalidOperationException(
+                    $"Verifiable operation '{operationType}' ('{type.FullName}') marks {string.Join(", ", unredacted)} " +
+                    "[SensitiveData], but those names are not masked by the log redactor -- so they would be encrypted " +
+                    "in the database and written verbatim to the Logs table on every initiate. Add them to " +
+                    "RequestLogging:SensitiveProperties in appsettings.json, or to " +
+                    $"{nameof(LogRedactor)}.{nameof(LogRedactor.DefaultSensitiveProperties)}.");
+        }
+
+        /// <summary>
+        /// Walks into complex property types as well, since a sensitive value is just as exposed
+        /// one level down. <paramref name="visited"/> is what keeps a self-referencing DTO from
+        /// recursing forever.
+        /// <para>
+        /// Collections are unwrapped to their element type first. Skipping them — which an earlier
+        /// version did, because <c>List&lt;T&gt;</c> lives in a <c>System.*</c> namespace like every
+        /// other framework type — left the guard strictly weaker than the encryption it guards:
+        /// <c>ProtectedPayloadSerializer</c> applies per contract, so it encrypts a marked property
+        /// inside a collection element quite happily, and the redaction check would never have seen
+        /// the name. Encrypted at rest, plaintext in the log, no warning. Exactly the outcome this
+        /// exists to prevent.
+        /// </para>
+        /// </summary>
+        private static IEnumerable<string> FindSensitiveProperties(Type type, HashSet<Type> visited)
+        {
+            if (!visited.Add(type))
+                yield break;
+
+            foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (property.IsDefined(typeof(SensitiveDataAttribute), inherit: true))
+                {
+                    yield return property.Name;
+                    continue;
+                }
+
+                var propertyType = UnwrapElementType(property.PropertyType);
+
+                // Primitives and framework types have nothing of ours to find, and descending into
+                // them would walk half the BCL. Checked *after* unwrapping, so a collection is
+                // judged by what it holds rather than by the namespace it is declared in.
+                if (propertyType.IsPrimitive || propertyType.IsEnum || propertyType == typeof(string)
+                    || propertyType.Namespace?.StartsWith("System", StringComparison.Ordinal) == true)
+                {
+                    continue;
+                }
+
+                foreach (var nested in FindSensitiveProperties(propertyType, visited))
+                    yield return nested;
+            }
+        }
+
+        /// <summary>
+        /// The type actually carrying data: <c>int?</c> to <c>int</c>, <c>List&lt;Dto&gt;</c> and
+        /// <c>Dto[]</c> to <c>Dto</c>, and repeatedly, so a
+        /// <c>List&lt;List&lt;Dto&gt;&gt;</c> still resolves. <c>string</c> is excluded explicitly
+        /// because it is an <c>IEnumerable&lt;char&gt;</c> and would otherwise unwrap to
+        /// <c>char</c>.
+        /// </summary>
+        private static Type UnwrapElementType(Type type)
+        {
+            while (true)
+            {
+                var unwrapped = Nullable.GetUnderlyingType(type);
+
+                if (unwrapped is not null)
+                {
+                    type = unwrapped;
+                    continue;
+                }
+
+                if (type == typeof(string))
+                    return type;
+
+                if (type.IsArray)
+                {
+                    type = type.GetElementType()!;
+                    continue;
+                }
+
+                var enumerable = type.GetInterfaces()
+                    .Concat([type])
+                    .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>));
+
+                if (enumerable is null)
+                    return type;
+
+                type = enumerable.GetGenericArguments()[0];
+            }
         }
 
         /// <summary>

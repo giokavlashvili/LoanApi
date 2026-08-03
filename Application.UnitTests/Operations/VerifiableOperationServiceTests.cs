@@ -1,6 +1,7 @@
 using Application.Common.Interfaces;
 using Application.Common.Operations;
 using Application.Common.Otp;
+using Application.Common.Serialization;
 using Application.Operations.Services;
 using Application.Otp.Dtos;
 using Domain.Entities;
@@ -120,6 +121,7 @@ namespace Application.UnitTests.Operations
             _otpService.Object,
             _codeHasher.Object,
             _recipientResolver.Object,
+            new ProtectedPayloadSerializer(new PassThroughProtector()),
             _currentUserService.Object,
             _identityService.Object,
             _dbContext.Object,
@@ -374,6 +376,19 @@ namespace Application.UnitTests.Operations
             _operations.Setup(o => o.GetByOperationIdAsync(operationId, It.IsAny<CancellationToken>())).ReturnsAsync(operation);
 
             Assert.That(async () => await CreateService().ResendAsync(operationId), Throws.InstanceOf<DomainValidationException>());
+        }
+
+        /// <summary>
+        /// These tests are about the flow, not the cipher — <c>ApproveLoanPayload</c> carries no
+        /// <c>[SensitiveData]</c>, so this is never actually called. It exists so the serializer can
+        /// be constructed. Real encryption is exercised end to end in
+        /// <c>VerifiedOperationFlowTests</c>, against a real database row.
+        /// </summary>
+        private sealed class PassThroughProtector : IPayloadProtector
+        {
+            public bool IsConfigured => true;
+            public string Protect(string plaintext) => plaintext;
+            public string Unprotect(string protectedValue) => protectedValue;
         }
 
         private class AlwaysFailsValidator : AbstractValidator<ApproveLoanPayload>

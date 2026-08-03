@@ -791,7 +791,7 @@
         "tags": [
           "Verification"
         ],
-        "description": "### Request body per operation\n\n`payload` carries the operation's own command. Its shape depends on `operationType`, which OpenAPI cannot express - the discriminator would have to sit inside `payload` itself - so the combinations are listed here in full.\n\n**`DeleteLoanApplication`** - payload is `DeleteApplicationCommand` (see Schemas below)\n\n```json\n{\r\n  \"operationType\": \"DeleteLoanApplication\",\r\n  \"channel\": \"Sms\",\r\n  \"payload\": {\r\n    \"id\": 0\r\n  }\r\n}\n```\n\nThe response returns `operationId`; confirm with `POST /api/v1/Verification/Confirm` `{ \"operationId\": \"...\", \"code\": \"123456\" }`. In Development the code is written to the log by `LoggingSmsCodeSender` rather than sent.",
+        "description": "### Request body per operation\n\n`payload` carries the operation's own command. Its shape depends on `operationType`, which OpenAPI cannot express - the discriminator would have to sit inside `payload` itself - so the combinations are listed here in full.\n\n**`DeleteLoanApplication`** - payload is `DeleteApplicationCommand` (see Schemas below)\n\n```json\n{\r\n  \"operationType\": \"DeleteLoanApplication\",\r\n  \"channel\": \"Sms\",\r\n  \"payload\": {\r\n    \"id\": 0\r\n  }\r\n}\n```\n\n**`SubmitPayoutDetails`** - payload is `SubmitPayoutDetailsCommand` (see Schemas below)\n\n```json\n{\r\n  \"operationType\": \"SubmitPayoutDetails\",\r\n  \"channel\": \"Sms\",\r\n  \"payload\": {\r\n    \"applicationId\": 0,\r\n    \"cardNumber\": \"cardNumber\",\r\n    \"personalNumber\": \"personalNumber\",\r\n    \"bankName\": \"bankName\"\r\n  }\r\n}\n```\n\nThe response returns `operationId`; confirm with `POST /api/v1/Verification/Confirm` `{ \"operationId\": \"...\", \"code\": \"123456\" }`. In Development the code is written to the log by `LoggingSmsCodeSender` rather than sent.",
         "operationId": "Verification_Initiate",
         "parameters": [
           {
@@ -819,6 +819,20 @@
                     "channel": "Sms",
                     "payload": {
                       "id": 0
+                    }
+                  }
+                },
+                "SubmitPayoutDetails": {
+                  "summary": "SubmitPayoutDetails",
+                  "description": "payload is `SubmitPayoutDetailsCommand`",
+                  "value": {
+                    "operationType": "SubmitPayoutDetails",
+                    "channel": "Sms",
+                    "payload": {
+                      "applicationId": 0,
+                      "cardNumber": "cardNumber",
+                      "personalNumber": "personalNumber",
+                      "bankName": "bankName"
                     }
                   }
                 }
@@ -1603,7 +1617,7 @@
             "$ref": "#/components/schemas/VerificationChannel"
           },
           "payload": {
-            "description": "Shape depends on `operationType`:\n\n- `DeleteLoanApplication` -> `DeleteApplicationCommand`"
+            "description": "Shape depends on `operationType`:\n\n- `DeleteLoanApplication` -> `DeleteApplicationCommand`\n- `SubmitPayoutDetails` -> `SubmitPayoutDetailsCommand`"
           },
           "recipient": {
             "type": "string",
@@ -1615,10 +1629,12 @@
         "type": "string",
         "description": "",
         "x-enumNames": [
-          "DeleteLoanApplication"
+          "DeleteLoanApplication",
+          "SubmitPayoutDetails"
         ],
         "enum": [
-          "DeleteLoanApplication"
+          "DeleteLoanApplication",
+          "SubmitPayoutDetails"
         ]
       },
       "VerificationChannel": {
@@ -1711,6 +1727,31 @@
           "id": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "SubmitPayoutDetailsCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "applicationId"
+        ],
+        "properties": {
+          "applicationId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "cardNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "personalNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "bankName": {
+            "type": "string",
+            "nullable": true
           }
         }
       }

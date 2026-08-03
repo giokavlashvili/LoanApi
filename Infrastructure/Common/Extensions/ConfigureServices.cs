@@ -97,6 +97,11 @@ namespace Infrastructure.Common.Extensions
             // IOtpService itself is policy and is registered in AddApplicationServices.
             services.AddSingleton<IOtpCodeHasher, HmacOtpCodeHasher>();
 
+            // The cipher half of verified-operation payload storage. Registered unconditionally --
+            // whether it is *usable* is IPayloadProtector.IsConfigured, which the operation registry
+            // checks at startup against the payloads that actually need it.
+            services.AddSingleton<IPayloadProtector, AesGcmPayloadProtector>();
+
             // Registered as a set, not keyed: OtpService only learns the channel per call, so a
             // keyed constructor would force IServiceProvider into an Application service to look
             // the sender up anyway. It picks by IVerificationCodeSender.Channel.

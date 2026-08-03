@@ -2125,7 +2125,8 @@ export class InitiateOperationCommand implements IInitiateOperationCommand {
     channel!: VerificationChannel;
     /** Shape depends on `operationType`:
 
-- `DeleteLoanApplication` -> `DeleteApplicationCommand` */
+- `DeleteLoanApplication` -> `DeleteApplicationCommand`
+- `SubmitPayoutDetails` -> `SubmitPayoutDetailsCommand` */
     payload!: any;
     recipient?: string | undefined;
 
@@ -2169,13 +2170,15 @@ export interface IInitiateOperationCommand {
     channel: VerificationChannel;
     /** Shape depends on `operationType`:
 
-- `DeleteLoanApplication` -> `DeleteApplicationCommand` */
+- `DeleteLoanApplication` -> `DeleteApplicationCommand`
+- `SubmitPayoutDetails` -> `SubmitPayoutDetailsCommand` */
     payload: any;
     recipient?: string | undefined;
 }
 
 export enum VerifiableOperationType {
     DeleteLoanApplication = "DeleteLoanApplication",
+    SubmitPayoutDetails = "SubmitPayoutDetails",
 }
 
 export enum VerificationChannel {
@@ -2347,6 +2350,54 @@ export class DeleteApplicationCommand implements IDeleteApplicationCommand {
 
 export interface IDeleteApplicationCommand {
     id: number;
+}
+
+export class SubmitPayoutDetailsCommand implements ISubmitPayoutDetailsCommand {
+    applicationId!: number;
+    cardNumber?: string | undefined;
+    personalNumber?: string | undefined;
+    bankName?: string | undefined;
+
+    constructor(data?: ISubmitPayoutDetailsCommand) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.applicationId = _data["applicationId"];
+            this.cardNumber = _data["cardNumber"];
+            this.personalNumber = _data["personalNumber"];
+            this.bankName = _data["bankName"];
+        }
+    }
+
+    static fromJS(data: any): SubmitPayoutDetailsCommand {
+        data = typeof data === 'object' ? data : {};
+        let result = new SubmitPayoutDetailsCommand();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["applicationId"] = this.applicationId;
+        data["cardNumber"] = this.cardNumber;
+        data["personalNumber"] = this.personalNumber;
+        data["bankName"] = this.bankName;
+        return data;
+    }
+}
+
+export interface ISubmitPayoutDetailsCommand {
+    applicationId: number;
+    cardNumber?: string | undefined;
+    personalNumber?: string | undefined;
+    bankName?: string | undefined;
 }
 
 export class SwaggerException extends Error {

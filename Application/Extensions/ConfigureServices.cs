@@ -1,9 +1,11 @@
 using Application.Authenticate.Services;
 using Application.Common.Behaviors;
 using Application.Common.Interfaces;
+using Application.Common.Logging;
 using Application.Common.Models;
 using Application.Common.Operations;
 using Application.Common.Otp;
+using Application.Common.Serialization;
 using Application.Operations.Services;
 using Application.Otp.Services;
 using FluentValidation;
@@ -33,6 +35,11 @@ namespace Application.Extensions
                     .ValidateDataAnnotations()
                     .ValidateOnStart();
 
+                // No ValidateDataAnnotations: the secret is only required once an operation
+                // actually carries [SensitiveData], and the registry below enforces that pairing.
+                services.AddOptions<PayloadProtectionOptions>()
+                    .Bind(configuration.GetSection(PayloadProtectionOptions.SectionName));
+
                 services.AddOptions<JwtOptions>()
                     .Bind(configuration.GetSection(JwtOptions.SectionName))
                     .ValidateDataAnnotations()
@@ -53,9 +60,20 @@ namespace Application.Extensions
             // Built once and validated at startup, so a misregistered operation fails at boot
             // rather than on a live request. Everything it contains is remotely executable by
             // name, which is why Build throws rather than skipping anything it cannot verify.
+            // Singleton, and the options instance it holds is built once -- System.Text.Json caches
+            // contract metadata per options instance, so a per-request one would rebuild every
+            // contract on every call.
+            services.AddSingleton<IProtectedPayloadSerializer, ProtectedPayloadSerializer>();
+
             services.AddSingleton<IVerifiableOperationRegistry>(provider =>
             {
-                var registry = VerifiableOperationRegistry.Build(Assembly.GetExecutingAssembly());
+                // Both arguments exist to make two silent failures loud at startup: a sensitive
+                // payload with no key to encrypt it, and one encrypted at rest but still reaching
+                // the Logs table in the clear. See ValidateSensitiveProperties.
+                var registry = VerifiableOperationRegistry.Build(
+                    Assembly.GetExecutingAssembly(),
+                    provider.GetRequiredService<IPayloadProtector>().IsConfigured,
+                    RedactedPropertyNames(configuration));
 
                 // Logged so the allowlist is auditable from the boot log of any environment
                 // rather than only by grepping for the attribute. A stray [VerifiableOperation]
@@ -104,5 +122,27 @@ namespace Application.Extensions
 
             return services;
         }
+
+        /// <summary>
+        /// The names <c>LogRedactor</c> will actually mask, mirroring its own precedence exactly: a
+        /// configured list <em>replaces</em> the defaults rather than adding to them. Getting that
+        /// backwards here would validate against a set the redactor never uses, and the check would
+        /// pass while live values reached the log.
+        /// </summary>
+        private static IReadOnlyCollection<string> RedactedPropertyNames(IConfiguration? configuration)
+        {
+            var configured = configuration?
+                .GetSection($"{RequestLoggingSectionName}:SensitiveProperties")
+                .Get<string[]>();
+
+            return configured is { Length: > 0 } ? configured : LogRedactor.DefaultSensitiveProperties;
+        }
+
+        /// <summary>
+        /// The options class itself lives in WebApi, and Application cannot reference it — the
+        /// dependency runs the other way. Only the section name is needed, so it is repeated here
+        /// rather than inverted into an abstraction for one string.
+        /// </summary>
+        private const string RequestLoggingSectionName = "RequestLogging";
     }
 }
