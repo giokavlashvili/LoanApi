@@ -7,7 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Azure.Identity" Version="1.21.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.10" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.2" />
@@ -23,9 +22,8 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
 
-	<PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="10.0.0" />
-	<PackageReference Include="AutoMapper" Version="16.2.0" />
-	<PackageReference Include="System.Data.SqlClient" Version="4.9.1" />
+	<!-- JwtTokenGenerator builds and signs the token here; this is the only project that
+	     touches the JWT types directly. -->
 	<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
 
 	  <PackageReference Include="Microsoft.Extensions.Localization.Abstractions" Version="10.0.10" />

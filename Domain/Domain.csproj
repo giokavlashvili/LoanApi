@@ -7,11 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="10.0.0" />
+    <!-- MediatR is the only outward dependency Domain is allowed: BaseEvent implements
+         INotification so entities can queue domain events. Anything else here (an MVC
+         package, a SQL driver, a JWT library) contradicts the inward-only rule the rest
+         of the solution is built on. -->
     <PackageReference Include="MediatR" Version="14.2.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-    <PackageReference Include="System.Data.SqlClient" Version="4.9.1" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
   </ItemGroup>
 
   <ItemGroup>

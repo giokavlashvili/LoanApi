@@ -285,6 +285,12 @@ FakesAssemblies/
 .ntvs_analysis.dat
 node_modules/
 
+# Angular client build output. The SPA itself is not part of this template — only the
+# generated TypeScript client in WebApi/ApiClient is. These paths were previously
+# committed as build artifacts with no corresponding source.
+WebApi/ClientApp/dist/
+WebApi/ClientApp/.angular/
+
 # Visual Studio 6 build log
 *.plg
 
