@@ -1,4 +1,4 @@
-version: '3.4'
+# No `version:` key — it is obsolete in Compose v2 and only produces a warning.
 
 services:
   webapi:
@@ -6,3 +6,40 @@ services:
     build:
       context: .
       dockerfile: WebApi/Dockerfile
+    depends_on:
+      mssql:
+        # Not `depends_on: [mssql]`, which only waits for the container to *start*. SQL Server
+        # takes tens of seconds to accept connections, and Program.cs runs MigrateAsync() during
+        # startup in Development — so without the health gate the API reliably loses the race and
+        # dies with a connection error.
+        #
+        # A retry policy is NOT the alternative here: EnableRetryOnFailure would make EF throw
+        # "does not support user-initiated transactions" the first time TransactionBehavior opens
+        # one. See the comment in Application/Common/Behaviours/TransactionBehavior.cs.
+        condition: service_healthy
+
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_PID=Developer
+      # Development-only placeholder, same convention as appsettings.Development.json. Override
+      # with a real value via a .env file or the environment; SQL Server rejects weak passwords.
+      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD:-LoanApi_Dev_Passw0rd!}
+    healthcheck:
+      # mssql-tools18 is the path on 2022 images (and needs -C to accept the self-signed cert);
+      # the older mssql-tools path is tried second so this still works on older tags.
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    volumes:
+      - mssql-data:/var/opt/mssql
+
+volumes:
+  mssql-data:

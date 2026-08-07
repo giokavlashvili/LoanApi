@@ -9,7 +9,7 @@ A **Clean Architecture / CQRS boilerplate** for ASP.NET Core (net10.0) Web APIs.
 The project name is not baked into the code: assemblies/namespaces are the generic `Domain`, `Application`, `Infrastructure`, `WebApi`, and the string "LoanApi" appears only in the solution *filename* and repo folder name. When repurposing:
 
 - Rename `LoanApi.sln` and the repo folder (solution *contents* need no edits).
-- `WebApi/appsettings.json`: `ConnectionStrings:DefaultConnection` (`Database=LoanDB`) and `JWT:Secret`.
+- `WebApi/appsettings.json`: `ConnectionStrings:DefaultConnection` (`Database=LoanDB`). The four secrets are empty there by design -- see *Secrets* below; what a new product rotates is the placeholder set in `WebApi/appsettings.Development.json`.
 - Replace the sample vertical slices: `Domain/Entities`, `Domain/Events`, `Domain/Enums`, `Domain/Repositories`, `Application/LoanApplications`, `Application/Currencies`, `Application/LoanTypes`, `Infrastructure/Persistence/{Configurations,Repositories}`, `WebApi/Controllers/{LoanApplication,Currency,LoanType}Controller.cs`, the seed data in `ApplicationDbContextInitialiser.TrySeedAsync`, `WebApi/Resources/localization.json`, and the existing `Infrastructure/Migrations` (delete and re-create an Initial migration for a new domain).
 - Keep: `Domain/Common`, `Application/Common`, `Application/Authenticate`, `Infrastructure/Identity`, `WebApi/{Filters,Middlwares,Extensions,Localization,Services}` -- that is the reusable skeleton.
 
@@ -57,24 +57,39 @@ Notes on the build:
 
 ### Secrets
 
-`WebApi/appsettings.json` ships `JWT:Secret` and `Otp:Secret` as **empty strings** -- both are
-validated with `ValidateOnStart()` (see `JwtOptions`, `OtpOptions`), so a real deployment that
-does not supply them fails loudly at boot naming the missing setting, rather than throwing on the
-first login or the first issued code. `WebApi/appsettings.Development.json` carries placeholder
-values for both (beside the `Otp:StaticCode` escape hatch), so clone-and-run still works without
-any extra setup.
+`WebApi/appsettings.json` ships **all four** secrets as **empty strings** -- `JWT:Secret`,
+`RefreshToken:Secret`, `Otp:Secret` and `PayloadProtection:Secret`. That file represents a real
+deployment, and a real deployment must supply them. `WebApi/appsettings.Development.json` carries
+placeholder values for all four (beside the `Otp:StaticCode` escape hatch), so clone-and-run still
+works without any extra setup.
+
+Three of them are enforced by `ValidateDataAnnotations().ValidateOnStart()` (`JwtOptions`,
+`RefreshTokenOptions`, `OtpOptions`); `PayloadProtectionOptions` is deliberately not, because the
+secret is only required once an operation actually carries `[SensitiveData]` -- that pairing is
+enforced instead by `VerifiableOperationRegistry.Build`. So a production run with none of them set
+fails at boot, not on the first login or the first issued code.
+
+**Two different boot failures, in a fixed order.** `Program.cs` resolves
+`IVerifiableOperationRegistry` eagerly *before* `app.Run()`, so the registry's
+`PayloadProtection:Secret` check throws first and masks the rest; the options validation fires at
+host start and reports `JwtOptions` and `RefreshTokenOptions` together in one
+`AggregateException` naming the members. Fixing them is therefore two rounds, not one -- worth
+knowing before assuming the first message is the only problem.
 
 To run against your own values instead of the committed placeholders, use user secrets (the
 project already has a `UserSecretsId` in `WebApi/WebApi.csproj`):
 
 ```bash
 dotnet user-secrets set "JWT:Secret" "<a real secret, at least 32 characters>" --project WebApi
+dotnet user-secrets set "RefreshToken:Secret" "<a real secret, at least 32 characters>" --project WebApi
 dotnet user-secrets set "Otp:Secret" "<a real secret>" --project WebApi
+dotnet user-secrets set "PayloadProtection:Secret" "<a real secret>" --project WebApi
 ```
 
-Production should source both from a real secret store rather than configuration files or user
-secrets. `Infrastructure` already references `Azure.Identity` (currently unused elsewhere) if Key
-Vault is the destination.
+Production should source all four from a real secret store rather than configuration files or user
+secrets. Nothing in the solution references a cloud secret provider today -- `Azure.Identity` used
+to be referenced by `Infrastructure` and `WebApi` without being used anywhere, and was removed; add
+it back deliberately if Key Vault is the destination.
 
 ## Architecture
 
@@ -213,12 +228,29 @@ Controller (thin, `ApiControllerBase.Mediator.Send`) -> `ValidationBehavior` -> 
 ## Known state / gotchas
 
 - **Domain events are dispatched before the commit, and there is no outbox.** `ApplicationDbContext.SaveChangesAsync` publishes queued events and *then* persists, so a handler observes uncommitted state, and if the save subsequently fails the events have already been published — with no way to retract them. Nothing in the sample domain is harmed by this today (the handlers only log), but any handler that sends mail, calls another service or writes elsewhere would be building on it. Fixing it properly means dispatching after commit and adding a transactional outbox so the events and the rows land atomically; that needs its own design pass and is deliberately not bolted on here. Treat it as a known limitation, not as a pattern to copy.
-- `WebApi/Dockerfile` still targets .NET 7 base/SDK images while the projects target net10.0 -- update the tags before relying on `docker-compose`.
+- `WebApi/Dockerfile` targets `aspnet:10.0` / `sdk:10.0`, matching the projects' `net10.0`; it also copies `Directory.Build.props` and `BannedSymbols.txt` into the restore layer, without which restore resolves a different package graph than the build then asks for. Two things to know: .NET 8+ base images default to `ASPNETCORE_HTTP_PORTS=8080` rather than port 80, so the `EXPOSE 80`/`443` lines are correct only because `docker-compose.override.yml` sets `ASPNETCORE_URLS` explicitly; and `.dockerignore` excludes `bin`/`obj` but **not** `WebApi/ClientApp/.angular` or `ClientApp/dist`, so ~6 MB of committed Angular build output is copied into the build context.
+- **`docker compose` now brings its own SQL Server**, and has to. The compose file previously defined only `webapi`, so the container fell through to `ConnectionStrings:DefaultConnection` in `appsettings.json` -- `Server=localhost\SQLEXPRESS;...;Trusted_Connection=True`, which cannot work from a Linux container for three separate reasons: `localhost` is the container itself, a **named instance** needs SQL Browser on UDP 1434 (this is the `error 26 - Error Locating Server/Instance Specified` failure, and it happens at name resolution before any TCP connect), and `Trusted_Connection` is Windows integrated auth. It surfaces at *startup* rather than on first request because compose sets `ASPNETCORE_ENVIRONMENT=Development` and `Program.cs` runs `MigrateAsync()` plus seeding in the `IsDevelopment()` block, where `InitialiseAsync` rethrows.
+  - `docker-compose.override.yml` supplies `ConnectionStrings__DefaultConnection` pointing at the `mssql` service. Note `Server=mssql,1433` -- SQL Server separates host and port with a **comma**; using the default instance on an explicit port also keeps SQL Browser out of the picture. `appsettings.json` is left pointing at `localhost\SQLEXPRESS`, which is still right for `dotnet run` on a Windows host.
+  - `webapi` waits on `depends_on: condition: service_healthy`, not the bare list form. SQL Server takes tens of seconds to accept connections and the plain form only waits for the container to *start*, so migrations reliably lose the race. **`EnableRetryOnFailure` is not the alternative** -- it makes EF throw "does not support user-initiated transactions" the first time `TransactionBehavior` opens one.
+  - The SA password is a development placeholder overridable via `MSSQL_SA_PASSWORD` (a `.env` file works; `.env` is gitignored for that reason). The host publishes the database on **1434**, leaving 1433 to a host SQL Express install.
+  - **HTTPS in the container needs no Visual Studio involvement**, which is worth knowing before someone "fixes" it: Kestrel's Development certificate convention is `$HOME/.aspnet/https/<AssemblyName>.pfx`, and the override already bind-mounts `%APPDATA%\ASP.NET\Https` there and the user-secrets store beside it. With `AssemblyName` = `WebApi` that resolves to `/root/.aspnet/https/WebApi.pfx`, and the password comes from the `Kestrel:Certificates:Development:Password` user secret. On a **fresh machine** neither exists and binding `:443` fails, so create them once:
+
+    ```bash
+    dotnet dev-certs https -ep "$APPDATA/ASP.NET/Https/WebApi.pfx" -p <password>
+    ```
+
+    ```bash
+    dotnet user-secrets set "Kestrel:Certificates:Development:Password" "<password>" --project WebApi
+    ```
+  - **The image build has not been run end-to-end here** -- the Dockerfile and compose files were validated by inspection and `docker compose config`, not by `docker build`, because no daemon was available in the session that wrote them.
 - Deliberate misspellings/inconsistencies are load-bearing for existing `using`s: the folder `WebApi/Middlwares`, and the namespaces `WebUI.Filters` / `WebUI.Services` inside the WebApi project. (`CreateApplicationCommandhandler` was **not** one of them — nothing referenced it by name outside its own test, since handlers are resolved by interface, so it is now spelled `CreateApplicationCommandHandler`.)
 - `WebApi/Filters/SwaggerAttributes.cs` is excluded from compilation via `<Compile Remove>`.
-- `WebApi/ClientApp` contains only build output and empty folders (no `package.json`, nothing tracked under `src`); the Angular app is not part of this template -- only the generated `WebApi/ApiClient/web-api-client.ts` is.
+- `WebApi/ClientApp` contains only build output (no `package.json`, nothing tracked under `src`); the Angular app is not part of this template -- only the generated `WebApi/ApiClient/web-api-client.ts` is. That build output is **committed**, not merely present: 47 tracked files and ~6.1 MB of git blobs under `.angular/cache/` and `dist/browser/`, including a 1.5 MB sourcemap and a 1 MB `angular-compiler.db`. Untracking it and adding it to `.gitignore` is the obvious cleanup and has not been done.
 - **AutoMapper is 16.2.0, and that is a licensing decision as much as a version bump.** It was previously pinned to 14.0.0 (MIT) specifically to stay off the commercial gate, but 14.0.0 is vulnerable to [CVE-2026-32933](https://github.com/advisories/GHSA-rvv3-g6hj-g44x) (CVSS 7.5): AutoMapper enforced no recursion-depth limit, so a crafted deeply-nested object graph raises `StackOverflowException` and takes the whole process down — unrecoverable, and reachable from any endpoint that maps request input. The advisory is fixed only in **15.1.1+ / 16.1.1+**, all of which are commercially licensed (Lucky Penny), so the pin and the CVE were mutually exclusive. Consequences to know:
   - Startup logs `You do not have a valid license key for the Lucky Penny software AutoMapper ... required to have a licensed version` in production. **The same warning already appeared for MediatR 13.1.0**, so the gate was being tripped before this change — the pin was no longer buying what it was documented to buy.
   - A production deployment needs licences for both, *or* AutoMapper has to go. Dropping it is genuinely small now: the read side is three `ProjectTo` query handlers and three `IMapFrom` DTOs, all replaceable with hand-written `.Select(...)` projections, which would also delete this whole class of dependency risk.
   - API change worth remembering: 16.x removed `AddAutoMapper(params Assembly[])` (now `AddAutoMapper(cfg => cfg.AddMaps(assembly))`) and `MapperConfiguration` requires an `ILoggerFactory` (tests pass `NullLoggerFactory.Instance`).
-- `dotnet build` emits duplicate/prunable `PackageReference` warnings (`NU1504`, `NU1510`) in `Infrastructure`/`WebApi`. No `NU1903` warnings remain — `dotnet list package --vulnerable` is clean.
+- **Package references are per-project and verified against actual usage.** A clean `dotnet build LoanApi.sln -p:SkipNSwag=True` emits **no NuGet warnings** (the `NU1504`/`NU1510` duplicates this file used to record are gone, along with the copy-pasted `Asp.Versioning.Mvc.ApiExplorer` / `AutoMapper` / `System.Data.SqlClient` / `System.IdentityModel.Tokens.Jwt` block that caused them; `Azure.Identity`, `Microsoft.AspNetCore.OpenApi` and `HealthChecks.EntityFrameworkCore` went too, all unused). `dotnet list package --vulnerable` is clean. Two consequences worth knowing:
+  - **`Domain` now references exactly one package, MediatR** — `BaseEvent : INotification` is the only reason it needs anything. A `PackageReference` in `Domain` is a claim about what the innermost layer depends on; keep it that way.
+  - **`Microsoft.Data.SqlClient` looks unused and must stay.** No code names it, but the `7.0.2` pin is a deliberate *upgrade*: EF Core SqlServer 10.0.10 asks for `6.1.1` and `Serilog.Sinks.MSSqlServer` for `7.0.1`, so removing it silently downgrades the SQL driver. `Microsoft.EntityFrameworkCore.Relational` in `WebApi` is genuinely unused and resolves to the same version transitively — removable, but left alone.
+- A clean build emits **2 pre-existing nullable warnings** (`CS8629` in `ResendOtpCommand.cs`, `CS8604` in `JsonStringLocalizer.cs`). They do not appear on an incremental build, which is why they are easy to miss.

@@ -7,9 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Azure.Identity" Version="1.21.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.10" />
+    <!-- Not used directly by any code here, and not removable: this is a deliberate version
+         *upgrade*. EF Core SqlServer 10.0.10 asks for 6.1.1 and Serilog.Sinks.MSSqlServer for
+         7.0.1; dropping the pin silently downgrades the SQL driver everything else rides on. -->
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
@@ -23,13 +25,11 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
 
-	<PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="10.0.0" />
-	<PackageReference Include="AutoMapper" Version="16.2.0" />
-	<PackageReference Include="System.Data.SqlClient" Version="4.9.1" />
-	<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
-
-	  <PackageReference Include="Microsoft.Extensions.Localization.Abstractions" Version="10.0.10" />
-	  <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.10" />
+    <!-- JwtTokenGenerator mints the JwtSecurityToken here; this is the one project that names
+         the type. Azure.Identity, Asp.Versioning, AutoMapper, System.Data.SqlClient and
+         Localization.Abstractions were referenced here and used by nothing. -->
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.10" />
   </ItemGroup>
 
   <ItemGroup>

@@ -32,8 +32,10 @@ The loan domain is **demo content**. Keep the skeleton; replace the sample verti
 ## Rename (cosmetic)
 
 - Repo folder + `LoanApi.sln` (solution *contents* need no namespace renames — assemblies stay `Domain` / `Application` / …)
-- `WebApi/appsettings.json`: `ConnectionStrings:DefaultConnection` (`Database=…`) and `JWT:Secret`
-- OTP / SMS secrets in config before any real deployment
+- `WebApi/appsettings.json`: `ConnectionStrings:DefaultConnection` (`Database=…`)
+- Secrets: all four (`JWT`, `RefreshToken`, `Otp`, `PayloadProtection`) are **empty** in
+  `appsettings.json` by design; rotate the placeholders in `appsettings.Development.json` and
+  supply real values from user secrets or a secret store before any real deployment
 
 ## Procedure
 
@@ -50,6 +52,7 @@ Progress:
 ## Notes
 
 - Do not rename assemblies to the product name unless you intentionally want a large mechanical rename.
-- `WebApi/Dockerfile` still targets old .NET images — update before docker-compose reliance.
+- `WebApi/Dockerfile` targets `aspnet:10.0` / `sdk:10.0`, matching `net10.0`. Not yet verified by an
+  actual `docker build`; see the Dockerfile notes in `docs/architecture.md` before relying on it.
 - After domain replacement, re-run `npx gitnexus analyze` so impact/explore stay accurate.
 - Deep reference: [`docs/architecture.md`](../../../docs/architecture.md).

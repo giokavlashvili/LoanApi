@@ -7,17 +7,19 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="10.0.0" />
+    <PackageReference Include="AutoMapper" Version="16.2.0" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    <PackageReference Include="MediatR" Version="14.2.0" />
+    <!-- By design: IApplicationDbContext exposes DbSet<T>, so this layer names EF types. -->
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
     <PackageReference Include="Microsoft.Extensions.Localization.Abstractions" Version="10.0.10" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.10" />
-
-	<PackageReference Include="AutoMapper" Version="16.2.0" />
-	<PackageReference Include="MediatR" Version="14.2.0" />
-	<PackageReference Include="System.Data.SqlClient" Version="4.9.1" />
-	<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
-  
+    <!-- AddApplicationServices takes an IConfiguration and binds the options classes. Both were
+         previously arriving transitively through Asp.Versioning.Mvc.ApiExplorer — a package this
+         layer never used — so removing it broke the build. Declared explicitly now: the layer
+         names these types, so it should ask for them. -->
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" Version="10.0.10" />
   </ItemGroup>
 
   <ItemGroup>

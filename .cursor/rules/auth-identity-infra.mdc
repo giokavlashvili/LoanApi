@@ -27,6 +27,11 @@ alwaysApply: false
   through `IMediator`. This is an integration-style notification, not a domain event — see
   `docs/architecture.md`.
 - Issuer/audience validation is **disabled by design** in this template — tighten for production if needed.
-- `WebApi/appsettings.json` ships `JWT:Secret` empty; the working placeholder lives in
-  `appsettings.Development.json`. Rotate `JWT:Secret` when repurposing — via user secrets or a
+- `WebApi/appsettings.json` ships **all four** secrets empty — `JWT:Secret`, `RefreshToken:Secret`,
+  `Otp:Secret`, `PayloadProtection:Secret`; the working placeholders live in
+  `appsettings.Development.json`. Rotate all four when repurposing — via user secrets or a
   real secret store, never committed — and never commit production secrets.
+- The first three are `ValidateDataAnnotations().ValidateOnStart()`, so a production run without
+  them fails at boot naming the member. `PayloadProtection:Secret` is enforced separately by
+  `VerifiableOperationRegistry.Build`, which runs **earlier** (eagerly in `Program.cs`) and so
+  masks the other three until it is satisfied.

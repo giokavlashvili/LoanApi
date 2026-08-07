@@ -1,13 +1,27 @@
-version: '3.4'
-
 services:
   webapi:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=https://+:443;http://+:80
+      # Overrides ConnectionStrings:DefaultConnection from appsettings.json, which points at
+      # localhost\SQLEXPRESS with Trusted_Connection — none of which can work from a Linux
+      # container: localhost is the container itself, the named instance needs SQL Browser on
+      # UDP 1434 (the "error 26" failure), and integrated auth is Windows-only.
+      #
+      # Note "mssql,1433" — SQL Server separates host and port with a comma, not a colon. Using
+      # the default instance on an explicit port also keeps SQL Browser out of the picture.
+      - ConnectionStrings__DefaultConnection=Server=mssql,1433;Database=LoanDB;User Id=sa;Password=${MSSQL_SA_PASSWORD:-LoanApi_Dev_Passw0rd!};TrustServerCertificate=True;MultipleActiveResultSets=true;
     ports:
       - "80"
       - "443"
     volumes:
+      # HTTPS above needs a dev certificate exported to this path on the host, or Kestrel fails
+      # to bind :443 at startup. See the docker-compose notes in docs/architecture.md.
       - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
       - ${APPDATA}/ASP.NET/Https:/root/.aspnet/https:ro
+
+  mssql:
+    ports:
+      # Published so host tools (SSMS, Azure Data Studio) can reach the containerised database.
+      # 1433 is left to the host's SQL Express if it is running, hence 1434 on the host side.
+      - "1434:1433"

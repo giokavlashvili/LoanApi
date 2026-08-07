@@ -361,3 +361,7 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Compose variable file. docker-compose.yml reads MSSQL_SA_PASSWORD from here, so a real
+# password would otherwise be committed the moment anyone overrides the dev placeholder.
+.env

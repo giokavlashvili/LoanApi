@@ -7,11 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="10.0.0" />
+    <!-- MediatR is the only package this layer is allowed: BaseEvent implements INotification so
+         entities can queue domain events. Nothing else belongs here — a PackageReference in Domain
+         is a claim about what the innermost layer depends on, and an unused one makes that claim
+         falsely. Asp.Versioning, Newtonsoft.Json, System.Data.SqlClient and
+         System.IdentityModel.Tokens.Jwt were all referenced here and used by nothing. -->
     <PackageReference Include="MediatR" Version="14.2.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-    <PackageReference Include="System.Data.SqlClient" Version="4.9.1" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
   </ItemGroup>
 
   <ItemGroup>
