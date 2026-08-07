@@ -168,10 +168,24 @@ namespace Application.Common.Logging
             }
         }
 
+        /// <summary>
+        /// The configured names are added to <see cref="DefaultSensitiveProperties"/>, never
+        /// substituted for them. Replacing was a trap: adding one project-specific name to
+        /// <c>RequestLogging:SensitiveProperties</c> silently dropped every built-in rule, so
+        /// the act of protecting one more field stopped passwords and OTP codes being masked.
+        /// The defaults are a floor, and configuration can only raise it.
+        /// </summary>
         private static HashSet<string> BuildKeySet(IReadOnlyCollection<string>? sensitiveProperties)
         {
-            var source = sensitiveProperties is { Count: > 0 } ? sensitiveProperties : DefaultSensitiveProperties;
-            return new HashSet<string>(source, StringComparer.OrdinalIgnoreCase);
+            var keys = new HashSet<string>(DefaultSensitiveProperties, StringComparer.OrdinalIgnoreCase);
+
+            if (sensitiveProperties is { Count: > 0 })
+            {
+                foreach (var name in sensitiveProperties)
+                    keys.Add(name);
+            }
+
+            return keys;
         }
 
         private static string[] GetAttributeMarkedProperties(Type type) =>

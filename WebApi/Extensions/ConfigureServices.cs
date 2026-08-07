@@ -1,5 +1,6 @@
 ﻿using Application.Common.Interfaces;
 using Application.Common.Operations;
+using Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.Extensions.Localization;
 using NSwag;
@@ -20,9 +21,18 @@ namespace WebApi.Extensions
         {
             services.AddDatabaseDeveloperPageExceptionFilter();
             services.Configure<RequestLoggingOptions>(configuration.GetSection(RequestLoggingOptions.SectionName));
+
             services.AddSingleton<ICurrentUserService, CurrentUserService>();
             services.AddSingleton<IStringLocalizer, JsonStringLocalizer>();
             services.AddHttpContextAccessor();
+
+            // RequestLogging:IgnoredPaths has always listed "/health"; until now nothing served
+            // it. The "ready" tag separates the two probes an orchestrator wants: liveness asks
+            // only whether the process is up, so it must not fail while the database is briefly
+            // unreachable — restarting the instance would not fix that. Readiness includes the
+            // database, because an instance that cannot reach it should leave the rotation.
+            services.AddHealthChecks()
+                .AddDbContextCheck<ApplicationDbContext>("database", tags: new[] { "ready" });
 
             services.AddControllers(options =>
                 {

@@ -13,6 +13,11 @@ namespace WebApi.Middlwares.Extensions
             return builder.UseMiddleware<LoggingMiddleware>();
         }
 
+        public static IApplicationBuilder UseCorrelationId(this IApplicationBuilder builder)
+        {
+            return builder.UseMiddleware<CorrelationIdMiddleware>();
+        }
+
         public static IApplicationBuilder UseSysLanguageMiddleware(this IApplicationBuilder builder)
         {
             return builder.UseMiddleware<SysLanguageMiddleware>();

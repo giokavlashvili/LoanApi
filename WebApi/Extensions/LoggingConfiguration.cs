@@ -4,6 +4,8 @@ using Serilog.Core;
 using Serilog.Events;
 using Serilog.Sinks.MSSqlServer;
 using System.Data;
+using System.Reflection;
+using System.Text;
 using WebApi.Logging;
 
 namespace WebApi.Extensions
@@ -24,7 +26,9 @@ namespace WebApi.Extensions
 
         public static void AddApplicationLogging(this WebApplicationBuilder builder)
         {
-            EnableSelfLog();
+            var logDirectory = ResolveLogDirectory(builder.Configuration);
+
+            EnableSelfLog(logDirectory);
 
             // Resolved via ReadFrom.Services below. Registered rather than constructed inline
             // so HttpContextEnricher gets IHttpContextAccessor from the container.
@@ -43,9 +47,20 @@ namespace WebApi.Extensions
                 .ReadFrom.Services(services)
                 .Enrich.FromLogContext()
                 .Enrich.WithMachineName()
-                .WriteTo.Console()
+                // Which deployment and which build produced the row. Without these, logs
+                // aggregated from more than one environment cannot be told apart, and a
+                // regression cannot be attributed to the release that introduced it. Neither
+                // is a column in the Logs table — they reach the console and file sinks, and
+                // any structured sink added later.
+                .Enrich.WithProperty("Environment", builder.Environment.EnvironmentName)
+                .Enrich.WithProperty("Version", ResolveApplicationVersion())
+                // Async, like the file sink below. The console sink holds a lock for the
+                // duration of each write, so on a busy server an unwrapped one serialises
+                // request threads against stdout — which is worse in a container, where
+                // stdout is a pipe to the runtime rather than a terminal.
+                .WriteTo.Async(sink => sink.Console())
                 .WriteTo.Async(sink => sink.File(
-                    path: Path.Combine(AppContext.BaseDirectory, "logs", "log-.txt"),
+                    path: Path.Combine(logDirectory, "log-.txt"),
                     rollingInterval: RollingInterval.Day,
                     fileSizeLimitBytes: FileSizeLimitBytes,
                     rollOnFileSizeLimit: true,
@@ -69,17 +84,48 @@ namespace WebApi.Extensions
         }
 
         /// <summary>
+        /// Where the file sink and the SelfLog are written. Defaults to a <c>logs</c> folder
+        /// beside the binaries, which is fine on a developer machine and wrong nearly
+        /// everywhere else: in a container that path is on the ephemeral write layer and is
+        /// lost with the instance, and under a read-only root filesystem it cannot be created
+        /// at all. <c>Serilog:LogDirectory</c> points it at a mounted volume without a rebuild.
+        /// </summary>
+        private static string ResolveLogDirectory(IConfiguration configuration)
+        {
+            var configured = configuration["Serilog:LogDirectory"];
+
+            return string.IsNullOrWhiteSpace(configured)
+                ? Path.Combine(AppContext.BaseDirectory, "logs")
+                : configured;
+        }
+
+        /// <summary>
+        /// Informational version when the build stamps one (it carries the git hash under most
+        /// CI setups), falling back to the assembly version.
+        /// </summary>
+        private static string ResolveApplicationVersion()
+        {
+            var assembly = Assembly.GetEntryAssembly();
+
+            if (assembly is null)
+                return "unknown";
+
+            return assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+                ?? assembly.GetName().Version?.ToString()
+                ?? "unknown";
+        }
+
+        /// <summary>
         /// Replaces NLog's <c>internalLogFile</c>. Serilog never throws out of a sink, so a
         /// column mapping that does not match the Logs table fails whole batches while the
         /// application carries on looking healthy — this file is the only place that surfaces
         /// it. Left on in every environment, as the NLog internal log was, because the failure
         /// this catches is one that production hits and Development does not.
         /// </summary>
-        private static void EnableSelfLog()
+        private static void EnableSelfLog(string directory)
         {
             try
             {
-                var directory = Path.Combine(AppContext.BaseDirectory, "logs");
                 Directory.CreateDirectory(directory);
 
                 // SelfLog is written from sink threads, so the writer has to be synchronized.
@@ -177,7 +223,80 @@ namespace WebApi.Extensions
                 Text(nameof(Domain.Entities.Log.Channel), 20)
             };
 
+            ValidateAgainstLogEntity(options);
+
             return options;
+        }
+
+        /// <summary>
+        /// Fails startup when the sink's column map and the <c>Log</c> entity disagree.
+        /// <para>
+        /// One table has three definitions that must stay aligned — <c>Domain/Entities/Log.cs</c>,
+        /// <c>LogConfiguration.cs</c> and the map above — and until now nothing checked. Because
+        /// <c>AutoCreateSqlTable</c> is off, naming a column the table does not have fails the
+        /// <em>entire batch</em>, and the sink reports that to <c>SelfLog</c> alone: the
+        /// application stays up, serves traffic, and quietly stops recording anything. That is
+        /// the worst failure mode in the codebase, and it is the one with no signal.
+        /// </para>
+        /// <para>
+        /// The reverse direction is checked too. A property added to <c>Log</c> and its
+        /// migration but not to the map inserts as NULL forever, which reads as "the feature is
+        /// broken" rather than "a line is missing here".
+        /// </para>
+        /// <para>
+        /// This validates the map against the entity, not against the live table — it cannot
+        /// catch a migration that was never applied. It catches the drift that happens while
+        /// editing code, which is the drift that actually happens.
+        /// </para>
+        /// </summary>
+        private static void ValidateAgainstLogEntity(ColumnOptions options)
+        {
+            var mapped = new HashSet<string>(StringComparer.Ordinal)
+            {
+                options.TimeStamp.ColumnName,
+                options.Level.ColumnName,
+                options.Message.ColumnName,
+                options.Exception.ColumnName
+            };
+
+            foreach (var column in options.AdditionalColumns ?? Enumerable.Empty<SqlColumn>())
+                mapped.Add(column.ColumnName);
+
+            // Settable only: a computed getter-only property is not a column the sink could
+            // fill, so flagging it would be a false alarm that blocks startup.
+            var entityProperties = typeof(Domain.Entities.Log)
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(property => property.CanWrite)
+                .Select(property => property.Name)
+                .ToHashSet(StringComparer.Ordinal);
+
+            // Id is a bigint IDENTITY the server assigns, so the sink deliberately never sends it.
+            entityProperties.Remove(nameof(Domain.Entities.Log.Id));
+
+            var unknownColumns = mapped.Except(entityProperties).Order().ToList();
+            var unmappedProperties = entityProperties.Except(mapped).Order().ToList();
+
+            if (unknownColumns.Count == 0 && unmappedProperties.Count == 0)
+                return;
+
+            var message = new StringBuilder(
+                "The Serilog column map and the Log entity have drifted. Reconcile " +
+                "WebApi/Extensions/LoggingConfiguration.BuildColumnOptions, Domain/Entities/Log.cs and " +
+                "Infrastructure/Persistence/Configurations/LogConfiguration.cs.");
+
+            if (unknownColumns.Count > 0)
+            {
+                message.Append(" Columns written by the sink with no matching property on Log (these fail " +
+                    "every insert batch): ").Append(string.Join(", ", unknownColumns)).Append('.');
+            }
+
+            if (unmappedProperties.Count > 0)
+            {
+                message.Append(" Properties on Log the sink never populates (these stay NULL): ")
+                    .Append(string.Join(", ", unmappedProperties)).Append('.');
+            }
+
+            throw new InvalidOperationException(message.ToString());
         }
 
         /// <summary>An nvarchar column; <paramref name="length"/> of -1 means MAX.</summary>

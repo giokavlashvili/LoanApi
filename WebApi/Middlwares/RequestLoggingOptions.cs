@@ -13,7 +13,19 @@ namespace WebApi.Middlwares
 
         public bool LogRequestBody { get; set; } = true;
 
-        public bool LogResponseBody { get; set; } = true;
+        /// <summary>
+        /// <strong>Off by default, and on only in Development.</strong> Redaction is a
+        /// deny-list of property names, so it protects what it has been told about and nothing
+        /// else — and a response body is precisely where the fields nobody listed live: names,
+        /// email addresses, balances, whatever a projection happens to return. Capturing every
+        /// response by default meant persisting that to the <c>Logs</c> table indefinitely and
+        /// relying on a hardcoded list of names to catch it.
+        /// <para>
+        /// Request bodies stay on: their shape is a command the project defined, so what needs
+        /// masking is knowable, and they are what makes a failed request reproducible.
+        /// </para>
+        /// </summary>
+        public bool LogResponseBody { get; set; }
 
         /// <summary>
         /// Hard cap per body. Anything larger is truncated with a marker rather than stored,

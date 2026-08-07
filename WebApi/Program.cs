@@ -2,6 +2,7 @@ using Application.Common.Operations;
 using Application.Extensions;
 using Infrastructure.Common.Extensions;
 using Infrastructure.Persistence;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Scalar.AspNetCore;
 using Serilog;
 using WebApi.Extensions;
@@ -89,6 +90,10 @@ try
 
     app.UseStaticFiles();
 
+    // Outside the logger, so the correlation id is settled before the first row is written
+    // and every response carries the header — including one produced by the exception handler.
+    app.UseCorrelationId();
+
     // Order matters. Logging is outermost so it observes the final status code and response
     // body of everything below it — including the 500 the exception handler produces, which
     // the previous order (handler outside logging) could never record. Static files, Swagger
@@ -106,6 +111,14 @@ try
     app.UseAuthorization();
 
     app.MapControllers();
+
+    // Liveness: the process is running and can serve a request. No dependency is consulted,
+    // because a failure here tells an orchestrator to restart the instance and no restart
+    // fixes an unreachable database.
+    app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
+
+    // Readiness: everything tagged "ready", currently the database.
+    app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") });
 
     app.Run();
 }
