@@ -29,7 +29,7 @@ namespace Application.Common.Operations
 
         /// <summary>
         /// Runs the operation. Built once at startup rather than resolved per call: dispatch goes
-        /// through <c>ISender.Send(object, CancellationToken)</c>, which MediatR 14 provides for
+        /// through <c>ISender.Send(object, CancellationToken)</c>, which MediatR provides for
         /// exactly this, so the handler still gets <c>ValidationBehavior</c> and
         /// <c>PerformanceBehavior</c>. The response is type-erased — that is inherent to one
         /// endpoint returning every operation's result.

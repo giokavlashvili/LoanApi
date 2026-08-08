@@ -36,7 +36,7 @@ handler never touches. Adding one aggregate means editing `IUnitOfWork`, `UnitOf
 test that mocks it.
 
 **3. Queries pay for the write model.** `GetCurrenciesQuery` materialises full `Currency`
-entities and AutoMapper-maps them to DTOs — every column fetched, change tracker consulted.
+entities and maps them to DTOs in memory — every column fetched, change tracker consulted.
 `GetApplicationsQuery` makes two round trips (`GetCountAsync` then `GetPaginatedListAsync`)
 outside any snapshot, so the count and the page can disagree under concurrent writes. This is
 CQRS; the read side has no invariants to protect and should not go through the write model at
@@ -52,15 +52,12 @@ dotnet test LoanApi.sln -p:SkipNSwag=True
 Both green; phases 1–3 committed. Two parts of phase 3 are hard prerequisites:
 
 - **Task 3** (repositories registered in DI) — or step 3 below has nothing to inject.
-- **Task 7** (one AutoMapper version solution-wide) — this phase moves the read side onto
-  `ProjectTo`, and while the app runs AutoMapper 14.0.0 and the tests run 15.1.0, a green test
-  proves nothing about the deployed behaviour. Confirm before starting:
-
-  ```bash
-  grep -rn "AutoMapper" --include=*.csproj . | grep -v worktrees
-  ```
-
-  Every line must show the same version.
+- ~~**Task 7** (one AutoMapper version solution-wide)~~ — no longer applicable: AutoMapper was
+  removed from the solution on 2026-08-08. The underlying concern was that tests and production
+  ran different mapper versions, so a green test proved nothing about deployed behaviour. With no
+  mapper, the equivalent guard is that `ProjectionSqlTranslationTests` is `[Explicit]` and runs
+  against real SQL Server — the in-memory provider evaluates almost anything, so it cannot prove
+  a projection translates.
 
 ---
 
@@ -175,6 +172,15 @@ While in `CreateApplicationCommand.cs`, fix the typo in the class name —
 its test.
 
 ### Prerequisite: make the DTO projectable
+
+> **Superseded (2026-08-08).** This phase shipped as written, but AutoMapper has since been
+> removed. Every `ProjectTo<T>(_mapper.ConfigurationProvider)` below is now a hand-written
+> `.Select(...)` in the same handler, and handlers no longer inject `IMapper`. The *outcome* this
+> phase describes is unchanged and still holds — the read side projects in the database instead
+> of materialising entities — and the generated T-SQL is byte-for-byte identical to what
+> `ProjectTo` produced, verified against `localhost\SQLEXPRESS`. Public DTO setters are still
+> required for the same reason: EF cannot assign an inaccessible setter from a member-init
+> expression. Read the rest of this section for the reasoning, not the API.
 
 **Do this before writing any `ProjectTo` call, or the rewrite will not work.**
 
@@ -305,7 +311,8 @@ watch for.
 - [ ] `IUnitOfWork` is `SaveChangesAsync` only, no repository properties, no sync `Save`
 - [ ] Command handlers inject their repositories directly
 - [ ] `LoanApplicationDto`'s five private setters made public **before** the projection rewrite
-- [ ] Query handlers use `IApplicationDbContext` + `ProjectTo`, no repositories
+- [ ] Query handlers use `IApplicationDbContext` + a projection, no repositories
+      (shipped as `ProjectTo`; now a hand-written `.Select(...)` — see the superseded note above)
 - [ ] `virtual` removed from `UnitOfWork.SaveChangesAsync`; no `It.IsAny<T>()` as a constructor
       argument anywhere in the rewritten tests
 - [ ] `CreateApplicationCommandHandler` typo fixed

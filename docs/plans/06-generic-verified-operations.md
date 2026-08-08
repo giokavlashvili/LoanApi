@@ -127,8 +127,10 @@ prebuilt executor delegate so `confirm` does no reflection per call:
 
 ```csharp
 // MediatR command — reuses ValidationBehavior and PerformanceBehavior for free.
-// ISender.Send(object, CancellationToken) is confirmed present in MediatR 14.2.0
-// ("send an object request to a single handler via dynamic dispatch").
+// ISender.Send(object, CancellationToken) — "send an object request to a single handler via
+// dynamic dispatch". Confirmed present in MediatR 14.2.0 when this phase was written; the
+// solution has since been pinned back to 12.5.0 (last Apache-2.0 release) and the overload is
+// present there too, so the built descriptor is unaffected.
 Execute = (payload, sp, ct) => sp.GetRequiredService<ISender>().Send(payload, ct);
 ```
 

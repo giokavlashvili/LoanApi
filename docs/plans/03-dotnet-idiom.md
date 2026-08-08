@@ -250,6 +250,14 @@ first is a prerequisite for phase 4.
 
 ### AutoMapper is split across the solution
 
+> **Superseded (2026-08-08) — do not execute this sub-task.** AutoMapper has been removed from
+> the solution entirely, so there is no version left to unify. The query handlers write their own
+> `.Select(...)` projections and `IMapFrom<T>` / `MappingProfile` no longer exist. The reason is
+> a trap rather than a preference: AutoMapper 15+ is licensed under Lucky Penny's RPL-1.5
+> (copyleft), and the last MIT release, 14.0.0, is permanently vulnerable to CVE-2026-32933 —
+> the fix ships only in 15.1.1+/16.1.1+. See `docs/architecture.md`. The rest of task 7
+> (`Microsoft.Data.SqlClient` vs `System.Data.SqlClient`) was handled separately in `370e7eb`.
+
 | Project | AutoMapper |
 |---|---|
 | `Domain`, `Application`, `Infrastructure`, `WebApi` | **14.0.0** |
@@ -278,6 +286,11 @@ directly — EF Core and the Serilog sink bring their own. Report it; removing t
 `System.Data.SqlClient` reference is safe but is not required by this phase.
 
 ### `Domain` references AutoMapper
+
+> **Superseded (2026-08-08).** Resolved, though not the way this sub-task anticipated: the
+> reference is gone because AutoMapper is gone solution-wide. `Domain` now references exactly one
+> package, MediatR (pinned to 12.5.0, the last Apache-2.0 release), because `BaseEvent`
+> implements `INotification`.
 
 `Domain/Domain.csproj` has a `PackageReference` to AutoMapper. A domain project should not
 depend on a mapping library — mapping is an Application concern, and every DTO and profile in
@@ -323,8 +336,9 @@ boot with a message naming the missing setting — not throw on the first login.
 - [ ] Secrets removed from `appsettings.json` and moved to `appsettings.Development.json`;
       clone-and-run still works; a production-style run fails loudly; user-secrets documented
 - [ ] `OtpOptions` validated on start alongside `JwtOptions`
-- [ ] One AutoMapper version across all six projects; `Domain`'s AutoMapper reference removed or
-      its use reported
+- [x] ~~One AutoMapper version across all six projects; `Domain`'s AutoMapper reference removed or
+      its use reported~~ — moot: AutoMapper was removed from the solution on 2026-08-08, and
+      `Domain` now references only MediatR. See the superseded note in task 7.
 - [ ] `.cursor/rules/infrastructure-ef.mdc` and the `add-vertical-slice` skill mention the
       repository DI registration
 - [ ] Build green, tests green

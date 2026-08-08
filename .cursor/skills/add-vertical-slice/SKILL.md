@@ -56,7 +56,7 @@ property to it. Handlers inject the repositories they need; step 4 registers the
 Application/<Feature>/
   Commands/   # record + handler same file
   Queries/
-  Dtos/       # IMapFrom<T>
+  Dtos/       # plain classes, public setters
   Validators/ # AbstractValidator<T>, IApplicationDbContext + IStringLocalizer
   EventHandlers/
 ```
@@ -67,14 +67,15 @@ Application/<Feature>/
   `Application/Common/Extensions`). It throws `DomainValidationException("InvalidUser")` instead of
   letting the interceptor write a null `CreatedBy`. Inject `IDateTime` only when a *business rule*
   needs the time — never to feed an audit column.
-- Query handler: inject `IApplicationDbContext` + `IMapper`, then
-  `.AsNoTracking().ProjectTo<TDto>(_mapper.ConfigurationProvider)`. No repository.
-- DTOs need **public setters** for `ProjectTo` to work — a `private set` compiles and then fails at
-  runtime, because the projection is a member-init expression, not reflection.
+- Query handler: inject `IApplicationDbContext`, then
+  `.AsNoTracking().Select(e => new TDto { … })`. No repository, no mapper — the project has no
+  object mapper on purpose (see `docs/architecture.md`); write the projection by hand.
+- DTOs need **public setters** — a `private set` will not compile inside the object initializer,
+  because an initializer cannot assign an inaccessible setter.
 - Validators: inject `IApplicationDbContext` + `IStringLocalizer`; existence checks via `MustAsync`/
   `CustomAsync` + `AnyAsync`/`FirstOrDefaultAsync` (honour `CancellationToken`). Pure format rules
   may stay synchronous.
-- **No manual DI registration** for handlers, validators or DTO profiles.
+- **No manual DI registration** for handlers or validators. DTOs need none — they are plain classes.
 
 ## 4. Infrastructure
 
@@ -102,7 +103,7 @@ Application/<Feature>/
 - Application: Moq handler tests mocking `I<Name>Repository` + `IUnitOfWork` (the interfaces, not
   `UnitOfWork`); verify the repository call + `SaveChangesAsync`. Never pass `It.IsAny<T>()` as a
   constructor argument.
-- Infrastructure: if the slice added a query handler, its `ProjectTo` needs a **real** context —
+- Infrastructure: if the slice added a query handler, its projection needs a **real** context —
   a mocked `IApplicationDbContext` cannot execute a projection. See
   `Infrastructure.UnitTests/Queries/ProjectionQueryTests.cs`.
 

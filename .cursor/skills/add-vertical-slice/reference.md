@@ -20,9 +20,9 @@ Copy the `LoanApplication` sample. Replace names for the new aggregate.
 |----------|-------------|
 | Feature root | `Application/LoanApplications/` |
 | Command + handler | `Application/LoanApplications/Commands/CreateApplicationCommand.cs` (repository + `IUnitOfWork` injected directly; `RequireUserId()` guard, no audit arguments) |
-| Query, paginated | `Application/LoanApplications/Queries/GetApplicationsQuery.cs` (`ProjectTo` + count from one `IQueryable`) |
+| Query, paginated | `Application/LoanApplications/Queries/GetApplicationsQuery.cs` (`.Select(...)` + count from one `IQueryable`) |
 | Query, flat list | `Application/Currencies/Queries/GetCurrenciesQuery.cs` |
-| DTO | `Application/LoanApplications/Dtos/LoanApplicationDto.cs` (public setters — `ProjectTo`) |
+| DTO | `Application/LoanApplications/Dtos/LoanApplicationDto.cs` (public setters — member-init projection) |
 | Validator | `Application/LoanApplications/Validators/CreateApplicationCommandValidator.cs` (`IApplicationDbContext` + `MustAsync`) |
 | Event handler | `Application/LoanApplications/EventHandlers/` |
 | Non-domain notification | `Application/Authenticate/Notifications/UserRegisteredNotification.cs` + `NotificationHandlers/` |
@@ -47,7 +47,7 @@ Copy the `LoanApplication` sample. Replace names for the new aggregate.
 | Localization | `WebApi/Resources/localization.json` |
 | Domain tests | `Domain.UnitTests/Entities/LoanApplicationTests.cs` |
 | App tests | `Application.UnitTests/LoanApplications/Commands/CreateLoanApplicationTests.cs` |
-| Projection tests | `Infrastructure.UnitTests/Queries/ProjectionQueryTests.cs` (real context; a mocked one cannot run `ProjectTo`) |
+| Projection tests | `Infrastructure.UnitTests/Queries/ProjectionQueryTests.cs` (real context; a mocked one cannot run a projection) |
 | SQL-translation tests | `Infrastructure.UnitTests/Persistence/ProjectionSqlTranslationTests.cs` (`[Explicit]`, real SQL Server) |
 
 ## OTP opt-in samples

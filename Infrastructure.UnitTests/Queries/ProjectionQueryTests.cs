@@ -8,7 +8,7 @@ using NUnit.Framework;
 namespace Infrastructure.UnitTests.Queries
 {
     /// <summary>
-    /// The query handlers project with ProjectTo, which builds an expression tree the provider
+    /// The query handlers project with Select, which builds an expression tree the provider
     /// translates. A Mock&lt;IApplicationDbContext&gt; cannot exercise that at all — it would return a
     /// list the projection never touches — so these run against a real context on the in-memory
     /// provider. The failure they exist to catch is a silently empty LoanType/Currency in the list
@@ -58,7 +58,7 @@ namespace Infrastructure.UnitTests.Queries
             await using var context = CreateContext(databaseName);
 
             // Act
-            var result = await new GetCurrenciesQueryHandler(TestDb.Mapper(), context)
+            var result = await new GetCurrenciesQueryHandler(context)
                 .Handle(new GetCurrenciesQuery(), CancellationToken.None);
 
             // Assert
@@ -75,7 +75,7 @@ namespace Infrastructure.UnitTests.Queries
             await using var context = CreateContext(databaseName);
 
             // Act
-            var result = await new GetLoanTypesQueryHandler(TestDb.Mapper(), context)
+            var result = await new GetLoanTypesQueryHandler(context)
                 .Handle(new GetLoanTypesQuery(), CancellationToken.None);
 
             // Assert
@@ -92,7 +92,7 @@ namespace Infrastructure.UnitTests.Queries
             await using var context = CreateContext(databaseName);
 
             // Act
-            var result = await new GetApplicationsQueryHandler(TestDb.Mapper(), context)
+            var result = await new GetApplicationsQueryHandler(context)
                 .Handle(new GetApplicationsQuery(), CancellationToken.None);
 
             // Assert — the Include pair is gone; these two names now come from the projection's
@@ -112,7 +112,7 @@ namespace Infrastructure.UnitTests.Queries
             await using var context = CreateContext(databaseName);
 
             // Act
-            var result = await new GetApplicationsQueryHandler(TestDb.Mapper(), context)
+            var result = await new GetApplicationsQueryHandler(context)
                 .Handle(new GetApplicationsQuery { PageNumber = 2, PageSize = 2 }, CancellationToken.None);
 
             // Assert — the count covers the whole table, the items only the requested page, and

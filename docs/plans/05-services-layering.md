@@ -222,7 +222,8 @@ accepting a schema change in a refactoring phase.
 
 While in the entity, reconsider `[NotMapped] public User? CreatedByUser { get; set; }` — the one
 public settable property on an otherwise encapsulated aggregate. If nothing populates it (check
-`MappingProfile` and the controllers), delete it. If something does, make the setter private and
+the query handlers' projections and the controllers — `MappingProfile` was deleted with
+AutoMapper on 2026-08-08), delete it. If something does, make the setter private and
 add a method that sets it.
 
 ## Task 6 — `IUserService` moves to `Application`

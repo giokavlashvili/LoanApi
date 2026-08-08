@@ -12,7 +12,7 @@
          is a claim about what the innermost layer depends on, and an unused one makes that claim
          falsely. Asp.Versioning, Newtonsoft.Json, System.Data.SqlClient and
          System.IdentityModel.Tokens.Jwt were all referenced here and used by nothing. -->
-    <PackageReference Include="MediatR" Version="14.2.0" />
+    <PackageReference Include="MediatR" Version="12.5.0" />
   </ItemGroup>
 
   <ItemGroup>

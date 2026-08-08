@@ -13,9 +13,10 @@ namespace Infrastructure.UnitTests.Persistence
     /// The in-memory provider evaluates almost anything, so ProjectionQueryTests passing there
     /// says nothing about whether these expressions become valid T-SQL. Three specific risks the
     /// in-memory provider cannot see: CountAsync over an already-ordered query (SQL Server rejects
-    /// ORDER BY in a subquery without TOP, so EF has to strip it), the conditional MapFrom
-    /// expressions in LoanApplicationDto, and the navigation null checks the update validator now
-    /// projects instead of Include-ing. Requires localhost\SQLEXPRESS with migrations applied;
+    /// ORDER BY in a subquery without TOP, so EF has to strip it), the conditional navigation
+    /// flattening in GetApplicationsQueryHandler's projection, and the navigation null checks the
+    /// update validator now projects instead of Include-ing. Requires localhost\SQLEXPRESS with
+    /// migrations applied;
     /// excluded from the normal run.
     /// </summary>
     [TestFixture]
@@ -47,17 +48,17 @@ namespace Infrastructure.UnitTests.Persistence
             try
             {
                 // The two reference-data projections.
-                var currencies = await new GetCurrenciesQueryHandler(TestDb.Mapper(), context)
+                var currencies = await new GetCurrenciesQueryHandler(context)
                     .Handle(new GetCurrenciesQuery(), CancellationToken.None);
                 Assert.That(currencies.Select(c => c.Name), Does.Contain(CurrencyName));
 
-                var loanTypes = await new GetLoanTypesQueryHandler(TestDb.Mapper(), context)
+                var loanTypes = await new GetLoanTypesQueryHandler(context)
                     .Handle(new GetLoanTypesQuery(), CancellationToken.None);
                 Assert.That(loanTypes.Select(t => t.Name), Does.Contain(LoanTypeName));
 
                 // The paginated projection: CountAsync over the ordered query, then the page. The
                 // row just inserted has the newest Created, so it is first on page one.
-                var page = await new GetApplicationsQueryHandler(TestDb.Mapper(), context)
+                var page = await new GetApplicationsQueryHandler(context)
                     .Handle(new GetApplicationsQuery { PageNumber = 1, PageSize = 10 }, CancellationToken.None);
 
                 Assert.That(page.TotalCount, Is.GreaterThan(0));

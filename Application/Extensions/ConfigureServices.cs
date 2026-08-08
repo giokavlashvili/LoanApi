@@ -21,11 +21,6 @@ namespace Application.Extensions
     {
         public static IServiceCollection AddApplicationServices<Type>(this IServiceCollection services, IConfiguration? configuration = null)
         {
-            // AutoMapper 16 dropped the AddAutoMapper(params Assembly[]) overload; the assembly
-            // scan is now expressed through the configuration expression. Still a scan — the
-            // IMapFrom<T> DTOs in this assembly need no manual registration.
-            services.AddAutoMapper(cfg => cfg.AddMaps(Assembly.GetExecutingAssembly()));
-
             if (configuration is not null)
             {
                 services.Configure<PaginationOptions>(configuration.GetSection(PaginationOptions.SectionName));

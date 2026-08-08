@@ -57,7 +57,7 @@ namespace Application.UnitTests.Operations
             var services = new ServiceCollection();
             var databaseName = Guid.NewGuid().ToString();
 
-            // MediatR 14 requires an ILoggerFactory and refuses to register without one.
+            // TransactionBehavior resolves ILogger<T>, so the pipeline will not build without it.
             services.AddLogging();
             services.AddSingleton(typeof(Microsoft.Extensions.Logging.ILogger<>), typeof(NullLogger<>));
 

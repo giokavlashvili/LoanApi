@@ -1,8 +1,6 @@
 using Application.Common.Interfaces;
 using Application.Common.Models;
 using Application.LoanApplications.Dtos;
-using AutoMapper;
-using AutoMapper.QueryableExtensions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,12 +14,10 @@ namespace Application.LoanApplications.Queries
 
     public class GetApplicationsQueryHandler : IRequestHandler<GetApplicationsQuery, PaginatedList<LoanApplicationDto>>
     {
-        private readonly IMapper _mapper;
         private readonly IApplicationDbContext _context;
 
-        public GetApplicationsQueryHandler(IMapper mapper, IApplicationDbContext context)
+        public GetApplicationsQueryHandler(IApplicationDbContext context)
         {
-            _mapper = mapper;
             _context = context;
         }
 
@@ -36,12 +32,23 @@ namespace Application.LoanApplications.Queries
 
             var totalCount = await query.CountAsync(cancellationToken);
 
-            // ProjectTo replaces the Include(a => a.Currency).Include(a => a.LoanType) pair: the
-            // projection joins and selects exactly the columns the DTO needs.
+            // The Select replaces the Include(a => a.Currency).Include(a => a.LoanType) pair: the
+            // projection joins and selects exactly the columns the DTO needs. Both navigations are
+            // optional on the entity, so each name is null-guarded down to "" rather than assuming
+            // the join found a row — EF translates the conditional to a CASE over the LEFT JOIN.
             var items = await query
                 .Skip((request.PageNumber - 1) * request.PageSize)
                 .Take(request.PageSize)
-                .ProjectTo<LoanApplicationDto>(_mapper.ConfigurationProvider)
+                .Select(a => new LoanApplicationDto
+                {
+                    Id = a.Id,
+                    Amount = a.Amount,
+                    PeriodPerMonth = a.PeriodPerMonth,
+                    Status = a.Status,
+                    LoanType = a.LoanType != null && a.LoanType.Name != null ? a.LoanType.Name : "",
+                    Currency = a.Currency != null && a.Currency.Name != null ? a.Currency.Name : "",
+                    Created = a.Created
+                })
                 .ToListAsync(cancellationToken);
 
             return new PaginatedList<LoanApplicationDto>(items, totalCount, request.PageNumber, request.PageSize);

@@ -1,11 +1,8 @@
-using Application.Common.Mappings;
-using AutoMapper;
 using Domain.Entities;
 using Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace Infrastructure.UnitTests
@@ -76,15 +73,6 @@ namespace Infrastructure.UnitTests
 
             return entity;
         }
-
-        /// <summary>
-        /// The real <see cref="MappingProfile"/>, so projections behave as they do in the app.
-        /// AutoMapper 15+ requires an <c>ILoggerFactory</c>; the app gets one from the container,
-        /// and a test has nothing to log.
-        /// </summary>
-        internal static IMapper Mapper() =>
-            new MapperConfiguration(cfg => cfg.AddProfile<MappingProfile>(), NullLoggerFactory.Instance)
-                .CreateMapper();
 
         /// <summary>Echoes the key back, so assertions can check which key a rule produced.</summary>
         internal static IStringLocalizer Localizer()
