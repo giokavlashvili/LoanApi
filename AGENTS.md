@@ -21,6 +21,7 @@ ASP.NET Core **net10.0** Web API template. Assemblies: `Domain`, `Application`, 
 | `/add-feature` | Run **add-vertical-slice** skill |
 | `/migrate` | EF migration via **ef-migration** skill |
 | `/repurpose` | Run **repurpose-boilerplate** skill (explicit only) |
+| `/name-project` | Run **name-project** skill (rename `LoanApi` → product `Name`) |
 
 ## Skills
 
@@ -28,6 +29,7 @@ ASP.NET Core **net10.0** Web API template. Assemblies: `Domain`, `Application`, 
 - `add-otp-gate` — OTP on a command (auto-invoke)
 - `ef-migration` — SkipNSwag env + `dotnet ef` (auto-invoke)
 - `repurpose-boilerplate` — strip sample domain (**`/repurpose` only**)
+- `name-project` — rename product identity (`LoanApi` → `Name`; **`/name-project` only**)
 
 ## Quick commands
 
