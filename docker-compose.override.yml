@@ -19,9 +19,15 @@ services:
       # to bind :443 at startup. See the docker-compose notes in docs/architecture.md.
       - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
       - ${APPDATA}/ASP.NET/Https:/root/.aspnet/https:ro
+      # File sink and serilog-selflog.txt write under AppContext.BaseDirectory/logs. Without
+      # this they die with the container — which is the only place a quiet Logs table is explained.
+      - webapi-logs:/app/logs
 
   mssql:
     ports:
       # Published so host tools (SSMS, Azure Data Studio) can reach the containerised database.
       # 1433 is left to the host's SQL Express if it is running, hence 1434 on the host side.
       - "1434:1433"
+
+volumes:
+  webapi-logs:

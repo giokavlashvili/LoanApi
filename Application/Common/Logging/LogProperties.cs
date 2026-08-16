@@ -2,11 +2,11 @@ namespace Application.Common.Logging
 {
     /// <summary>
     /// Names of the structured properties attached to log events. These are the contract
-    /// between the code that logs and the sinks that read them: today the SQL Server sink
-    /// binds them to columns by matching name (see <c>WebApi/Extensions/LoggingConfiguration.cs</c>),
+    /// between the code that logs and the sinks that read them. The SQL Server sink binds
+    /// extra columns by matching name (see <c>LoggingConfiguration.BuildColumnOptions</c>),
     /// and a Seq (or any other structured) sink picks the same names up with no code change.
-    /// Keep in sync with <c>LoggingConfiguration.BuildColumnOptions</c> and
-    /// <c>Domain/Entities/Log.cs</c>.
+    /// Keep in sync with that mapping and <c>Domain/Entities/Log.cs</c>. Values written into
+    /// bounded columns must also respect <c>LogColumnLimits</c>.
     /// </summary>
     public static class LogProperties
     {

@@ -2,6 +2,8 @@ using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Xml;
+using System.Xml.Linq;
 
 namespace Application.Common.Logging
 {
@@ -16,7 +18,7 @@ namespace Application.Common.Logging
 
         /// <summary>
         /// Property names masked everywhere, matched case-insensitively. Callers can supply
-        /// their own set from configuration; this is the floor.
+        /// extra names from configuration; those are merged into this set, never replace it.
         /// </summary>
         public static readonly IReadOnlyCollection<string> DefaultSensitiveProperties = new[]
         {
@@ -54,9 +56,29 @@ namespace Application.Common.Logging
         };
 
         /// <summary>
+        /// Defaults plus any extra names. Config is additive so adding one name cannot
+        /// accidentally unmask another.
+        /// </summary>
+        public static HashSet<string> MergeSensitiveProperties(IEnumerable<string>? additional)
+        {
+            var keys = new HashSet<string>(DefaultSensitiveProperties, StringComparer.OrdinalIgnoreCase);
+
+            if (additional is null)
+                return keys;
+
+            foreach (var name in additional)
+            {
+                if (!string.IsNullOrWhiteSpace(name))
+                    keys.Add(name);
+            }
+
+            return keys;
+        }
+
+        /// <summary>
         /// Masks a captured HTTP body according to its media type. Structured payloads are
-        /// parsed and masked by property name; unstructured text is passed through, since
-        /// there are no field names to key off.
+        /// parsed and masked by property or element name; unstructured text is passed through,
+        /// since there are no field names to key off.
         /// </summary>
         public static string Redact(string body, string? mediaType, IReadOnlyCollection<string>? sensitiveProperties = null)
         {
@@ -72,7 +94,10 @@ namespace Application.Common.Logging
             if (mediaType.Contains("json", StringComparison.OrdinalIgnoreCase))
                 return RedactJson(body, sensitiveProperties);
 
-            // text/plain, xml and friends: nothing reliable to key off, so leave as-is.
+            if (mediaType.Contains("xml", StringComparison.OrdinalIgnoreCase))
+                return RedactXml(body, sensitiveProperties);
+
+            // text/plain and friends: nothing reliable to key off, so leave as-is.
             return body;
         }
 
@@ -136,8 +161,42 @@ namespace Application.Common.Logging
         }
 
         /// <summary>
+        /// Masks XML elements and attributes whose local name is on the sensitive list.
+        /// External DTDs are refused so a request body cannot pull the parser off-box.
+        /// </summary>
+        public static string RedactXml(string xml, IReadOnlyCollection<string>? sensitiveProperties = null)
+        {
+            if (string.IsNullOrWhiteSpace(xml))
+                return xml;
+
+            var keys = BuildKeySet(sensitiveProperties);
+
+            try
+            {
+                var settings = new XmlReaderSettings
+                {
+                    DtdProcessing = DtdProcessing.Prohibit,
+                    XmlResolver = null
+                };
+
+                using var reader = XmlReader.Create(new StringReader(xml), settings);
+                var document = XDocument.Load(reader);
+
+                if (document.Root is not null)
+                    RedactXElement(document.Root, keys);
+
+                return document.ToString(SaveOptions.DisableFormatting);
+            }
+            catch (Exception ex) when (ex is XmlException or InvalidOperationException)
+            {
+                return "[unparseable body omitted]";
+            }
+        }
+
+        /// <summary>
         /// Serializes a request/command object for logging with sensitive members masked.
-        /// Honours both the name rules and <see cref="SensitiveDataAttribute"/>.
+        /// Honours both the name rules and <see cref="SensitiveDataAttribute"/> on the
+        /// type and any nested public property types.
         /// </summary>
         public static string RedactObject(object? value, IReadOnlyCollection<string>? sensitiveProperties = null)
         {
@@ -168,18 +227,99 @@ namespace Application.Common.Logging
             }
         }
 
-        private static HashSet<string> BuildKeySet(IReadOnlyCollection<string>? sensitiveProperties)
-        {
-            var source = sensitiveProperties is { Count: > 0 } ? sensitiveProperties : DefaultSensitiveProperties;
-            return new HashSet<string>(source, StringComparer.OrdinalIgnoreCase);
-        }
+        private static HashSet<string> BuildKeySet(IReadOnlyCollection<string>? sensitiveProperties) =>
+            MergeSensitiveProperties(sensitiveProperties);
 
         private static string[] GetAttributeMarkedProperties(Type type) =>
-            AttributeMarkedProperties.GetOrAdd(type, static t => t
-                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                .Where(p => p.IsDefined(typeof(SensitiveDataAttribute), inherit: true))
-                .Select(p => p.Name)
-                .ToArray());
+            AttributeMarkedProperties.GetOrAdd(type, static t => CollectAttributeMarkedProperties(t, []).ToArray());
+
+        /// <summary>
+        /// Walks the public property graph so a <c>[SensitiveData]</c> member two levels down
+        /// still contributes its name. <paramref name="visited"/> stops a self-referencing DTO
+        /// from looping. Collections are unwrapped to their element type first.
+        /// <para>
+        /// <c>InitiateOperationCommand.Payload</c> is a shapeless <c>JsonElement</c> and still
+        /// contributes nothing — that path keeps relying on the name list.
+        /// </para>
+        /// </summary>
+        private static IEnumerable<string> CollectAttributeMarkedProperties(Type type, HashSet<Type> visited)
+        {
+            if (!visited.Add(type))
+                yield break;
+
+            foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (property.IsDefined(typeof(SensitiveDataAttribute), inherit: true))
+                {
+                    yield return property.Name;
+                    continue;
+                }
+
+                var propertyType = UnwrapElementType(property.PropertyType);
+
+                if (propertyType.IsPrimitive || propertyType.IsEnum || propertyType == typeof(string)
+                    || propertyType.Namespace?.StartsWith("System", StringComparison.Ordinal) == true)
+                {
+                    continue;
+                }
+
+                foreach (var nested in CollectAttributeMarkedProperties(propertyType, visited))
+                    yield return nested;
+            }
+        }
+
+        private static Type UnwrapElementType(Type type)
+        {
+            while (true)
+            {
+                var underlying = Nullable.GetUnderlyingType(type);
+                if (underlying is not null)
+                {
+                    type = underlying;
+                    continue;
+                }
+
+                if (type.IsArray)
+                {
+                    type = type.GetElementType()!;
+                    continue;
+                }
+
+                if (type != typeof(string))
+                {
+                    var enumerable = type.GetInterfaces()
+                        .Concat([type])
+                        .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>));
+
+                    if (enumerable is not null)
+                    {
+                        type = enumerable.GetGenericArguments()[0];
+                        continue;
+                    }
+                }
+
+                return type;
+            }
+        }
+
+        private static void RedactXElement(XElement element, HashSet<string> keys)
+        {
+            foreach (var attribute in element.Attributes())
+            {
+                if (keys.Contains(attribute.Name.LocalName))
+                    attribute.Value = Mask;
+            }
+
+            if (keys.Contains(element.Name.LocalName))
+            {
+                element.RemoveNodes();
+                element.Value = Mask;
+                return;
+            }
+
+            foreach (var child in element.Elements())
+                RedactXElement(child, keys);
+        }
 
         private static void RedactNode(JsonNode node, HashSet<string> keys)
         {

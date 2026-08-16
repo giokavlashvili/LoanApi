@@ -1,7 +1,9 @@
 using Application.Common.Interfaces;
 using Application.Common.Logging;
+using Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System.Diagnostics;
 
 namespace Application.Common.Behaviors
@@ -10,17 +12,18 @@ namespace Application.Common.Behaviors
     // the tighter constraint silently excluded every void command.
     public class PerformanceBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse> where TRequest : notnull
     {
-        private const int LongRunningThresholdMs = 500;
-
         private readonly ILogger<TRequest> _logger;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IOptionsMonitor<PerformanceLoggingOptions> _optionsMonitor;
 
         public PerformanceBehavior(
             ILogger<TRequest> logger,
-            ICurrentUserService currentUserService)
+            ICurrentUserService currentUserService,
+            IOptionsMonitor<PerformanceLoggingOptions> optionsMonitor)
         {
             _logger = logger;
             _currentUserService = currentUserService;
+            _optionsMonitor = optionsMonitor;
         }
 
         public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
@@ -32,9 +35,10 @@ namespace Application.Common.Behaviors
             timer.Stop();
 
             var elapsedMilliseconds = timer.ElapsedMilliseconds;
+            var threshold = _optionsMonitor.CurrentValue.LongRunningThresholdMs;
 
             // Log long running actions
-            if (elapsedMilliseconds > LongRunningThresholdMs)
+            if (elapsedMilliseconds > threshold)
             {
                 // Redacted: LoginCommand/RegisterUserCommand carry passwords, and authentication
                 // handlers are exactly the ones that cross the threshold (password hashing is
@@ -45,7 +49,7 @@ namespace Application.Common.Behaviors
                     "Long running request {RequestName} took {DurationMs} ms for user {UserId} — {RequestBody}",
                     typeof(TRequest).Name,
                     elapsedMilliseconds,
-                    _currentUserService.UserId ?? string.Empty,
+                    LogColumnLimits.Truncate(_currentUserService.UserId, LogColumnLimits.UserId) ?? string.Empty,
                     payload);
             }
 

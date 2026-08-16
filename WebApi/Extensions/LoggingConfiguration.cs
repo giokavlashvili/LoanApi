@@ -1,4 +1,5 @@
 using Application.Common.Logging;
+using Domain.Entities;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
@@ -16,11 +17,18 @@ namespace WebApi.Extensions
     /// column. The database connection string is read straight from configuration — no
     /// global side channel is needed, unlike NLog's GlobalDiagnosticsContext.
     /// </para>
+    /// <para>
+    /// Three sinks: Console, a rolling File, and the SQL Server <c>Logs</c> table (filtered by
+    /// <see cref="ShouldPersist"/>, skipped when <c>UseInMemoryDatabase</c> is true).
+    /// </para>
     /// </summary>
     public static class LoggingConfiguration
     {
         private const long FileSizeLimitBytes = 10 * 1024 * 1024;
         private const int RetainedFileCount = 14;
+        private const long SelfLogSizeLimitBytes = 5 * 1024 * 1024;
+        private const string SelfLogFileName = "serilog-selflog.txt";
+        private const string SelfLogRolledFileName = "serilog-selflog.1.txt";
 
         public static void AddApplicationLogging(this WebApplicationBuilder builder)
         {
@@ -32,40 +40,62 @@ namespace WebApi.Extensions
             builder.Services.AddSingleton<ILogEventEnricher, HttpContextEnricher>();
             builder.Services.AddSingleton<ILogEventEnricher, DefaultChannelEnricher>();
 
-            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+            // The in-memory provider has no Logs table (and often no SQL Server at all). Wiring
+            // the sink anyway would 5-second-flush into SelfLog forever while the app looks healthy.
+            // LogRetentionService is skipped on the same flag for the same reason.
+            var useInMemoryDatabase = builder.Configuration.GetValue("UseInMemoryDatabase", false);
+
+            string? connectionString = null;
+            if (!useInMemoryDatabase)
+            {
+                // Thrown at startup rather than passed along as null. The sink would otherwise accept
+                // it and fail on first flush, and because Serilog never throws out of a sink that
+                // failure surfaces only in serilog-selflog.txt -- an app that looks healthy and
+                // silently records nothing.
+                connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                    ?? throw new InvalidOperationException(
+                        "ConnectionStrings:DefaultConnection is missing; the log sink cannot be configured.");
+            }
 
             // Otherwise the framework's default Console/Debug providers stay registered
             // alongside Serilog and every line is emitted twice.
             builder.Logging.ClearProviders();
 
-            builder.Services.AddSerilog((services, loggerConfiguration) => loggerConfiguration
-                .ReadFrom.Configuration(builder.Configuration)
-                .ReadFrom.Services(services)
-                .Enrich.FromLogContext()
-                .Enrich.WithMachineName()
-                .WriteTo.Console()
-                .WriteTo.Async(sink => sink.File(
-                    path: Path.Combine(AppContext.BaseDirectory, "logs", "log-.txt"),
-                    rollingInterval: RollingInterval.Day,
-                    fileSizeLimitBytes: FileSizeLimitBytes,
-                    rollOnFileSizeLimit: true,
-                    retainedFileCountLimit: RetainedFileCount,
-                    outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff}|{Level:u}|{CorrelationId}|{SourceContext}|{Message:lj} {Exception}|url: {Url}{NewLine}"))
-                .WriteTo.Logger(databaseLogger => databaseLogger
-                    .Filter.ByIncludingOnly(ShouldPersist)
-                    .WriteTo.MSSqlServer(
-                        connectionString: connectionString,
-                        sinkOptions: new MSSqlServerSinkOptions
-                        {
-                            TableName = "Logs",
-                            // EF owns this schema (Infrastructure/Persistence/Configurations/
-                            // LogConfiguration.cs). Letting the sink create it would produce a
-                            // second, conflicting definition.
-                            AutoCreateSqlTable = false,
-                            BatchPostingLimit = 50,
-                            BatchPeriod = TimeSpan.FromSeconds(5)
-                        },
-                        columnOptions: BuildColumnOptions())));
+            builder.Services.AddSerilog((services, loggerConfiguration) =>
+            {
+                loggerConfiguration
+                    .ReadFrom.Configuration(builder.Configuration)
+                    .ReadFrom.Services(services)
+                    .Enrich.FromLogContext()
+                    .Enrich.WithMachineName()
+                    .WriteTo.Async(sink => sink.Console())
+                    .WriteTo.Async(sink => sink.File(
+                        path: Path.Combine(AppContext.BaseDirectory, "logs", "log-.txt"),
+                        rollingInterval: RollingInterval.Day,
+                        fileSizeLimitBytes: FileSizeLimitBytes,
+                        rollOnFileSizeLimit: true,
+                        retainedFileCountLimit: RetainedFileCount,
+                        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff}|{Level:u}|{CorrelationId}|{SourceContext}|{Message:lj} {Exception}|url: {Url}{NewLine}"));
+
+                if (connectionString is not null)
+                {
+                    loggerConfiguration.WriteTo.Logger(databaseLogger => databaseLogger
+                        .Filter.ByIncludingOnly(ShouldPersist)
+                        .WriteTo.MSSqlServer(
+                            connectionString: connectionString,
+                            sinkOptions: new MSSqlServerSinkOptions
+                            {
+                                TableName = "Logs",
+                                // EF owns this schema (Infrastructure/Persistence/Configurations/
+                                // LogConfiguration.cs). Letting the sink create it would produce a
+                                // second, conflicting definition.
+                                AutoCreateSqlTable = false,
+                                BatchPostingLimit = 50,
+                                BatchPeriod = TimeSpan.FromSeconds(5)
+                            },
+                            columnOptions: BuildColumnOptions()));
+                }
+            });
         }
 
         /// <summary>
@@ -81,11 +111,12 @@ namespace WebApi.Extensions
             {
                 var directory = Path.Combine(AppContext.BaseDirectory, "logs");
                 Directory.CreateDirectory(directory);
+                RollSelfLogIfNeeded(directory);
 
                 // SelfLog is written from sink threads, so the writer has to be synchronized.
                 var writer = TextWriter.Synchronized(
                     new StreamWriter(
-                        Path.Combine(directory, "serilog-selflog.txt"),
+                        Path.Combine(directory, SelfLogFileName),
                         append: true) { AutoFlush = true });
 
                 Serilog.Debugging.SelfLog.Enable(writer);
@@ -96,6 +127,28 @@ namespace WebApi.Extensions
                 // losing the diagnostic channel is bad, losing the app is worse.
                 Serilog.Debugging.SelfLog.Enable(Console.Error);
             }
+        }
+
+        /// <summary>
+        /// SelfLog is append-only and a persistent sink failure writes a line every few seconds.
+        /// At startup, if the current file has grown past the cap, it is moved aside so the
+        /// diagnostic channel cannot fill the disk. One sidecar is enough — the useful content
+        /// is the recent failure, not a history of them.
+        /// </summary>
+        private static void RollSelfLogIfNeeded(string directory)
+        {
+            var current = Path.Combine(directory, SelfLogFileName);
+            if (!File.Exists(current))
+                return;
+
+            if (new FileInfo(current).Length < SelfLogSizeLimitBytes)
+                return;
+
+            var rolled = Path.Combine(directory, SelfLogRolledFileName);
+            if (File.Exists(rolled))
+                File.Delete(rolled);
+
+            File.Move(current, rolled);
         }
 
         /// <summary>
@@ -160,21 +213,21 @@ namespace WebApi.Extensions
                     ColumnName = nameof(Domain.Entities.Log.Logger),
                     PropertyName = "SourceContext",
                     DataType = SqlDbType.NVarChar,
-                    DataLength = 255,
+                    DataLength = LogColumnLimits.Logger,
                     AllowNull = true
                 },
-                Text(nameof(Domain.Entities.Log.CorrelationId), 64),
-                Text(nameof(Domain.Entities.Log.Method), 10),
-                Text(nameof(Domain.Entities.Log.Url), 2048),
+                Text(nameof(Domain.Entities.Log.CorrelationId), LogColumnLimits.CorrelationId),
+                Text(nameof(Domain.Entities.Log.Method), LogColumnLimits.Method),
+                Text(nameof(Domain.Entities.Log.Url), LogColumnLimits.Url),
                 Number(nameof(Domain.Entities.Log.StatusCode)),
                 Number(nameof(Domain.Entities.Log.DurationMs)),
-                Text(nameof(Domain.Entities.Log.UserId), 128),
-                Text(nameof(Domain.Entities.Log.UserName), 256),
-                Text(nameof(Domain.Entities.Log.ClientIp), 64),
-                Text(nameof(Domain.Entities.Log.MachineName), 128),
+                Text(nameof(Domain.Entities.Log.UserId), LogColumnLimits.UserId),
+                Text(nameof(Domain.Entities.Log.UserName), LogColumnLimits.UserName),
+                Text(nameof(Domain.Entities.Log.ClientIp), LogColumnLimits.ClientIp),
+                Text(nameof(Domain.Entities.Log.MachineName), LogColumnLimits.MachineName),
                 Text(nameof(Domain.Entities.Log.RequestBody), -1),
                 Text(nameof(Domain.Entities.Log.ResponseBody), -1),
-                Text(nameof(Domain.Entities.Log.Channel), 20)
+                Text(nameof(Domain.Entities.Log.Channel), LogColumnLimits.Channel)
             };
 
             return options;

@@ -163,21 +163,20 @@ namespace Application.Common.Operations
         /// </item>
         /// <item>
         /// <strong>Encrypted at rest but logged in the clear.</strong> This is the subtle one.
-        /// <c>LogRedactor</c> masks nested JSON properly, but it derives its attribute-driven key
-        /// names from the <em>top-level</em> type it is handed — which for this flow is
-        /// <c>InitiateOperationCommand</c>, whose <c>Payload</c> is a shapeless <c>JsonElement</c>.
-        /// So a nested <c>[SensitiveData]</c> property contributes no name, and only the static
-        /// list stands between it and the <c>Logs</c> table. Encrypting a value in the database
-        /// while writing it verbatim to a log row is worse than not encrypting it, because it
-        /// looks handled.
+        /// <c>LogRedactor</c> walks nested JSON and the <c>[SensitiveData]</c> graph of the
+        /// object it is handed, but <c>InitiateOperationCommand.Payload</c> is a shapeless
+        /// <c>JsonElement</c> — so a nested marked property still contributes no name, and
+        /// only the (merged) name list stands between it and the <c>Logs</c> table. Encrypting
+        /// a value in the database while writing it verbatim to a log row is worse than not
+        /// encrypting it, because it looks handled.
         /// </item>
         /// </list>
         /// <para>
         /// The pairing is the same rule the <c>add-otp-gate</c> skill already states for OTP
-        /// members — "must appear in <strong>both</strong>" — enforced here rather than merely
-        /// documented. Auto-registering the names would be less friction but would hide the
-        /// coupling; a developer who marks a property should learn that redaction is a separate
-        /// list they now own.
+        /// members — the name must be in the redactor's merged set (defaults plus config) —
+        /// enforced here rather than merely documented. Auto-registering the names would be
+        /// less friction but would hide the coupling; a developer who marks a property should
+        /// learn that redaction is a separate list they now own.
         /// </para>
         /// </summary>
         private static void ValidateSensitiveProperties(
@@ -209,7 +208,7 @@ namespace Application.Common.Operations
                     $"Verifiable operation '{operationType}' ('{type.FullName}') marks {string.Join(", ", unredacted)} " +
                     "[SensitiveData], but those names are not masked by the log redactor -- so they would be encrypted " +
                     "in the database and written verbatim to the Logs table on every initiate. Add them to " +
-                    "RequestLogging:SensitiveProperties in appsettings.json, or to " +
+                    "RequestLogging:SensitiveProperties in appsettings.json (merged into the defaults), or to " +
                     $"{nameof(LogRedactor)}.{nameof(LogRedactor.DefaultSensitiveProperties)}.");
         }
 

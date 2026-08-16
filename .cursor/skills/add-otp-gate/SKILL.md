@@ -29,9 +29,9 @@ There are two, sharing one core. **Never put both on one command** — startup t
    - Default: leave `OtpRecipient` unset (`null`) → authenticated user's phone.
    - Registration / no user yet: override `OtpRecipient => PhoneNumber` (see `RegisterUserCommand`).
 4. Do **not** override `OtpPurpose` unless you need a shared purpose across types (default = command type name).
-5. Ensure OTP property names appear in **both**:
-   - `RequestLogging:SensitiveProperties` (`appsettings.json`)
-   - `LogRedactor.DefaultSensitiveProperties`
+5. Ensure OTP property names are in the redactor's merged set (`LogRedactor.DefaultSensitiveProperties`
+   plus `RequestLogging:SensitiveProperties` — config is additive). Names already on the defaults
+   (`otpCode`, `otp`, `code`) need no extra config.
 6. Validator: allow null `OtpCode`/`ChallengeId` on first call; validate format when present.
 7. Manual/API test: first call → **428** + `challengeId`/`expiresAt`; second call with code → handler runs.
 8. Dev: read code from logs (`LoggingSmsCodeSender`), not SMS.

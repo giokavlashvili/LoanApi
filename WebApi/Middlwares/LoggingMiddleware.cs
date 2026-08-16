@@ -1,8 +1,10 @@
 using Application.Common.Interfaces;
 using Application.Common.Logging;
+using Domain.Entities;
 using Microsoft.Extensions.Options;
 using System.Diagnostics;
 using System.Text;
+using WebApi.Logging;
 
 namespace WebApi.Middlwares
 {
@@ -42,6 +44,10 @@ namespace WebApi.Middlwares
             // instance is shared across concurrently in-flight requests, so a reload landing
             // mid-flight must not change the options a request started with.
             var options = _optionsMonitor.CurrentValue;
+
+            // Always, including ignored paths: the enricher and the 500 body both read this,
+            // and a caller that sent X-Correlation-ID should get it back even on /swagger.
+            RequestCorrelation.WriteResponseHeader(context);
 
             if (!options.Enabled || IsIgnoredPath(context.Request.Path, options))
             {
@@ -125,7 +131,8 @@ namespace WebApi.Middlwares
         {
             // Read the user only now: authentication runs downstream of this middleware, so
             // the claims principal is not populated on the way in.
-            var userId = _currentUserService.UserId ?? string.Empty;
+            var userId = LogColumnLimits.Truncate(_currentUserService.UserId, LogColumnLimits.UserId)
+                ?? string.Empty;
 
             var statusCode = failure is not null && !context.Response.HasStarted
                 ? StatusCodes.Status500InternalServerError

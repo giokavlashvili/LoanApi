@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
 using System.Net;
+using WebApi.Logging;
 
 namespace WebApi.Middlwares
 {
@@ -34,7 +34,7 @@ namespace WebApi.Middlwares
 
                 context.Response.Clear();
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                context.Response.ContentType = "application/json";
+                RequestCorrelation.WriteResponseHeader(context);
 
                 var result = new ProblemDetails
                 {
@@ -43,11 +43,10 @@ namespace WebApi.Middlwares
                     Type = "https://www.rfc-editor.org/rfc/rfc7231#section-6.6.1",
                     Detail = "Something went wrong! Contact support.",
                     // Lets a caller quote one id that finds every row for this request.
-                    Instance = context.TraceIdentifier
+                    Instance = RequestCorrelation.Resolve(context)
                 };
 
-                var dtoJson = JsonConvert.SerializeObject(result);
-                await context.Response.WriteAsync(dtoJson);
+                await context.Response.WriteAsJsonAsync(result);
             }
         }
     }

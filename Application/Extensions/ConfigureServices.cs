@@ -21,9 +21,16 @@ namespace Application.Extensions
     {
         public static IServiceCollection AddApplicationServices<Type>(this IServiceCollection services, IConfiguration? configuration = null)
         {
+            // Defaults even when no IConfiguration is supplied (tests that build a partial
+            // container). Configure below overlays when a section is present.
+            services.AddOptions<PerformanceLoggingOptions>();
+
             if (configuration is not null)
             {
                 services.Configure<PaginationOptions>(configuration.GetSection(PaginationOptions.SectionName));
+
+                services.Configure<PerformanceLoggingOptions>(
+                    configuration.GetSection(PerformanceLoggingOptions.SectionName));
 
                 services.AddOptions<OtpOptions>()
                     .Bind(configuration.GetSection(OtpOptions.SectionName))
@@ -119,10 +126,8 @@ namespace Application.Extensions
         }
 
         /// <summary>
-        /// The names <c>LogRedactor</c> will actually mask, mirroring its own precedence exactly: a
-        /// configured list <em>replaces</em> the defaults rather than adding to them. Getting that
-        /// backwards here would validate against a set the redactor never uses, and the check would
-        /// pass while live values reached the log.
+        /// The names <c>LogRedactor</c> will actually mask: defaults plus any extras from
+        /// configuration. Config is additive — adding one name cannot unmask another.
         /// </summary>
         private static IReadOnlyCollection<string> RedactedPropertyNames(IConfiguration? configuration)
         {
@@ -130,7 +135,7 @@ namespace Application.Extensions
                 .GetSection($"{RequestLoggingSectionName}:SensitiveProperties")
                 .Get<string[]>();
 
-            return configured is { Length: > 0 } ? configured : LogRedactor.DefaultSensitiveProperties;
+            return LogRedactor.MergeSensitiveProperties(configured);
         }
 
         /// <summary>

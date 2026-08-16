@@ -23,7 +23,8 @@ namespace Domain.Entities
 
         /// <summary>
         /// Ties every row produced by one HTTP request together: the request/response row,
-        /// any slow-handler warning, and any exception. Sourced from the ASP.NET trace identifier.
+        /// any slow-handler warning, and any exception. An inbound <c>X-Correlation-ID</c>
+        /// when present, otherwise the ASP.NET trace identifier.
         /// </summary>
         public string? CorrelationId { get; set; }
 

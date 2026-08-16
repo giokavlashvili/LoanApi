@@ -1,3 +1,4 @@
+using Domain.Entities;
 using Microsoft.AspNetCore.Http.Extensions;
 using Serilog.Core;
 using Serilog.Events;
@@ -13,6 +14,8 @@ namespace WebApi.Logging
     /// render time. Serilog has no ambient equivalent — context has to be attached to the
     /// event as it is created, which is what an enricher is for.
     /// </para>
+    /// Values are truncated to <see cref="LogColumnLimits"/> so one oversized URL cannot
+    /// fail a whole SQL Server batch.
     /// </summary>
     public sealed class HttpContextEnricher : ILogEventEnricher
     {
@@ -31,11 +34,15 @@ namespace WebApi.Logging
             if (context is null)
                 return;
 
-            AddIfAbsent(logEvent, propertyFactory, "CorrelationId", context.TraceIdentifier);
-            AddIfAbsent(logEvent, propertyFactory, "Method", context.Request.Method);
-            AddIfAbsent(logEvent, propertyFactory, "Url", context.Request.GetDisplayUrl());
-            AddIfAbsent(logEvent, propertyFactory, "ClientIp", context.Connection.RemoteIpAddress?.ToString());
-            AddIfAbsent(logEvent, propertyFactory, "UserName", context.User?.Identity?.Name);
+            AddIfAbsent(logEvent, propertyFactory, nameof(Domain.Entities.Log.CorrelationId), RequestCorrelation.Resolve(context));
+            AddIfAbsent(logEvent, propertyFactory, nameof(Domain.Entities.Log.Method),
+                LogColumnLimits.Truncate(context.Request.Method, LogColumnLimits.Method));
+            AddIfAbsent(logEvent, propertyFactory, nameof(Domain.Entities.Log.Url),
+                LogColumnLimits.Truncate(context.Request.GetDisplayUrl(), LogColumnLimits.Url));
+            AddIfAbsent(logEvent, propertyFactory, nameof(Domain.Entities.Log.ClientIp),
+                LogColumnLimits.Truncate(context.Connection.RemoteIpAddress?.ToString(), LogColumnLimits.ClientIp));
+            AddIfAbsent(logEvent, propertyFactory, nameof(Domain.Entities.Log.UserName),
+                LogColumnLimits.Truncate(context.User?.Identity?.Name, LogColumnLimits.UserName));
         }
 
         /// <summary>

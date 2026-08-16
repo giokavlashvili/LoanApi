@@ -183,12 +183,25 @@ namespace Application.UnitTests.Common.Operations
         }
 
         /// <summary>
-        /// The check mirrors <c>LogRedactor.BuildKeySet</c>: a configured list <em>replaces</em> the
-        /// defaults rather than extending them. Validating against the wrong set would pass while
-        /// live values still reached the log.
+        /// The check mirrors <c>LogRedactor.MergeSensitiveProperties</c>: a configured list
+        /// <em>extends</em> the defaults. A name already on the defaults stays masked even if
+        /// config omits it.
         /// </summary>
         [Test]
-        public void Build_HonoursAConfiguredRedactionListInPlaceOfTheDefaults()
+        public void Build_HonoursAMergedRedactionList()
+        {
+            var merged = LogRedactor.MergeSensitiveProperties(new[] { "somethingElse" });
+
+            var registry = VerifiableOperationRegistry.Build(
+                [typeof(RedactedSecretOperation)],
+                payloadProtectionConfigured: true,
+                merged);
+
+            Assert.That(registry.Get(Registered).PayloadType, Is.EqualTo(typeof(RedactedSecretOperation)));
+        }
+
+        [Test]
+        public void Build_WithAListThatOmitsTheSensitiveName_Throws()
         {
             Assert.That(
                 () => VerifiableOperationRegistry.Build(
@@ -196,7 +209,7 @@ namespace Application.UnitTests.Common.Operations
                     payloadProtectionConfigured: true,
                     new[] { "somethingElse" }),
                 Throws.InstanceOf<InvalidOperationException>().With.Message.Contains("Password"),
-                "a configured list that omits 'password' must not be rescued by the defaults");
+                "the registry checks the set it is given; merging happens before this call");
         }
 
         [Test]

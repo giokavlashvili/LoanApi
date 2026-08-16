@@ -37,7 +37,10 @@ namespace WebApi.Middlwares
             "application/x-www-form-urlencoded"
         };
 
-        /// <summary>Property names masked in captured bodies. Empty falls back to <see cref="LogRedactor.DefaultSensitiveProperties"/>.</summary>
+        /// <summary>
+        /// Extra property names masked in captured bodies, merged into
+        /// <see cref="LogRedactor.DefaultSensitiveProperties"/>. Empty adds nothing.
+        /// </summary>
         public string[] SensitiveProperties { get; set; } = Array.Empty<string>();
 
         /// <summary>Request path prefixes that produce no log row at all (case-insensitive).</summary>

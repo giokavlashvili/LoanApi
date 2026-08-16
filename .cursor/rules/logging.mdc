@@ -8,10 +8,13 @@ alwaysApply: false
 
 - Compose sinks/columns in code: `AddApplicationLogging`. Only **levels** live in the `Serilog` config section.
 - **Do not add a `Logging` section** to appsettings — MEL filters run before Serilog and can silently drop events.
-- `LoggingMiddleware` is outermost (before exception middleware); one structured row per request; `try/finally` always writes.
+- `LoggingMiddleware` is outermost (before exception middleware); one structured row per request; `try/finally` always writes. It accepts/echoes `X-Correlation-ID` (`RequestCorrelation`).
 - Column binding is by **property name** (`LogProperties.cs` ↔ `Domain/Entities/Log.cs` ↔ `BuildColumnOptions`). Keep all three in sync.
-- `AutoCreateSqlTable` is off — EF owns `Logs`. Mismatched columns fail the batch; check `logs/serilog-selflog.txt`.
+- Truncate enricher/middleware values to `LogColumnLimits` before they reach the sink — an over-length `Url` fails the whole batch, reported only to SelfLog.
+- `AutoCreateSqlTable` is off — EF owns `Logs`. Mismatched columns fail the batch; check `logs/serilog-selflog.txt` (rolled to `serilog-selflog.1.txt` at 5 MB on startup).
+- Skip the SQL Server sink when `UseInMemoryDatabase` is true (same flag as `LogRetentionService`).
 - Persist filter: request rows at `Information`; other loggers need `Warning`+. `Channel` distinguishes `Request` vs `Api`.
+- **Three sinks**: Console (async), File (async), SQL Server `Logs`.
 - Levels: `Information` / `Warning` / `Verbose` (not NLog-style `Info`/`Warn`).
-- Bodies: allowlisted content types + byte cap via `RequestLoggingOptions`; `LogRedactor` masks secrets.
+- Bodies: allowlisted content types + byte cap via `RequestLoggingOptions`; `LogRedactor` masks JSON, form-urlencoded, and XML. Config `SensitiveProperties` **merges into** the defaults.
 - Related: `Application/Common/Logging/**`, `WebApi/Logging/**`, `WebApi/Middlwares/**`, `LogRetentionService`.
